@@ -1,0 +1,38 @@
+# Unreal Engine generated files
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# Visual Studio / Rider / local IDE state
+.vs/
+.idea/
+.vscode/
+.codex/
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.VC.opendb
+
+# Build and debug artifacts
+Build-UE58.bat
+*.pdb
+*.obj
+*.ilk
+*.ipdb
+*.iobj
+*.log
+
+# Local backups and upgrade reports
+Backup/
+UpgradeLog*.htm
+
+# OS noise
+Thumbs.db
+Desktop.ini
+.DS_Store
