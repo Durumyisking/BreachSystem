@@ -29,9 +29,10 @@ public class BreachSystem : ModuleRules
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
-			
-		
-		PrivateDependencyModuleNames.AddRange(
+
+		CppStandard = CppStandardVersion.Cpp20;
+
+        PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"CoreUObject",
@@ -44,6 +45,7 @@ public class BreachSystem : ModuleRules
 				"DynamicMesh",
 				"MeshDescription",
 				"StaticMeshDescription",
+				"MeshConversion" // FMeshDescriptionToDynamicMesh 사용에 필요
 
 				// ... add private dependencies that you statically link with here ...	
 			}

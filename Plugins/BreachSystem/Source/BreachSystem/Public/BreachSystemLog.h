@@ -5,8 +5,7 @@
 #include "CoreMinimal.h"
 #include "HAL/ThreadSafeCounter.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogBS, Log, All);
-DECLARE_LOG_CATEGORY_EXTERN(LogBSError, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogBS, All, All);
 
 namespace BSLog
 {
@@ -40,4 +39,4 @@ namespace BSLog
 #define BS_SLOG(Verbosity, Format, ...) BSLOG(LogBS, Verbosity, Format, ##__VA_ARGS__)
 #define SLOG(Format, ...) BSLOG(LogBS, Log, Format, ##__VA_ARGS__)
 #define SWARN(Format, ...) BSLOG(LogBS, Warning, Format, ##__VA_ARGS__)
-#define SERROR(Format, ...) BSLOG(LogBSError, Error, Format, ##__VA_ARGS__)
+#define SERROR(Format, ...) BSLOG(LogBS, Error, Format, ##__VA_ARGS__)

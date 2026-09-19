@@ -9,7 +9,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(ClassGroup = (Breach), meta = (BlueprintSpawnableComponent))
 class BREACHSYSTEM_API UBreachableMeshComponent : public UDynamicMeshComponent
 {
 	GENERATED_BODY()
