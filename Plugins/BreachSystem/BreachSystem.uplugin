@@ -21,4 +21,10 @@
 			"LoadingPhase": "Default"
 		}
 	]
+	"Plugins": [
+		{
+			"Name": "GeometryProcessing",
+			"Enabled": true
+		}
+	]
 }

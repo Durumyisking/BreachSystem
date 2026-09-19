@@ -6,6 +6,7 @@ public class BreachSystem : ModuleRules
 {
 	public BreachSystem(ReadOnlyTargetRules Target) : base(Target)
 	{
+		CppStandard = CppStandardVersion.Cpp20;
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
 		PublicIncludePaths.AddRange(
@@ -30,7 +31,6 @@ public class BreachSystem : ModuleRules
 			}
 			);
 
-		CppStandard = CppStandardVersion.Cpp20;
 
         PrivateDependencyModuleNames.AddRange(
 			new string[]
