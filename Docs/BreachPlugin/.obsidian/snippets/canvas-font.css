@@ -1,0 +1,8 @@
+/* Canvas 줌아웃 상태의 파일명 */
+div.canvas-node-placeholder {
+    transform: scale(1) !important;
+    transform-origin: center center !important;
+
+    font-size: 48px !important;
+    font-weight: 700 !important;
+}

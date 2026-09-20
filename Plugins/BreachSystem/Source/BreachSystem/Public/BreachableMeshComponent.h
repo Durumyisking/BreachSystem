@@ -14,7 +14,11 @@ class BREACHSYSTEM_API UBreachableMeshComponent : public UDynamicMeshComponent
 {
 	GENERATED_BODY()
 	
-	
+protected:
+	virtual void OnRegister() override;
+
+	UFUNCTION()
+	void OnBreachableMeshHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 public:
 	void ConvertStaticMeshToDynamicMesh(UStaticMesh* InSourceStaticMesh);

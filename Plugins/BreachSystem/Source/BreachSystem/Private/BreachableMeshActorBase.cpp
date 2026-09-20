@@ -6,7 +6,6 @@
 #include "BreachableMeshComponent.h"
 #include "BreachSystemLog.h"
 
-
 // Sets default values
 ABreachableMeshActorBase::ABreachableMeshActorBase()
 {
@@ -29,13 +28,5 @@ void ABreachableMeshActorBase::OnConstruction(const FTransform& Transform)
 	{
 		SWARN(TEXT("Invalid Static Mesh"));
 	}
-}
-
-
-// Called every frame
-void ABreachableMeshActorBase::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
 }
 
