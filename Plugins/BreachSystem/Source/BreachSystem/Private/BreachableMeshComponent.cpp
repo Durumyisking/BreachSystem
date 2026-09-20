@@ -3,6 +3,7 @@
 
 #include "BreachableMeshComponent.h"
 
+#include "BreachSourceComponent.h"
 #include "BreachSystemLog.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "StaticMeshAttributes.h"
@@ -14,63 +15,44 @@ void UBreachableMeshComponent::OnRegister()
 {
 	Super::OnRegister();
 
+	ConvertStaticMeshToDynamicMesh(SourceStaticMesh);
+}
+
+void UBreachableMeshComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
 	OnComponentHit.RemoveAll(this);
 	OnComponentHit.AddDynamic(this, &ThisClass::OnBreachableMeshHit);
 }
 
 void UBreachableMeshComponent::OnBreachableMeshHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
-	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+                                                   UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
+	UBreachSourceComponent* BreachSourceComponent = OtherActor->GetComponentByClass<UBreachSourceComponent>();
+	if (!BreachSourceComponent)
+	{
+		return;
+	}
+
 	using namespace UE::Geometry;
 
+	// Mesh상에서의 로컬 좌표를 구한다.
 	const FTransform& ComponentTransform = GetComponentTransform();
-
-	const FVector HitLocalPosition =
-		ComponentTransform.InverseTransformPosition(Hit.ImpactPoint);
-
-	const FVector HitLocalNormal =
-		ComponentTransform.InverseTransformVectorNoScale(Hit.ImpactNormal).GetSafeNormal();
+	const FVector HitLocalPosition = ComponentTransform.InverseTransformPosition(Hit.ImpactPoint);
+	const FVector HitLocalNormal = ComponentTransform.InverseTransformVectorNoScale(Hit.ImpactNormal).GetSafeNormal();
 
 	DrawDebugPoint(GetWorld(), Hit.ImpactPoint, 10.f, FColor::Red, false, 5.f);
 
-	// 1. 뚫을 원통 생성
-	FCylinderGenerator CylinderGenerator;
-	CylinderGenerator.Radius[0] = 1.f;
-	CylinderGenerator.Radius[1] = 1.f;
-	CylinderGenerator.Height = 200.f;
-	CylinderGenerator.AngleSamples = 16;
-	CylinderGenerator.LengthSamples = 1;
-	CylinderGenerator.bCapped = true; // false면 튜브형태
+	const FQuaterniond CutterRotation(FVector3d::UnitZ(),FVector3d(HitLocalNormal)); // 정방향 Cutter을 Normal방향으로 돌리기 위한 회전값
 
-	CylinderGenerator.Generate();
+	const FDynamicMesh3& CutterMesh = BreachSourceComponent->GetCutterMesh();
+	FTransformSRT3d CutterMeshTransform(CutterRotation, HitLocalPosition);
 
-	FDynamicMesh3 CutterMesh(&CylinderGenerator); // 실제 메시정보 생성
-
-	// 2. Cylinder가 기본적으로 Z축 방향이므로
-	// Z축을 충돌 Normal 방향으로 회전시킨다.
-	const FQuat CutterRotation = FQuat::FindBetweenNormals(FVector::UpVector, HitLocalNormal);
-
-	// 3. Cutter를 Hit 위치로 이동 + 회전
-	for (int32 VertexID : CutterMesh.VertexIndicesItr())
-	{
-		FVector3d Position = CutterMesh.GetVertex(VertexID);
-
-		// 충돌면 방향으로 회전
-		Position = CutterRotation.RotateVector(Position);
-
-		// Hit 위치로 이동
-		Position += FVector3d(HitLocalPosition);
-
-		CutterMesh.SetVertex(VertexID, Position); // 정점 위치 재설정
-	}
-
-	// 4. 원본 벽 복사
 	FDynamicMesh3 SourceMesh(*GetMesh());
-
 	FDynamicMesh3 ResultMesh;
 
-	// 5. 벽 - 원통
-	FMeshBoolean MeshBoolean(&SourceMesh, &CutterMesh, &ResultMesh, FMeshBoolean::EBooleanOp::Difference);
+	FMeshBoolean MeshBoolean(&SourceMesh, FTransformSRT3d::Identity(), &CutterMesh, CutterMeshTransform, &ResultMesh, FMeshBoolean::EBooleanOp::Difference);
 
 	if (!MeshBoolean.Compute())
 	{
@@ -78,10 +60,10 @@ void UBreachableMeshComponent::OnBreachableMeshHit(UPrimitiveComponent* HitCompo
 		return;
 	}
 
-	// 6. 결과 적용
+	// 결과 적용
 	SetMesh(MoveTemp(ResultMesh));
 
-	// 7. 충돌도 새 메시 기준으로 갱신
+	// 충돌도 새 메시 기준으로 갱신
 	UpdateCollision(false);
 }
 

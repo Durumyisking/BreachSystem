@@ -19,7 +19,9 @@ public class BreachTest : ModuleRules
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
-			"Slate"
+			"Slate",
+
+			"BreachSystem"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

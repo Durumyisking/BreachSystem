@@ -16,12 +16,16 @@ class BREACHSYSTEM_API UBreachableMeshComponent : public UDynamicMeshComponent
 	
 protected:
 	virtual void OnRegister() override;
+	virtual void BeginPlay() override;
 
 	UFUNCTION()
 	void OnBreachableMeshHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 public:
 	void ConvertStaticMeshToDynamicMesh(UStaticMesh* InSourceStaticMesh);
-	
-	
+
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UStaticMesh> SourceStaticMesh;
+
 };
