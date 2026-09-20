@@ -8,7 +8,8 @@ public class BreachTestEditorTarget : TargetRules
 	public BreachTestEditorTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Editor;
-		bOverrideBuildEnvironment = true;
-		ExtraModuleNames.Add("BreachTest");
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+		DefaultBuildSettings = BuildSettingsVersion.V7;
+        ExtraModuleNames.Add("BreachTest");
 	}
 }

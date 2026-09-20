@@ -8,7 +8,8 @@ public class BreachTestTarget : TargetRules
 	public BreachTestTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
-		bOverrideBuildEnvironment = true;
-		ExtraModuleNames.Add("BreachTest");
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+		DefaultBuildSettings = BuildSettingsVersion.V7;
+        ExtraModuleNames.Add("BreachTest");
 	}
 }
