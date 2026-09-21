@@ -199,6 +199,12 @@
                   "eState": "{}"
                 },
                 {
+                  "title": "메모",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"메모.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"메모\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
                   "title": "메시에 구멍뚫기",
                   "icon": "lucide-file",
                   "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/메시에 구멍뚫기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"메시에 구멍뚫기\"}",
@@ -209,16 +215,39 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "메모.md",
+                "file": "개발노트/메시에 구멍뚫기.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "메모"
+              "title": "메시에 구멍뚫기"
+            }
+          },
+          {
+            "id": "8f4f34a961369ce9",
+            "type": "leaf",
+            "pane-relief:history-v1": {
+              "pos": 0,
+              "stack": [
+                {
+                  "state": "{}",
+                  "eState": "{}"
+                }
+              ]
+            },
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "개발노트/StaticMesh vs DynamicMesh.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "StaticMesh vs DynamicMesh"
             }
           }
         ],
-        "currentTab": 5
+        "currentTab": 6
       }
     ],
     "direction": "vertical"
@@ -411,8 +440,8 @@
                 "showSearch": false,
                 "searchQuery": ""
               },
-              "icon": "lucide-archive",
-              "title": "모든 속성"
+              "icon": "lucide-ghost",
+              "title": "all-properties"
             }
           },
           {
@@ -448,6 +477,7 @@
   },
   "left-ribbon": {
     "hiddenItems": {
+      "publish:변경사항 게재": false,
       "switcher:빠른 전환기 열기": false,
       "graph:그래프 뷰 열기": false,
       "canvas:새 캔버스 만들기": false,
@@ -458,16 +488,25 @@
       "vscode-editor:Create Code File": false
     }
   },
-  "active": "fa471dcd95f81253",
+  "active": "8f4f34a961369ce9",
   "lastOpenFiles": [
+    "Pasted image 20260922010508.png",
+    "BreachableMeshComponent-Structure-Flow.png",
+    "BreachableMeshComponent-Structure-Flow.svg",
+    "Pasted image 20260921223949.png",
+    "Pasted image 20260921221049.png",
+    "Pasted image 20260921221012.png",
+    "Pasted image 20260921220426.png",
+    "Pasted image 20260921220050.png",
     "개발노트/메시에 구멍뚫기.md",
+    "개발노트/StaticMesh vs DynamicMesh.md",
+    "메모.md",
     "개발노트/메시의 Hit 지점 알아내기.md",
     "언리얼에 이미 있는 요소.md",
     "개발노트/StaticMesh에서 DynamicMesh변환.md",
     "무제.canvas",
     "개발노트",
     "클래스 구조.md",
-    "메모.md",
     "링크를 만들거나.md"
   ]
 }

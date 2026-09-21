@@ -3,29 +3,27 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/DynamicMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "BreachableMeshComponent.generated.h"
+
+class UDynamicMeshComponent;
 
 /**
  * 
  */
 UCLASS(ClassGroup = (Breach), meta = (BlueprintSpawnableComponent))
-class BREACHSYSTEM_API UBreachableMeshComponent : public UDynamicMeshComponent
+class BREACHSYSTEM_API UBreachableMeshComponent : public UStaticMeshComponent
 {
 	GENERATED_BODY()
 	
 protected:
-	virtual void OnRegister() override;
 	virtual void BeginPlay() override;
 
 	UFUNCTION()
 	void OnBreachableMeshHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
-public:
-	void ConvertStaticMeshToDynamicMesh(UStaticMesh* InSourceStaticMesh);
-
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UStaticMesh> SourceStaticMesh;
+	UPROPERTY(Transient)
+	TObjectPtr<UDynamicMeshComponent> DynamicMeshProxy;
 
 };

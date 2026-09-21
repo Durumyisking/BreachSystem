@@ -14,8 +14,13 @@ class BREACHSYSTEM_API UBreachSourceComponent : public UActorComponent
 	GENERATED_BODY()
 	
 protected:
-	void CacheCutterMesh();
+	/** 설정된 브리칭 형상을 게임 시작 시 한 번 캐시한다. */
+	virtual void BeginPlay() override;
+
+	UFUNCTION(BlueprintCallable)
+	bool CacheCutterMesh();
 public: 
+	UFUNCTION(BlueprintCallable)
 	void UpdateBreachSourceOption(const FBreachSourceOption& InBreachSourceOption)
 	{
 		BreachSourceOption = InBreachSourceOption;
@@ -29,5 +34,6 @@ protected:
 	UE::Geometry::FDynamicMesh3 CachedCutterMesh;
 
 public:
-	const UE::Geometry::FDynamicMesh3& GetCutterMesh() const { return CachedCutterMesh; }
+	/** 캐시가 비어 있으면 한 번 재생성을 시도하고, 사용할 수 없으면 nullptr를 반환한다. */
+	const UE::Geometry::FDynamicMesh3* ResolveCutterMesh();
 };

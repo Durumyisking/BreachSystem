@@ -45,9 +45,9 @@ public class BreachSystem : ModuleRules
 				"DynamicMesh",
 				"MeshDescription",
 				"StaticMeshDescription",
-				"MeshConversion" // FMeshDescriptionToDynamicMesh 사용에 필요
+				"MeshConversion", // FMeshDescriptionToDynamicMesh 사용에 필요
+				"MeshConversionEngineTypes",
 
-				// ... add private dependencies that you statically link with here ...	
 			}
 			);
 		

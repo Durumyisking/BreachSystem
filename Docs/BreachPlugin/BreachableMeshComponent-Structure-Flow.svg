@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1060" viewBox="0 0 1600 1060" role="img" aria-labelledby="title desc">
+  <title id="title">UBreachableMeshComponent 클래스 구조와 함수 흐름</title>
+  <desc id="desc">브리칭 전 StaticMesh 프록시 렌더링, 충돌 후 DynamicMesh Boolean 절삭 및 전환 흐름을 나타낸 다이어그램</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#172554"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#020617" flood-opacity="0.35"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"/>
+    </marker>
+    <style>
+      .title { font-family: 'Malgun Gothic'; font-size: 34px; font-weight: bold; fill: #f8fafc; }
+      .subtitle { font-family: 'Malgun Gothic'; font-size: 17px; font-weight: normal; fill: #94a3b8; }
+      .panel-title { font-family: 'Malgun Gothic'; font-size: 23px; font-weight: bold; fill: #e2e8f0; }
+      .node-title { font-family: 'Malgun Gothic'; font-size: 18px; font-weight: bold; fill: #f8fafc; }
+      .body { font-family: 'Malgun Gothic'; font-size: 15px; font-weight: normal; fill: #cbd5e1; }
+      .small { font-family: 'Malgun Gothic'; font-size: 13px; font-weight: normal; fill: #94a3b8; }
+      .mono { font-family: 'Malgun Gothic'; font-size: 14px; font-weight: bold; fill: #e2e8f0; }
+      .panel { fill: #0b1222; stroke: #334155; stroke-width: 1.5; rx: 20; filter: url(#shadow); }
+      .node { fill: #1e293b; stroke: #475569; stroke-width: 1.5; rx: 14; }
+      .static { fill: #0c4a6e; stroke: #38bdf8; stroke-width: 2; rx: 14; }
+      .dynamic { fill: #3b0764; stroke: #c084fc; stroke-width: 2; rx: 14; }
+      .source { fill: #064e3b; stroke: #34d399; stroke-width: 2; rx: 14; }
+      .decision { fill: #422006; stroke: #fbbf24; stroke-width: 2; }
+      .edge { fill: none; stroke: #94a3b8; stroke-width: 2; marker-end: url(#arrow); }
+      .edge-blue { fill: none; stroke: #38bdf8; stroke-width: 2.5; marker-end: url(#arrow); }
+      .edge-purple { fill: none; stroke: #c084fc; stroke-width: 2.5; marker-end: url(#arrow); }
+      .label-bg { fill: #0f172a; rx: 6; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1060" fill="#0f172a"/>
+  <text x="60" y="60" class="title">UBreachableMeshComponent 구조와 실행 흐름</text>
+  <text x="60" y="91" class="subtitle">평상시에는 StaticMesh 리소스를 공유하고, 최초 절삭 성공 시에만 DynamicMesh 렌더링으로 전환</text>
+
+  <!-- Class structure panel -->
+  <rect x="45" y="125" width="570" height="885" class="panel"/>
+  <text x="75" y="170" class="panel-title">1. 클래스 구조</text>
+
+  <rect x="95" y="205" width="470" height="92" class="node"/>
+  <text x="330" y="238" text-anchor="middle" class="node-title">UDynamicMeshComponent</text>
+  <text x="330" y="269" text-anchor="middle" class="body">렌더 프록시 · DynamicMesh · 동적 충돌 소유</text>
+
+  <path d="M330 297 L330 335" class="edge"/>
+  <rect x="75" y="335" width="510" height="178" class="dynamic"/>
+  <text x="330" y="370" text-anchor="middle" class="node-title">UBreachableMeshComponent</text>
+  <text x="105" y="407" class="mono">SourceStaticMesh</text>
+  <text x="290" y="407" class="body">사용자가 지정하는 원본 에셋</text>
+  <text x="105" y="439" class="mono">StaticMeshProxy</text>
+  <text x="290" y="439" class="body">런타임 내부 StaticMeshComponent</text>
+  <text x="105" y="471" class="mono">bUsingDynamicMesh</text>
+  <text x="290" y="471" class="body">Static → Dynamic 전환 상태</text>
+
+  <path d="M205 513 L205 559" class="edge-blue"/>
+  <path d="M455 513 L455 559" class="edge-purple"/>
+
+  <rect x="75" y="559" width="260" height="142" class="static"/>
+  <text x="205" y="593" text-anchor="middle" class="node-title">UStaticMeshComponent</text>
+  <text x="205" y="620" text-anchor="middle" class="body">StaticMeshProxy</text>
+  <text x="205" y="650" text-anchor="middle" class="small">브리칭 전 렌더링·충돌</text>
+  <text x="205" y="674" text-anchor="middle" class="small">공용 StaticMesh 리소스 사용</text>
+
+  <rect x="365" y="559" width="200" height="142" class="dynamic"/>
+  <text x="465" y="593" text-anchor="middle" class="node-title">FDynamicMesh3</text>
+  <text x="465" y="620" text-anchor="middle" class="body">내부 MeshObject</text>
+  <text x="465" y="650" text-anchor="middle" class="small">최초 성공 후 렌더링</text>
+  <text x="465" y="674" text-anchor="middle" class="small">벽마다 독립 메시 데이터</text>
+
+  <rect x="75" y="758" width="490" height="200" class="source"/>
+  <text x="320" y="795" text-anchor="middle" class="node-title">브리칭 입력 측</text>
+  <rect x="105" y="822" width="195" height="92" class="node"/>
+  <text x="202" y="854" text-anchor="middle" class="node-title">UBreachSourceComponent</text>
+  <text x="202" y="883" text-anchor="middle" class="small">CachedCutterMesh 제공</text>
+  <rect x="340" y="822" width="195" height="92" class="node"/>
+  <text x="437" y="854" text-anchor="middle" class="node-title">UBreachShape</text>
+  <text x="437" y="883" text-anchor="middle" class="small">GenerateMesh()</text>
+  <path d="M340 868 L301 868" class="edge"/>
+
+  <!-- Runtime flow panel -->
+  <rect x="645" y="125" width="910" height="885" class="panel"/>
+  <text x="675" y="170" class="panel-title">2. 런타임 함수 흐름</text>
+
+  <rect x="685" y="205" width="240" height="82" class="node"/>
+  <text x="805" y="237" text-anchor="middle" class="node-title">OnRegister()</text>
+  <text x="805" y="264" text-anchor="middle" class="small">Ensure → Sync proxy</text>
+  <path d="M925 246 L985 246" class="edge-blue"/>
+  <rect x="985" y="205" width="515" height="82" class="static"/>
+  <text x="1242" y="237" text-anchor="middle" class="node-title">StaticMeshProxy 준비</text>
+  <text x="1242" y="264" text-anchor="middle" class="small">메시 · 머티리얼 · 주요 충돌 설정 복사</text>
+
+  <rect x="685" y="330" width="240" height="82" class="node"/>
+  <text x="805" y="362" text-anchor="middle" class="node-title">BeginPlay()</text>
+  <text x="805" y="389" text-anchor="middle" class="small">Dynamic 비활성화</text>
+  <path d="M925 371 L985 371" class="edge-blue"/>
+  <rect x="985" y="330" width="515" height="82" class="static"/>
+  <text x="1242" y="362" text-anchor="middle" class="node-title">Static 단계</text>
+  <text x="1242" y="389" text-anchor="middle" class="small">Static 렌더링 · Static 충돌 · OnComponentHit 대기</text>
+
+  <path d="M1242 412 L1242 455" class="edge"/>
+  <rect x="985" y="455" width="515" height="82" class="source"/>
+  <text x="1242" y="487" text-anchor="middle" class="node-title">OnBreachableMeshHit()</text>
+  <text x="1242" y="514" text-anchor="middle" class="small">OtherActor에서 BreachSource 확인</text>
+
+  <path d="M1242 537 L1242 572" class="edge"/>
+  <polygon points="1242,572 1380,637 1242,702 1104,637" class="decision"/>
+  <text x="1242" y="631" text-anchor="middle" class="node-title">최초 브리칭?</text>
+  <text x="1242" y="656" text-anchor="middle" class="small">bUsingDynamicMesh</text>
+
+  <path d="M1104 637 L965 637" class="edge-blue"/>
+  <rect x="695" y="586" width="270" height="102" class="static"/>
+  <text x="830" y="620" text-anchor="middle" class="node-title">ConvertStaticMesh…()</text>
+  <text x="830" y="649" text-anchor="middle" class="small">로컬 InitialMesh 생성</text>
+  <text x="830" y="673" text-anchor="middle" class="small">컴포넌트에는 아직 미적용</text>
+  <rect x="1007" y="606" width="68" height="27" class="label-bg"/>
+  <text x="1041" y="625" text-anchor="middle" class="small">YES</text>
+
+  <path d="M1242 702 L1242 750" class="edge-purple"/>
+  <rect x="1260" y="710" width="58" height="27" class="label-bg"/>
+  <text x="1289" y="729" text-anchor="middle" class="small">NO</text>
+  <rect x="1088" y="750" width="308" height="76" class="dynamic"/>
+  <text x="1242" y="781" text-anchor="middle" class="node-title">현재 GetMesh() 직접 참조</text>
+  <text x="1242" y="807" text-anchor="middle" class="small">전체 입력 메시 복사 없음</text>
+
+  <path d="M830 688 L830 858 L1020 858" class="edge"/>
+  <path d="M1242 826 L1242 858 L1136 858" class="edge"/>
+  <rect x="1020" y="835" width="330" height="76" class="node"/>
+  <text x="1185" y="866" text-anchor="middle" class="node-title">FMeshBoolean::Difference</text>
+  <text x="1185" y="892" text-anchor="middle" class="small">벽 메시 − CachedCutterMesh</text>
+
+  <path d="M1350 873 L1410 873" class="edge-purple"/>
+  <rect x="1385" y="834" width="135" height="118" class="dynamic"/>
+  <text x="1452" y="865" text-anchor="middle" class="node-title">성공</text>
+  <text x="1452" y="893" text-anchor="middle" class="small">SetMesh()</text>
+  <text x="1452" y="917" text-anchor="middle" class="small">최초: Activate</text>
+  <text x="1452" y="941" text-anchor="middle" class="small">UpdateCollision</text>
+
+  <rect x="685" y="944" width="555" height="42" fill="#312e81" stroke="#818cf8" stroke-width="1.5" rx="10"/>
+  <text x="962" y="971" text-anchor="middle" class="body">이후 피격은 누적된 DynamicMesh를 다시 Boolean 절삭</text>
+
+  <text x="675" y="1034" class="small">종료: OnUnregister() → DestroyStaticMeshProxy()</text>
+</svg>
