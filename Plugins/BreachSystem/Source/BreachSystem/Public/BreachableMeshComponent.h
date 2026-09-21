@@ -8,6 +8,11 @@
 
 class UDynamicMeshComponent;
 
+namespace UE::Geometry
+{
+	class FDynamicMesh3;
+}
+
 /**
  * 
  */
@@ -21,6 +26,9 @@ protected:
 
 	UFUNCTION()
 	void OnBreachableMeshHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	bool ConvertStaticMeshToDynamicMesh(UE::Geometry::FDynamicMesh3& OutMesh) const;
+	void CreateDynamicMeshProxy(UE::Geometry::FDynamicMesh3&& Mesh);
 
 protected:
 	UPROPERTY(Transient)
