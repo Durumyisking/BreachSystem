@@ -6,13 +6,6 @@
 
 class UBreachShape;
 
-UENUM(BlueprintType)
-enum class EBreachDepthMode : uint8
-{
-	Shared,
-	Individual
-};
-
 USTRUCT(BlueprintType)
 struct BREACHSYSTEM_API FBreachShapeOption
 {
@@ -28,9 +21,6 @@ struct BREACHSYSTEM_API FBreachCylinderShapeOption : public FBreachShapeOption
 	FVector2D Radius = FVector2D(10.f, 10.f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float Depth = 100.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int32 Segments = 16;
 };
 
@@ -44,9 +34,6 @@ struct BREACHSYSTEM_API FBreachSphereShapeOption : public FBreachShapeOption
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int32 ThetaSegments = 16;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	int32 PhiSegments = 8;
 };
 
 USTRUCT(BlueprintType)
@@ -56,9 +43,6 @@ struct BREACHSYSTEM_API FBreachBoxShapeOption : public FBreachShapeOption
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FVector2D Size = FVector2D(10.f, 10.f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float Depth = 100.f;
 };
 
 USTRUCT(BlueprintType)
@@ -70,13 +54,7 @@ struct BREACHSYSTEM_API FBreachCapsuleShapeOption : public FBreachShapeOption
 	float Radius = 10.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float Depth = 100.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int32 CircleSegments = 16;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	int32 HemisphereSegments = 4;
 };
 
 USTRUCT(BlueprintType)

@@ -13,6 +13,7 @@
 #include "GameFramework/Actor.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "Operations/MeshBoolean.h"
+#include "DynamicMesh/MeshTransforms.h"
 
 
 void UBreachableMeshComponent::BeginPlay()
@@ -65,12 +66,6 @@ void UBreachableMeshComponent::ApplyBreachHit(UPrimitiveComponent* HitComponent,
 
 	using namespace UE::Geometry;
 
-	const FDynamicMesh3* CutterMesh = BreachSourceComponent->ResolveCutterMesh();
-	if (!CutterMesh)
-	{
-		return;
-	}
-
 	// 원본 충돌은 메시를 변환하고, 프록시 충돌은 현재 메시를 그대로 사용한다.
 	FDynamicMesh3 ConvertedMesh;
 	const FDynamicMesh3* SourceMesh = nullptr;
@@ -87,26 +82,37 @@ void UBreachableMeshComponent::ApplyBreachHit(UPrimitiveComponent* HitComponent,
 		SourceMesh = DynamicMeshProxy->GetMesh();
 	}
 
-	// 충돌 위치와 법선을 메시 로컬 좌표로 옮겨 커터를 배치한다.
-	const FTransform& ComponentTransform = HitComponent->GetComponentTransform();
-	const FVector HitLocalPosition = ComponentTransform.InverseTransformPosition(Hit.ImpactPoint);
-	const FVector HitLocalNormal = ComponentTransform.InverseTransformVectorNoScale(Hit.ImpactNormal).GetSafeNormal();
+	if (!SourceMesh || SourceMesh->TriangleCount() == 0)
+	{
+		return;
+	}
+
+	// SourceMesh는 로컬 정점이다. 벽의 Transform으로 월드 범위를 구해 관통 길이를 계산한다.
+	const FTransformSRT3d MeshTransform(HitComponent->GetComponentTransform());
+	const FAxisAlignedBox3d TargetWorldBounds(SourceMesh->GetBounds(), MeshTransform);
+	FTransformSRT3d CutterMeshTransform;
+	const FDynamicMesh3* CutterMesh = BreachSourceComponent->ResolveCutterMesh(
+		TargetWorldBounds, Hit.ImpactPoint, Hit.ImpactNormal, CutterMeshTransform);
+	if (!CutterMesh)
+	{
+		return;
+	}
 
 	DrawDebugPoint(GetWorld(), Hit.ImpactPoint, 10.f, FColor::Red, false, 5.f);
 
-	const FQuaterniond CutterRotation(FVector3d::UnitZ(),FVector3d(HitLocalNormal));
-
-	FTransformSRT3d CutterMeshTransform(CutterRotation, HitLocalPosition);
-
 	FDynamicMesh3 ResultMesh;
 
-	FMeshBoolean MeshBoolean(SourceMesh, FTransformSRT3d::Identity(), CutterMesh, CutterMeshTransform, &ResultMesh, FMeshBoolean::EBooleanOp::Difference);
+	// 벽과 커터를 각각 월드 공간에 배치해 계산한다. Boolean은 커터를 내부 복사하므로 캐시는 유지된다.
+	FMeshBoolean MeshBoolean(SourceMesh, MeshTransform, CutterMesh, CutterMeshTransform, &ResultMesh, FMeshBoolean::EBooleanOp::Difference);
 
 	if (!MeshBoolean.Compute())
 	{
 		SWARN(TEXT("Mesh Boolean Failed: UnweldedEdges=%d"), MeshBoolean.CreatedBoundaryEdges.Num());
 		return;
 	}
+
+	// Boolean 결과는 월드 공간이므로 프록시에 저장하기 전에 로컬 공간으로 되돌린다.
+	MeshTransforms::ApplyTransformInverse(ResultMesh, MeshTransform, true);
 
 	// 연산 성공 시 처음에는 프록시로 전환하고, 이후에는 메시와 충돌만 갱신한다.
 	if (this == HitComponent)

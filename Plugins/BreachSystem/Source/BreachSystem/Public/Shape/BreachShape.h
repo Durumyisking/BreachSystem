@@ -18,6 +18,7 @@ class BREACHSYSTEM_API UBreachShape : public UObject
 public:
 	virtual void GenerateMesh(
 		const FBreachSourceOption& Option,
+		double Length,
 		UE::Geometry::FDynamicMesh3& OutMesh) const
 		PURE_VIRTUAL(UBreachShape::GenerateMesh, );
 };
@@ -31,6 +32,7 @@ class BREACHSYSTEM_API UBreachCylinderShape : public UBreachShape
 public:
 	virtual void GenerateMesh(
 		const FBreachSourceOption& Option,
+		double Length,
 		UE::Geometry::FDynamicMesh3& OutMesh) const override;
 };
 
@@ -43,6 +45,7 @@ class BREACHSYSTEM_API UBreachSphereShape : public UBreachShape
 public:
 	virtual void GenerateMesh(
 		const FBreachSourceOption& Option,
+		double Length,
 		UE::Geometry::FDynamicMesh3& OutMesh) const override;
 };
 
@@ -55,6 +58,7 @@ class BREACHSYSTEM_API UBreachBoxShape : public UBreachShape
 public:
 	virtual void GenerateMesh(
 		const FBreachSourceOption& Option,
+		double Length,
 		UE::Geometry::FDynamicMesh3& OutMesh) const override;
 };
 
@@ -67,5 +71,6 @@ class BREACHSYSTEM_API UBreachCapsuleShape : public UBreachShape
 public:
 	virtual void GenerateMesh(
 		const FBreachSourceOption& Option,
+		double Length,
 		UE::Geometry::FDynamicMesh3& OutMesh) const override;
 };

@@ -2,46 +2,47 @@
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Generators/SweepGenerator.h"
-#include "Generators/SphereGenerator.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "Generators/MinimalBoxMeshGenerator.h"
-#include "Generators/CapsuleGenerator.h"
 
+namespace
+{
+	void GenerateRoundCutter(const FVector2D& Radius, int32 Segments, double Length,
+		UE::Geometry::FDynamicMesh3& OutMesh)
+	{
+		using namespace UE::Geometry;
+		FCylinderGenerator Generator;
+		Generator.Radius[0] = FMath::Max(Radius.X, UE_DOUBLE_KINDA_SMALL_NUMBER);
+		Generator.Radius[1] = FMath::Max(Radius.Y, UE_DOUBLE_KINDA_SMALL_NUMBER);
+		Generator.Height = static_cast<float>(Length);
+		Generator.AngleSamples = FMath::Max(Segments, 3);
+		Generator.LengthSamples = 1;
+		Generator.bCapped = true;
+		Generator.Generate();
+		OutMesh = FDynamicMesh3(&Generator);
+		// 생성기의 Z=0~Length를 중심 기준으로 옮겨, Z Scale을 늘려도 양 끝이 대칭으로 뻗게 한다.
+		MeshTransforms::Translate(OutMesh, FVector3d(0.0, 0.0, -Length * 0.5));
+	}
+}
 
-void UBreachCylinderShape::GenerateMesh(
-	const FBreachSourceOption& Option,
+void UBreachCylinderShape::GenerateMesh(const FBreachSourceOption& Option, double Length,
 	UE::Geometry::FDynamicMesh3& OutMesh) const
 {
-	using namespace UE::Geometry;
-
 	const FBreachCylinderShapeOption* ShapeOption = Option.ShapeOption.GetPtr<FBreachCylinderShapeOption>();
 	if (!ShapeOption)
 	{
 		OutMesh.Clear();
 		return;
 	}
-
-	FCylinderGenerator Generator;
-
-	Generator.Radius[0] = FMath::Max(ShapeOption->Radius.X, UE_DOUBLE_KINDA_SMALL_NUMBER);
-	Generator.Radius[1] = FMath::Max(ShapeOption->Radius.Y, UE_DOUBLE_KINDA_SMALL_NUMBER);
-	Generator.Height = FMath::Max(ShapeOption->Depth, UE_KINDA_SMALL_NUMBER);
-
-	Generator.AngleSamples = FMath::Max(ShapeOption->Segments, 3);
-	Generator.LengthSamples = 1;
-	Generator.bCapped = true;
-
-	Generator.Generate();
-
-	OutMesh = FDynamicMesh3(&Generator);
+	GenerateRoundCutter(ShapeOption->Radius, ShapeOption->Segments, Length, OutMesh);
 }
 
 
 void UBreachSphereShape::GenerateMesh(
 	const FBreachSourceOption& Option,
+	double Length,
 	UE::Geometry::FDynamicMesh3& OutMesh) const
 {
-	using namespace UE::Geometry;
-
 	const FBreachSphereShapeOption* ShapeOption = Option.ShapeOption.GetPtr<FBreachSphereShapeOption>();
 	if (!ShapeOption)
 	{
@@ -49,20 +50,13 @@ void UBreachSphereShape::GenerateMesh(
 		return;
 	}
 
-	FSphereGenerator Generator;
-
-	Generator.Radius = FMath::Max(ShapeOption->Radius, UE_KINDA_SMALL_NUMBER);
-	Generator.NumTheta = FMath::Max(ShapeOption->ThetaSegments, 3);
-	Generator.NumPhi = FMath::Max(ShapeOption->PhiSegments, 2);
-
-	Generator.Generate();
-
-	OutMesh = FDynamicMesh3(&Generator);
+	GenerateRoundCutter(FVector2D(ShapeOption->Radius, ShapeOption->Radius), ShapeOption->ThetaSegments, Length, OutMesh);
 }
 
 
 void UBreachBoxShape::GenerateMesh(
 	const FBreachSourceOption& Option,
+	double Length,
 	UE::Geometry::FDynamicMesh3& OutMesh) const
 {
 	using namespace UE::Geometry;
@@ -77,7 +71,7 @@ void UBreachBoxShape::GenerateMesh(
 	const FVector3d HalfExtent(
 		FMath::Max(ShapeOption->Size.X * 0.5, UE_DOUBLE_KINDA_SMALL_NUMBER),
 		FMath::Max(ShapeOption->Size.Y * 0.5, UE_DOUBLE_KINDA_SMALL_NUMBER),
-		FMath::Max(ShapeOption->Depth * 0.5, UE_DOUBLE_KINDA_SMALL_NUMBER)
+		Length * 0.5
 	);
 
 	FMinimalBoxMeshGenerator Generator;
@@ -95,10 +89,9 @@ void UBreachBoxShape::GenerateMesh(
 
 void UBreachCapsuleShape::GenerateMesh(
 	const FBreachSourceOption& Option,
+	double Length,
 	UE::Geometry::FDynamicMesh3& OutMesh) const
 {
-	using namespace UE::Geometry;
-
 	const FBreachCapsuleShapeOption* ShapeOption = Option.ShapeOption.GetPtr<FBreachCapsuleShapeOption>();
 	if (!ShapeOption)
 	{
@@ -106,21 +99,5 @@ void UBreachCapsuleShape::GenerateMesh(
 		return;
 	}
 
-	const double Radius = FMath::Max(ShapeOption->Radius, UE_KINDA_SMALL_NUMBER);
-
-	FCapsuleGenerator Generator;
-
-	Generator.Radius = Radius;
-
-	// Capsule 전체 길이를 Depth로 취급
-	Generator.SegmentLength =
-		FMath::Max(static_cast<double>(ShapeOption->Depth) - Radius * 2.0, 0.0);
-
-	Generator.NumCircleSteps = FMath::Max(ShapeOption->CircleSegments, 3);
-	Generator.NumHemisphereArcSteps = FMath::Max(ShapeOption->HemisphereSegments, 2);
-	Generator.NumSegmentSteps = 1;
-
-	Generator.Generate();
-
-	OutMesh = FDynamicMesh3(&Generator);
+	GenerateRoundCutter(FVector2D(ShapeOption->Radius, ShapeOption->Radius), ShapeOption->CircleSegments, Length, OutMesh);
 }

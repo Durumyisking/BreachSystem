@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="520" viewBox="0 0 1100 520" role="img" aria-labelledby="title desc">
+<title id="title">평면 벽의 2D 절단과 두께 생성</title>
+<desc id="desc">겹친 절단 도형을 2D 벽에서 빼고 남은 영역을 삼각분할한 다음 앞뒤 면과 옆면을 생성한다. 설명용 그림이며 실제 삼각분할 결과가 아니다.</desc>
+<defs>
+ <mask id="remaining" maskUnits="userSpaceOnUse" x="0" y="0" width="220" height="220"><rect width="220" height="220" fill="white"/><circle cx="91" cy="110" r="38" fill="black"/><circle cx="139" cy="110" r="38" fill="black"/></mask>
+ <mask id="single" maskUnits="userSpaceOnUse" x="0" y="0" width="220" height="220"><rect width="220" height="220" fill="white"/><circle cx="110" cy="110" r="43" fill="black"/></mask>
+ <mask id="innerwall" maskUnits="userSpaceOnUse" x="0" y="0" width="220" height="220"><circle cx="110" cy="110" r="43" fill="white"/><circle cx="139.412" cy="81.765" r="43" fill="black"/></mask>
+ <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#315dd8"/></marker>
+</defs>
+<rect width="1100" height="520" rx="18" fill="#f5f7fb"/>
+<g font-family="system-ui, Malgun Gothic, sans-serif" fill="#17243a">
+ <text x="38" y="44" font-size="24" font-weight="700">평면에서 제거 영역 계산 → 남은 재료에 두께 생성</text>
+ <text x="38" y="74" font-size="14" fill="#5b6a80">GDC 2016 공개 원리를 참고한 BreachTest 설계 도식 · 최신 시즈 내부 코드의 재현이 아님</text>
+ <g font-size="17" font-weight="700"><text x="38" y="122">1. 절단 도형 배치</text><text x="320" y="122">2. 남은 2D 영역</text><text x="602" y="122">3. 삼각분할</text><text x="860" y="122">4. 두께 생성</text></g>
+ <g transform="translate(38 143)"><rect width="220" height="220" fill="#c7ae86" stroke="#826a49"/><circle cx="91" cy="110" r="38" fill="#d84835" fill-opacity=".25" stroke="#d84835" stroke-width="2"/><circle cx="139" cy="110" r="38" fill="#d84835" fill-opacity=".25" stroke="#d84835" stroke-width="2"/></g>
+ <g transform="translate(320 143)"><rect width="220" height="220" fill="#dceaf5"/><rect width="220" height="220" fill="#c7ae86" mask="url(#remaining)"/><rect width="220" height="220" fill="none" stroke="#826a49"/></g>
+ <g transform="translate(602 143)"><rect width="220" height="220" fill="#dceaf5"/><g mask="url(#remaining)"><rect width="220" height="220" fill="#c7ae86"/><path d="M0 0L220 220 M0 220L220 0 M0 110L110 0L220 110L110 220Z M55 0L0 55 M165 0L220 55 M0 165L55 220 M165 220L220 165" fill="none" stroke="#826a49" stroke-width="1.5"/></g><rect width="220" height="220" fill="none" stroke="#826a49"/></g>
+ <g transform="translate(860 157)"><g transform="translate(25 0) scale(.85)"><rect width="220" height="220" fill="#a78c64" mask="url(#single)" stroke="#826a49"/></g><path d="M0 24L25 0L212 0L187 24Z M187 24L212 0L212 187L187 211Z" fill="#a78c64" stroke="#826a49"/><g transform="translate(0 24) scale(.85)"><rect width="220" height="220" fill="#dceaf5"/><rect width="220" height="220" fill="#a78c64" mask="url(#innerwall)"/><rect width="220" height="220" fill="#c7ae86" mask="url(#single)"/><rect width="220" height="220" fill="none" stroke="#826a49"/></g></g>
+ <g stroke="#315dd8" stroke-width="2" marker-end="url(#arrow)"><path d="M269 253H304"/><path d="M551 253H586"/><path d="M830 253H850"/></g>
+ <g font-size="14"><text x="38" y="394">무기의 단면 + 피격 위치</text><text x="320" y="394">겹친 구멍도 함께 제거</text><text x="602" y="394">구멍을 채우지 않고 분할</text><text x="860" y="394">앞·뒤·내부 옆면 생성</text></g>
+ <text x="38" y="438" font-size="16" font-weight="650" fill="#315dd8">현재: 3D 메시 − 3D 커터 → 경계 용접</text>
+ <text x="38" y="467" font-size="16" font-weight="650" fill="#315dd8">제안: 2D 영역 − 2D 도형 → 삼각분할 + 벽 두께</text>
+ <text x="38" y="498" font-size="12" fill="#5b6a80">그림은 원리 설명용이다. 삼각형 선은 실제 연산 결과가 아니며, 마지막 그림은 단일 구멍의 두께 예시다. 2D Boolean은 여전히 필요하다.</text>
+</g>
+</svg>

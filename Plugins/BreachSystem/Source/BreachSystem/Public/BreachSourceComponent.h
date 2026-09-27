@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "BreachSourceOption.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "TransformTypes.h"
 #include "BreachSourceComponent.generated.h"
 
 
@@ -13,28 +14,22 @@ class BREACHSYSTEM_API UBreachSourceComponent : public UActorComponent
 {
 	GENERATED_BODY()
 	
-protected:
-	/** 설정된 브리칭 형상을 게임 시작 시 한 번 캐시한다. */
-	virtual void BeginPlay() override;
-
-	UFUNCTION(BlueprintCallable)
-	bool CacheCutterMesh();
 public: 
-	/** UE 단위의 반지름으로 실린더를 바인딩한다. 깊이는 이 호출 시 확정한다. */
+	/** 월드 UE 단위의 반지름으로 원형 관통 단면을 바인딩한다. */
 	UFUNCTION(BlueprintCallable, Category="Breach|Binding")
-	void BindCylinder(float Radius, EBreachDepthMode DepthMode = EBreachDepthMode::Shared, float IndividualDepth = 100.f);
+	void BindCylinder(float Radius);
 
-	/** UE 단위의 가로/세로 전체 크기로 박스를 바인딩한다. 깊이는 이 호출 시 확정한다. */
+	/** 월드 UE 단위의 가로/세로 전체 크기로 사각형 관통 단면을 바인딩한다. */
 	UFUNCTION(BlueprintCallable, Category="Breach|Binding")
-	void BindBox(FVector2D Size, EBreachDepthMode DepthMode = EBreachDepthMode::Shared, float IndividualDepth = 100.f);
+	void BindBox(FVector2D Size);
 
-	/** 구는 반지름만 사용하며 공통/개별 깊이를 적용하지 않는다. */
+	/** 구의 투영 모양인 원형 단면을 바인딩한다. */
 	UFUNCTION(BlueprintCallable, Category="Breach|Binding")
 	void BindSphere(float Radius);
 
-	/** 캡슐의 깊이는 반구를 포함한 전체 길이이며 최소 지름 이상이다. */
+	/** 캡슐 축 방향의 투영 모양인 원형 단면을 바인딩한다. */
 	UFUNCTION(BlueprintCallable, Category="Breach|Binding")
-	void BindCapsule(float Radius, EBreachDepthMode DepthMode = EBreachDepthMode::Shared, float IndividualDepth = 100.f);
+	void BindCapsule(float Radius);
 
 	UFUNCTION(BlueprintCallable)
 	void UpdateBreachSourceOption(const FBreachSourceOption& InBreachSourceOption)
@@ -43,13 +38,21 @@ public:
 		CacheCutterMesh();
 	}
 
+	/** 캐시된 커터를 반환하고, 피격 대상의 월드 범위를 관통하는 Transform을 계산한다. */
+	const UE::Geometry::FDynamicMesh3* ResolveCutterMesh(const UE::Geometry::FAxisAlignedBox3d& TargetWorldBounds,
+		const FVector& HitPosition, const FVector& HitDirection,
+		UE::Geometry::FTransformSRT3d& OutTransform);
+
 protected:
+	virtual void BeginPlay() override;
+
+	/** 단면 크기를 유지하고 Z 길이만 1인 커터를 캐시한다. */
+	UFUNCTION(BlueprintCallable)
+	bool CacheCutterMesh();
+
 	UPROPERTY(EditAnywhere)
 	FBreachSourceOption BreachSourceOption;
 
+	// 커터는 로컬 Z=-0.5~0.5에 저장하고, 피격마다 정점 대신 Transform을 바꾼다.
 	UE::Geometry::FDynamicMesh3 CachedCutterMesh;
-
-public:
-	/** 캐시가 비어 있으면 한 번 재생성을 시도하고, 사용할 수 없으면 nullptr를 반환한다. */
-	const UE::Geometry::FDynamicMesh3* ResolveCutterMesh();
 };
