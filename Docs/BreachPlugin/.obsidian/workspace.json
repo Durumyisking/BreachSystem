@@ -532,6 +532,18 @@
                   "eState": "{}"
                 },
                 {
+                  "title": "시즈의 고립 조각과 누적 파괴 조사",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/시즈의 고립 조각과 누적 파괴 조사.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"시즈의 고립 조각과 누적 파괴 조사\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":5,\"ch\":0},\"to\":{\"line\":5,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "시즈 방식 벽 파괴 기획",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/시즈 방식 벽 파괴 기획.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"시즈 방식 벽 파괴 기획\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":68,\"ch\":133},\"to\":{\"line\":68,\"ch\":133}},\"scroll\":191.57938388625593}"
+                },
+                {
                   "title": "MeshBoolean.Compute 프레임 저하",
                   "icon": "lucide-file",
                   "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"이슈/MeshBoolean.Compute 프레임 저하.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"MeshBoolean.Compute 프레임 저하\"}",
@@ -878,11 +890,13 @@
   },
   "active": "5fc799687e6d4b89",
   "lastOpenFiles": [
+    "기획/시즈의 고립 조각과 누적 파괴 조사.md",
+    "기획/시즈 방식 벽 파괴 기획.md",
+    "시각화/siege-wall-secondary-break.svg",
     "이슈/MeshBoolean.Compute 프레임 저하.md",
     "시각화/siege-wall-pipeline.svg",
     "시각화/siege-wall-destruction.html",
     "시각화",
-    "기획/시즈 방식 벽 파괴 기획.md",
     "기획",
     "Pasted image 20260927215103.png",
     "이슈/DynamicMeshComponent로 변환하면서 라이팅 변화.md",
@@ -909,7 +923,6 @@
     "메모.md",
     "Pasted image 20260921220426.png",
     "Pasted image 20260921220050.png",
-    "BreachableMeshComponent-Structure-Flow.svg",
-    "BreachableMeshComponent-Structure-Flow.png"
+    "BreachableMeshComponent-Structure-Flow.svg"
   ]
 }

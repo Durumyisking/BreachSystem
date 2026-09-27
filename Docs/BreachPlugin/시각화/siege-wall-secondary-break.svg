@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="720" viewBox="0 0 1100 720" role="img" aria-labelledby="title desc">
+<title id="title">고립 조각 제거와 밀집 피격에 따른 큰 파괴</title>
+<desc id="desc">위 그림은 고리형 절단 후 가운데 남은 재료가 지지를 잃어 제거되는 제안이다. 아래 그림은 밀집된 작은 구멍에서 큰 추가 절단으로 전환하는 Self-Destruction 원리의 도식이다. 시즈의 정확한 판정 수치를 재현하지 않는다.</desc>
+<defs>
+ <mask id="ring" maskUnits="userSpaceOnUse" x="0" y="0" width="210" height="190"><rect width="210" height="190" fill="white"/><rect x="36" y="30" width="140" height="130" fill="black"/><rect x="67" y="60" width="78" height="70" fill="white"/></mask>
+ <mask id="open" maskUnits="userSpaceOnUse" x="0" y="0" width="210" height="190"><rect width="210" height="190" fill="white"/><rect x="36" y="30" width="140" height="130" fill="black"/><rect x="67" y="60" width="78" height="70" fill="white"/><rect x="98" y="128" width="16" height="62" fill="white"/></mask>
+ <mask id="gone" maskUnits="userSpaceOnUse" x="0" y="0" width="210" height="190"><rect width="210" height="190" fill="white"/><rect x="36" y="30" width="140" height="130" fill="black"/></mask>
+ <mask id="holes" maskUnits="userSpaceOnUse" x="0" y="0" width="210" height="190"><rect width="210" height="190" fill="white"/><g fill="black"><circle cx="70" cy="55" r="9"/><circle cx="105" cy="42" r="8"/><circle cx="143" cy="61" r="10"/><circle cx="92" cy="79" r="9"/><circle cx="57" cy="94" r="8"/><circle cx="130" cy="93" r="10"/><circle cx="85" cy="120" r="9"/><circle cx="115" cy="143" r="8"/><circle cx="155" cy="128" r="9"/></g></mask>
+ <mask id="large" maskUnits="userSpaceOnUse" x="0" y="0" width="210" height="190"><rect width="210" height="190" fill="white"/><path d="M60 37L103 25L139 40L166 60L157 87L171 112L145 146L113 163L80 150L49 122L43 91L54 65Z" fill="black"/></mask>
+ <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#315dd8"/></marker>
+</defs>
+<rect width="1100" height="720" rx="18" fill="#f5f7fb"/>
+<g font-family="system-ui, Malgun Gothic, sans-serif" fill="#17243a">
+ <text x="36" y="43" font-size="24" font-weight="700">절단 결과를 만든 뒤, 추가로 무엇을 없앨지 판단한다.</text>
+ <text x="36" y="73" font-size="14" fill="#5b6a80">동작 구분을 위한 설계 도식 · 지지 경계와 임계값은 시즈 내부 구현으로 확인되지 않음</text>
+ <text x="36" y="111" font-size="18" font-weight="700">A. 고립 조각 제거 — 마지막 연결이 끊겼을 때</text>
+ <g transform="translate(36 133)"><rect width="210" height="190" fill="#dceaf5"/><rect width="210" height="190" fill="#c7ae86" mask="url(#open)"/><path d="M0 190H210" stroke="#315dd8" stroke-width="4"/><path d="M106 178V140" stroke="#d84835" stroke-width="2" marker-end="url(#arrow)"/></g>
+ <g transform="translate(370 133)"><rect width="210" height="190" fill="#dceaf5"/><rect width="210" height="190" fill="#c7ae86" mask="url(#ring)"/><rect x="67" y="60" width="78" height="70" fill="none" stroke="#d84835" stroke-width="2"/><path d="M0 190H210" stroke="#315dd8" stroke-width="4"/></g>
+ <g transform="translate(704 133)"><rect width="210" height="190" fill="#dceaf5"/><rect width="210" height="190" fill="#c7ae86" mask="url(#gone)"/><path d="M0 190H210" stroke="#315dd8" stroke-width="4"/></g>
+ <g stroke="#315dd8" stroke-width="2" marker-end="url(#arrow)"><path d="M260 228H348"/><path d="M594 228H682"/></g>
+ <g font-size="14"><text x="36" y="349">가느다란 연결부가 아직 남음</text><text x="370" y="349">고리가 닫히면 가운데는 별도 영역</text><text x="704" y="349">지지 상실 영역을 추가 제거</text></g>
+ <text x="36" y="377" font-size="12" fill="#5b6a80">파란 선 = 이 실험에서 가정한 지지 경계. 연결부가 남으면 고립 제거만으로는 탈락하지 않는다.</text>
+ <text x="36" y="419" font-size="18" font-weight="700">B. Self-Destruction — 밀집된 피격에서 큰 절단으로 전환</text>
+ <g transform="translate(36 440)"><rect width="210" height="190" fill="#dceaf5"/><rect width="210" height="190" fill="#c7ae86" mask="url(#holes)"/></g>
+ <g transform="translate(370 440)"><rect width="210" height="190" fill="#dceaf5"/><rect width="210" height="190" fill="#c7ae86" mask="url(#holes)"/><path d="M60 37L103 25L139 40L166 60L157 87L171 112L145 146L113 163L80 150L49 122L43 91L54 65Z" fill="#d84835" fill-opacity=".18" stroke="#d84835" stroke-width="2" stroke-dasharray="5 4"/></g>
+ <g transform="translate(704 440)"><rect width="210" height="190" fill="#dceaf5"/><rect width="210" height="190" fill="#c7ae86" mask="url(#large)"/></g>
+ <g stroke="#315dd8" stroke-width="2" marker-end="url(#arrow)"><path d="M260 535H348"/><path d="M594 535H682"/></g>
+ <g font-size="14"><text x="36" y="655">작은 구멍 여러 개 + 주변 피격</text><text x="370" y="655">큰 추가 절단 영역을 결정</text><text x="704" y="655">남은 재료도 제거해 큰 구멍 생성</text></g>
+ <text x="36" y="693" font-size="12" fill="#5b6a80">B의 동작 예시는 GDC 2016 PDF 72쪽과 공식 영상 33:07–33:37에서 확인. 위 모양·판정 순서는 설명용이다.</text>
+</g>
+</svg>
