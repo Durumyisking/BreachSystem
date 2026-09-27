@@ -4,7 +4,57 @@
 #include "BreachSourceComponent.h"
 
 #include "BreachSystemLog.h"
+#include "BreachSystemSettings.h"
 #include "Shape/BreachShape.h"
+
+namespace
+{
+	float ResolveBreachDepth(EBreachDepthMode DepthMode, float IndividualDepth)
+	{
+		return DepthMode == EBreachDepthMode::Shared
+			? GetDefault<UBreachSystemSettings>()->SharedDepth
+			: IndividualDepth;
+	}
+}
+
+void UBreachSourceComponent::BindCylinder(float Radius, EBreachDepthMode DepthMode, float IndividualDepth)
+{
+	FBreachSourceOption Option;
+	Option.ShapeClass = UBreachCylinderShape::StaticClass();
+	FBreachCylinderShapeOption& ShapeOption = Option.ShapeOption.InitializeAs<FBreachCylinderShapeOption>();
+	ShapeOption.Radius = FVector2D(Radius, Radius);
+	ShapeOption.Depth = ResolveBreachDepth(DepthMode, IndividualDepth);
+	UpdateBreachSourceOption(Option);
+}
+
+void UBreachSourceComponent::BindBox(FVector2D Size, EBreachDepthMode DepthMode, float IndividualDepth)
+{
+	FBreachSourceOption Option;
+	Option.ShapeClass = UBreachBoxShape::StaticClass();
+	FBreachBoxShapeOption& ShapeOption = Option.ShapeOption.InitializeAs<FBreachBoxShapeOption>();
+	ShapeOption.Size = Size;
+	ShapeOption.Depth = ResolveBreachDepth(DepthMode, IndividualDepth);
+	UpdateBreachSourceOption(Option);
+}
+
+void UBreachSourceComponent::BindSphere(float Radius)
+{
+	FBreachSourceOption Option;
+	Option.ShapeClass = UBreachSphereShape::StaticClass();
+	FBreachSphereShapeOption& ShapeOption = Option.ShapeOption.InitializeAs<FBreachSphereShapeOption>();
+	ShapeOption.Radius = Radius;
+	UpdateBreachSourceOption(Option);
+}
+
+void UBreachSourceComponent::BindCapsule(float Radius, EBreachDepthMode DepthMode, float IndividualDepth)
+{
+	FBreachSourceOption Option;
+	Option.ShapeClass = UBreachCapsuleShape::StaticClass();
+	FBreachCapsuleShapeOption& ShapeOption = Option.ShapeOption.InitializeAs<FBreachCapsuleShapeOption>();
+	ShapeOption.Radius = Radius;
+	ShapeOption.Depth = ResolveBreachDepth(DepthMode, IndividualDepth);
+	UpdateBreachSourceOption(Option);
+}
 
 void UBreachSourceComponent::BeginPlay()
 {

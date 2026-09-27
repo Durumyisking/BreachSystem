@@ -6,6 +6,13 @@
 
 class UBreachShape;
 
+UENUM(BlueprintType)
+enum class EBreachDepthMode : uint8
+{
+	Shared,
+	Individual
+};
+
 USTRUCT(BlueprintType)
 struct BREACHSYSTEM_API FBreachShapeOption
 {

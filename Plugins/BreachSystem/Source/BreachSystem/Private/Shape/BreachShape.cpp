@@ -22,9 +22,9 @@ void UBreachCylinderShape::GenerateMesh(
 
 	FCylinderGenerator Generator;
 
-	Generator.Radius[0] = FMath::Max(ShapeOption->Radius.X, 1.f);
-	Generator.Radius[1] = FMath::Max(ShapeOption->Radius.Y, 1.f);
-	Generator.Height = FMath::Max(ShapeOption->Depth, 1.f);
+	Generator.Radius[0] = FMath::Max(ShapeOption->Radius.X, UE_DOUBLE_KINDA_SMALL_NUMBER);
+	Generator.Radius[1] = FMath::Max(ShapeOption->Radius.Y, UE_DOUBLE_KINDA_SMALL_NUMBER);
+	Generator.Height = FMath::Max(ShapeOption->Depth, UE_KINDA_SMALL_NUMBER);
 
 	Generator.AngleSamples = FMath::Max(ShapeOption->Segments, 3);
 	Generator.LengthSamples = 1;
@@ -51,7 +51,7 @@ void UBreachSphereShape::GenerateMesh(
 
 	FSphereGenerator Generator;
 
-	Generator.Radius = FMath::Max(ShapeOption->Radius, 1.f);
+	Generator.Radius = FMath::Max(ShapeOption->Radius, UE_KINDA_SMALL_NUMBER);
 	Generator.NumTheta = FMath::Max(ShapeOption->ThetaSegments, 3);
 	Generator.NumPhi = FMath::Max(ShapeOption->PhiSegments, 2);
 
@@ -75,9 +75,9 @@ void UBreachBoxShape::GenerateMesh(
 	}
 
 	const FVector3d HalfExtent(
-		FMath::Max(ShapeOption->Size.X * 0.5, 0.5),
-		FMath::Max(ShapeOption->Size.Y * 0.5, 0.5),
-		FMath::Max(ShapeOption->Depth * 0.5, 0.5)
+		FMath::Max(ShapeOption->Size.X * 0.5, UE_DOUBLE_KINDA_SMALL_NUMBER),
+		FMath::Max(ShapeOption->Size.Y * 0.5, UE_DOUBLE_KINDA_SMALL_NUMBER),
+		FMath::Max(ShapeOption->Depth * 0.5, UE_DOUBLE_KINDA_SMALL_NUMBER)
 	);
 
 	FMinimalBoxMeshGenerator Generator;
@@ -106,7 +106,7 @@ void UBreachCapsuleShape::GenerateMesh(
 		return;
 	}
 
-	const double Radius = FMath::Max(ShapeOption->Radius, 1.f);
+	const double Radius = FMath::Max(ShapeOption->Radius, UE_KINDA_SMALL_NUMBER);
 
 	FCapsuleGenerator Generator;
 
