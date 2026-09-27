@@ -2,9 +2,8 @@
 
 
 #include "ShooterWeapon.h"
-#include "Kismet/KismetMathLibrary.h"
 #include "Engine/World.h"
-#include "ShooterProjectile.h"
+#include "GameFramework/DamageType.h"
 #include "ShooterWeaponHolder.h"
 #include "Components/SceneComponent.h"
 #include "TimerManager.h"
@@ -15,6 +14,7 @@
 AShooterWeapon::AShooterWeapon()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	HitDamageType = UDamageType::StaticClass();
 
 	// create the root
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
@@ -131,8 +131,20 @@ void AShooterWeapon::Fire()
 		return;
 	}
 	
-	// fire a projectile at the target
-	FireProjectile(WeaponOwner->GetWeaponTargetLocation());
+	if (!FireShot())
+	{
+		return;
+	}
+
+	WeaponOwner->PlayFiringMontage(FiringMontage);
+	WeaponOwner->AddWeaponRecoil(FiringRecoil);
+
+	--CurrentBullets;
+	if (CurrentBullets <= 0)
+	{
+		CurrentBullets = MagazineSize;
+	}
+	WeaponOwner->UpdateWeaponHUD(CurrentBullets, MagazineSize);
 
 	// update the time of our last shot
 	TimeOfLastShot = GetWorld()->GetTimeSeconds();
@@ -157,54 +169,6 @@ void AShooterWeapon::FireCooldownExpired()
 {
 	// notify the owner
 	WeaponOwner->OnSemiWeaponRefire();
-}
-
-void AShooterWeapon::FireProjectile(const FVector& TargetLocation)
-{
-	// get the projectile transform
-	FTransform ProjectileTransform = CalculateProjectileSpawnTransform(TargetLocation);
-	
-	// spawn the projectile
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParams.TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale;
-	SpawnParams.Owner = GetOwner();
-	SpawnParams.Instigator = PawnOwner;
-
-	AShooterProjectile* Projectile = GetWorld()->SpawnActor<AShooterProjectile>(ProjectileClass, ProjectileTransform, SpawnParams);
-
-	// play the firing montage
-	WeaponOwner->PlayFiringMontage(FiringMontage);
-
-	// add recoil
-	WeaponOwner->AddWeaponRecoil(FiringRecoil);
-
-	// consume bullets
-	--CurrentBullets;
-
-	// if the clip is depleted, reload it
-	if (CurrentBullets <= 0)
-	{
-		CurrentBullets = MagazineSize;
-	}
-
-	// update the weapon HUD
-	WeaponOwner->UpdateWeaponHUD(CurrentBullets, MagazineSize);
-}
-
-FTransform AShooterWeapon::CalculateProjectileSpawnTransform(const FVector& TargetLocation) const
-{
-	// find the muzzle location
-	const FVector MuzzleLoc = FirstPersonMesh->GetSocketLocation(MuzzleSocketName);
-
-	// calculate the spawn location ahead of the muzzle
-	const FVector SpawnLoc = MuzzleLoc + ((TargetLocation - MuzzleLoc).GetSafeNormal() * MuzzleOffset);
-
-	// find the aim rotation vector while applying some variance to the target 
-	const FRotator AimRot = UKismetMathLibrary::FindLookAtRotation(SpawnLoc, TargetLocation + (UKismetMathLibrary::RandomUnitVector() * AimVariance));
-
-	// return the built transform
-	return FTransform(AimRot, SpawnLoc, FVector::OneVector);
 }
 
 const TSubclassOf<UAnimInstance>& AShooterWeapon::GetFirstPersonAnimInstanceClass() const

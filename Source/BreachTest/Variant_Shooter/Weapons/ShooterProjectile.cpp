@@ -6,7 +6,6 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
-#include "GameFramework/DamageType.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Controller.h"
 #include "Engine/OverlapResult.h"
@@ -31,9 +30,12 @@ AShooterProjectile::AShooterProjectile()
 	ProjectileMovement->InitialSpeed = 3000.0f;
 	ProjectileMovement->MaxSpeed = 3000.0f;
 	ProjectileMovement->bShouldBounce = true;
+}
 
-	// set the default damage type
-	HitDamageType = UDamageType::StaticClass();
+void AShooterProjectile::InitializeDamage(float InHitDamage, TSubclassOf<UDamageType> InHitDamageType)
+{
+	HitDamage = InHitDamage;
+	HitDamageType = InHitDamageType;
 }
 
 void AShooterProjectile::BeginPlay()

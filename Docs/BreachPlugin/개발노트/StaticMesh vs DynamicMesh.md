@@ -87,8 +87,8 @@ https://dev.epicgames.com/documentation/unreal-engine/mesh-drawing-pipeline-in-u
 
 **그러면?**
 => StaticMeshComponent로 렌더링하다가 Breachable로 변경하는 방식을 사용하면서 구현 방식을 사용자가 신경 쓰지 않게 만들어야 한다.
+![[mermaid-diagram.png|691]]
 
-![[Pasted image 20260922010508.png|812]]
 이런 흐름으로, BreachMeshComponent에서 자체적으로 StaticMeshComponent를 추가해서 캐시하는 방식으로 사용한다.
 
 

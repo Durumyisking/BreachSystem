@@ -4,10 +4,12 @@
 #include "BreachableMeshComponent.h"
 
 #include "BreachSourceComponent.h"
+#include "BreachableDynamicMeshComponent.h"
 #include "BreachSystemLog.h"
 #include "Components/DynamicMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/DamageEvents.h"
 #include "GameFramework/Actor.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "Operations/MeshBoolean.h"
@@ -24,8 +26,38 @@ void UBreachableMeshComponent::BeginPlay()
 void UBreachableMeshComponent::OnBreachableMeshHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
                                                    UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
+	ApplyBreachHit(HitComponent, OtherActor, Hit);
+}
+
+void UBreachableMeshComponent::ReceiveComponentDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	Super::ReceiveComponentDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	HandleBreachDamage(this, DamageEvent, DamageCauser);
+}
+
+void UBreachableMeshComponent::HandleBreachDamage(UPrimitiveComponent* HitComponent, const FDamageEvent& DamageEvent, AActor* DamageCauser)
+{
+	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
+	{
+		const FPointDamageEvent& PointDamage = static_cast<const FPointDamageEvent&>(DamageEvent);
+		// Trace의 표면 바깥 법선을 벽이 받는 이동 충돌의 법선 방향에 맞춘다.
+		FHitResult BreachHit = PointDamage.HitInfo;
+		BreachHit.Normal = -BreachHit.Normal;
+		BreachHit.ImpactNormal = -BreachHit.ImpactNormal;
+		ApplyBreachHit(HitComponent, DamageCauser, BreachHit);
+	}
+}
+
+void UBreachableMeshComponent::ApplyBreachHit(UPrimitiveComponent* HitComponent, AActor* SourceActor, const FHitResult& Hit)
+{
+	// 동일 액터에 여러 브리칭 메시가 있어도 실제로 맞은 원본/프록시만 처리한다.
+	if (!HitComponent || (DynamicMeshProxy ? HitComponent != DynamicMeshProxy.Get() : HitComponent != this))
+	{
+		return;
+	}
+
 	// 충돌한 액터에서 브리칭에 사용할 커터를 가져온다.
-	UBreachSourceComponent* BreachSourceComponent = OtherActor ? OtherActor->GetComponentByClass<UBreachSourceComponent>() : nullptr;
+	UBreachSourceComponent* BreachSourceComponent = SourceActor ? SourceActor->GetComponentByClass<UBreachSourceComponent>() : nullptr;
 	if (!BreachSourceComponent)
 	{
 		return;
@@ -72,7 +104,7 @@ void UBreachableMeshComponent::OnBreachableMeshHit(UPrimitiveComponent* HitCompo
 
 	if (!MeshBoolean.Compute())
 	{
-		SWARN(TEXT("Mesh Boolean Failed"));
+		SWARN(TEXT("Mesh Boolean Failed: UnweldedEdges=%d"), MeshBoolean.CreatedBoundaryEdges.Num());
 		return;
 	}
 
@@ -113,7 +145,9 @@ bool UBreachableMeshComponent::ConvertStaticMeshToDynamicMesh(UE::Geometry::FDyn
 void UBreachableMeshComponent::CreateDynamicMeshProxy(UE::Geometry::FDynamicMesh3&& Mesh)
 {
 	// 액터 소유의 프록시를 루트에 부착하고 메시 표시와 충돌에 필요한 설정을 전달한다.
-	DynamicMeshProxy = NewObject<UDynamicMeshComponent>(GetOwner(), NAME_None, RF_Transient);
+	UBreachableDynamicMeshComponent* BreachableProxy = NewObject<UBreachableDynamicMeshComponent>(GetOwner(), NAME_None, RF_Transient);
+	BreachableProxy->BreachableMesh = this;
+	DynamicMeshProxy = BreachableProxy;
 	DynamicMeshProxy->SetMobility(GetMobility());
 	DynamicMeshProxy->SetupAttachment(GetOwner()->GetRootComponent());
 	DynamicMeshProxy->SetWorldTransform(GetComponentTransform());

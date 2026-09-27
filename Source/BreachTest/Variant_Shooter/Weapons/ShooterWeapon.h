@@ -9,7 +9,7 @@
 #include "ShooterWeapon.generated.h"
 
 class IShooterWeaponHolder;
-class AShooterProjectile;
+class UDamageType;
 class USkeletalMeshComponent;
 class UAnimMontage;
 class UAnimInstance;
@@ -38,9 +38,12 @@ protected:
 	/** Cast pointer to the weapon owner */
 	IShooterWeaponHolder* WeaponOwner;
 
-	/** Type of projectiles this weapon will shoot */
-	UPROPERTY(EditAnywhere, Category="Ammo")
-	TSubclassOf<AShooterProjectile> ProjectileClass;
+	/** Damage dealt by each shot, copied to projectiles at spawn time. */
+	UPROPERTY(EditAnywhere, Category="Damage", meta = (ClampMin = 0))
+	float HitDamage = 25.0f;
+
+	UPROPERTY(EditAnywhere, Category="Damage")
+	TSubclassOf<UDamageType> HitDamageType;
 
 	/** Number of bullets in a magazine */
 	UPROPERTY(EditAnywhere, Category="Ammo", meta = (ClampMin = 0, ClampMax = 100))
@@ -61,21 +64,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Animation")
 	TSubclassOf<UAnimInstance> ThirdPersonAnimInstanceClass;
 
-	/** Cone half-angle for variance while aiming */
-	UPROPERTY(EditAnywhere, Category="Aim", meta = (ClampMin = 0, ClampMax = 90, Units = "Degrees"))
-	float AimVariance = 0.0f;
-
 	/** Amount of firing recoil to apply to the owner */
 	UPROPERTY(EditAnywhere, Category="Aim", meta = (ClampMin = 0, ClampMax = 100))
 	float FiringRecoil = 0.0f;
-
-	/** Name of the first person muzzle socket where projectiles will spawn */
-	UPROPERTY(EditAnywhere, Category="Aim")
-	FName MuzzleSocketName;
-
-	/** Distance ahead of the muzzle that bullets will spawn at */
-	UPROPERTY(EditAnywhere, Category="Aim", meta = (ClampMin = 0, ClampMax = 1000, Units = "cm"))
-	float MuzzleOffset = 10.0f;
 
 	/** If true, this weapon will automatically fire at the refire rate */
 	UPROPERTY(EditAnywhere, Category="Refire")
@@ -150,11 +141,8 @@ protected:
 	/** Called when the refire rate time has passed while shooting semi auto weapons */
 	void FireCooldownExpired();
 
-	/** Fire a projectile towards the target location */
-	virtual void FireProjectile(const FVector& TargetLocation);
-
-	/** Calculates the spawn transform for projectiles shot by this weapon */
-	FTransform CalculateProjectileSpawnTransform(const FVector& TargetLocation) const;
+	/** Perform the weapon-specific shot. False skips ammo consumption and effects. */
+	virtual bool FireShot() { return false; }
 
 public:
 

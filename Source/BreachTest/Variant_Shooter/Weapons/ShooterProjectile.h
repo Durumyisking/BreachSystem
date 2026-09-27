@@ -10,6 +10,7 @@ class USphereComponent;
 class UProjectileMovementComponent;
 class ACharacter;
 class UPrimitiveComponent;
+class UDamageType;
 
 /**
  *  Simple projectile class for a first person shooter game
@@ -45,12 +46,12 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Projectile|Hit", meta = (ClampMin = 0, ClampMax = 50000))
 	float PhysicsForce = 100.0f;
 
-	/** Damage to apply on hit */
-	UPROPERTY(EditAnywhere, Category="Projectile|Hit", meta = (ClampMin = 0, ClampMax = 100))
-	float HitDamage = 25.0f;
+	/** Runtime damage snapshot supplied by the firing weapon. */
+	UPROPERTY(Transient)
+	float HitDamage = 0.0f;
 
 	/** Type of damage to apply. Can be used to represent specific types of damage such as fire, explosion, etc. */
-	UPROPERTY(EditAnywhere, Category="Projectile|Hit")
+	UPROPERTY(Transient)
 	TSubclassOf<UDamageType> HitDamageType;
 
 	/** If true, the projectile can damage the character that shot it */
@@ -79,6 +80,9 @@ public:
 
 	/** Constructor */
 	AShooterProjectile();
+
+	/** Called before FinishSpawning so the first collision uses weapon damage. */
+	void InitializeDamage(float InHitDamage, TSubclassOf<UDamageType> InHitDamageType);
 
 protected:
 	
