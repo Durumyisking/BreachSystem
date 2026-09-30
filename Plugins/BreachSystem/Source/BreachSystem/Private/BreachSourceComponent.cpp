@@ -123,7 +123,7 @@ const UE::Geometry::FDynamicMesh3* UBreachSourceComponent::ResolveCutterMesh(
 		MinProjection = FMath::Min(MinProjection, Projection);
 		MaxProjection = FMath::Max(MaxProjection, Projection);
 	}
-	// 커터 뚜껑이 벽 표면과 겹치지 않도록 양 끝을 최소 1cm씩 밖으로 연장한다.
+	// 커터 뚜껑이 벽 표면과 겹치지 않도록 양 끝을 최소 1cm씩 밖으로 연장한다. + 1%의 여유
 	const double Padding = FMath::Max(1.0, (MaxProjection - MinProjection) * 0.01);
 	const double Length = MaxProjection - MinProjection + 2.0 * Padding;
 	// 피격점을 지나는 축 위에 커터 중심을 놓는다. 피격점 자체가 중심은 아니다.

@@ -91,8 +91,7 @@ void UBreachableMeshComponent::ApplyBreachHit(UPrimitiveComponent* HitComponent,
 	const FTransformSRT3d MeshTransform(HitComponent->GetComponentTransform());
 	const FAxisAlignedBox3d TargetWorldBounds(SourceMesh->GetBounds(), MeshTransform);
 	FTransformSRT3d CutterMeshTransform;
-	const FDynamicMesh3* CutterMesh = BreachSourceComponent->ResolveCutterMesh(
-		TargetWorldBounds, Hit.ImpactPoint, Hit.ImpactNormal, CutterMeshTransform);
+	const FDynamicMesh3* CutterMesh = BreachSourceComponent->ResolveCutterMesh(TargetWorldBounds, Hit.ImpactPoint, Hit.ImpactNormal, CutterMeshTransform);
 	if (!CutterMesh)
 	{
 		return;
