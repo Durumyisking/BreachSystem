@@ -14,7 +14,7 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "Operations/MeshBoolean.h"
 #include "DynamicMesh/MeshTransforms.h"
-
+#include "StaticMeshDescription.h"
 
 void UBreachableMeshComponent::BeginPlay()
 {
@@ -133,17 +133,17 @@ bool UBreachableMeshComponent::ConvertStaticMeshToDynamicMesh(UE::Geometry::FDyn
 		SERROR(TEXT("Invalid Static Mesh"));
 		return false;
 	}
-
-	const FMeshDescription* StaticMeshDescription = SourceStaticMesh->GetMeshDescription(0);
+	UStaticMeshDescription* StaticMeshDescription = SourceStaticMesh->GetStaticMeshDescription(0);
 	if (!StaticMeshDescription)
 	{
 		SERROR(TEXT("Invalid Static Mesh Description"));
 		return false;
 	}
+	const FMeshDescription& MeshDescription = StaticMeshDescription->GetMeshDescription();
 
 	// 복잡한 메시 Convert과정을 간편하게 하도록 도와준다.
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(StaticMeshDescription, OutMesh, true);
+	Converter.Convert(&MeshDescription, OutMesh, true);
 	return true;
 }
 

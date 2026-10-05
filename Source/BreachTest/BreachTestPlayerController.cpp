@@ -20,9 +20,13 @@ void ABreachTestPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	
+	if(!IsLocalPlayerController())
+	{
+		return;
+	}
+
 	// only spawn touch controls on local player controllers
-	if (ShouldUseTouchControls() && IsLocalPlayerController())
+	if (ShouldUseTouchControls())
 	{
 		// spawn the mobile controls widget
 		MobileControlsWidget = CreateWidget<UUserWidget>(this, MobileControlsWidgetClass);
