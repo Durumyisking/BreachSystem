@@ -27,6 +27,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Aim", meta = (ClampMin = 0, ClampMax = 1000, Units = "cm"))
 	float MuzzleOffset = 10.0f;
 
-	virtual bool FireShot() override;
+	virtual bool FireShot(FHitResult& OutHitResult, const FVector& InTraceStart, const FVector& InShotDirection) override;
 	FTransform CalculateProjectileSpawnTransform(const FVector& TargetLocation) const;
 };

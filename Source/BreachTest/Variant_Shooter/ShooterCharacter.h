@@ -67,9 +67,11 @@ protected:
 	FName DeathTag = FName("Dead");
 
 	/** List of weapons picked up by the character */
+	UPROPERTY(Replicated)
 	TArray<AShooterWeapon*> OwnedWeapons;
 
 	/** Weapon currently equipped and ready to shoot with */
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentWeapon)
 	TObjectPtr<AShooterWeapon> CurrentWeapon;
 
 	UPROPERTY(EditAnywhere, Category ="Destruction", meta = (ClampMin = 0, ClampMax = 10, Units = "s"))
@@ -132,6 +134,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	void DoSwitchWeapon();
 
+protected:
+
+
 public:
 
 	//~Begin IShooterWeaponHolder interface
@@ -180,6 +185,12 @@ protected:
 	/** Called from the respawn timer to destroy this character and force the PC to respawn */
 	void OnRespawn();
 
+protected:
+	// Networks
+	UFUNCTION()
+	void OnRep_CurrentWeapon(AShooterWeapon* ShooterWeapon);
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const;
 public:
 
 	/** Returns true if the character is dead */

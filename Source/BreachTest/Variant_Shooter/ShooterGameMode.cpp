@@ -2,32 +2,20 @@
 
 
 #include "Variant_Shooter/ShooterGameMode.h"
-#include "ShooterUI.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
+
+#include "ShooterGameState.h"
 
 void AShooterGameMode::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// create the UI
-	ShooterUI = CreateWidget<UShooterUI>(UGameplayStatics::GetPlayerController(GetWorld(), 0), ShooterUIClass);
-	ShooterUI->AddToViewport(0);
 }
 
 void AShooterGameMode::IncrementTeamScore(uint8 TeamByte)
 {
-	// retrieve the team score if any
-	int32 Score = 0;
-	if (int32* FoundScore = TeamScores.Find(TeamByte))
+	if (AShooterGameState* GS = GetGameState<AShooterGameState>())
 	{
-		Score = *FoundScore;
+		GS->IncrementTeamScore(TeamByte); // 일반 함수 호출
 	}
-
-	// increment the score for the given team
-	++Score;
-	TeamScores.Add(TeamByte, Score);
-
-	// update the UI
-	ShooterUI->BP_UpdateScore(TeamByte, Score);
 }

@@ -28,8 +28,6 @@ public class BreachTest : ModuleRules
 
 		PublicIncludePaths.AddRange(new string[] {
 			"BreachTest",
-			"BreachTest/Variant_Horror",
-			"BreachTest/Variant_Horror/UI",
 			"BreachTest/Variant_Shooter",
 			"BreachTest/Variant_Shooter/AI",
 			"BreachTest/Variant_Shooter/UI",

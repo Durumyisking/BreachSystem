@@ -7,7 +7,7 @@
 #include "GameFramework/Pawn.h"
 #include "Kismet/KismetMathLibrary.h"
 
-bool AProjectileWeapon::FireShot()
+bool AProjectileWeapon::FireShot(FHitResult& OutHitResult, const FVector& InTraceStart, const FVector& InShotDirection)
 {
 	if (!ProjectileClass)
 	{

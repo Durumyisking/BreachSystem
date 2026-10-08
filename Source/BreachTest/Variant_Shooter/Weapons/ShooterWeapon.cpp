@@ -10,9 +10,14 @@
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Pawn.h"
+#include "Kismet/GameplayStatics.h"
+
+#include "Net/UnrealNetwork.h"
 
 AShooterWeapon::AShooterWeapon()
 {
+	bReplicates = true;
+
 	PrimaryActorTick.bCanEverTick = true;
 	HitDamageType = UDamageType::StaticClass();
 
@@ -103,7 +108,9 @@ void AShooterWeapon::StartFiring()
 		// fire the weapon right away
 		Fire();
 
-	} else {
+	} 
+	else 
+	{
 
 		// if we're full auto, schedule the next shot
 		if (bFullAuto)
@@ -125,43 +132,59 @@ void AShooterWeapon::StopFiring()
 
 void AShooterWeapon::Fire()
 {
-	// ensure the player still wants to fire. They may have let go of the trigger
 	if (!bIsFiring)
 	{
 		return;
 	}
-	
-	if (!FireShot())
+	if (!PawnOwner)
 	{
 		return;
 	}
+	
+	// 사격 방향 (우선 플레이어만 신경써보자)
+	FVector TraceStart;
+	FVector ShotDirection;
+	if (APlayerController* PlayerController = Cast<APlayerController>(PawnOwner->GetController()))
+	{
+		int32 Width = 0;
+		int32 Height = 0;
+		TraceStart = PlayerController->PlayerCameraManager->GetCameraLocation();
+		ShotDirection = PlayerController->PlayerCameraManager->GetCameraRotation().Vector();
+		ShotDirection.Normalize();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AShooterWeapon::Fire No PC: %s, Authority=%d"), *GetName(), HasAuthority());
+	}
 
-	WeaponOwner->PlayFiringMontage(FiringMontage);
-	WeaponOwner->AddWeaponRecoil(FiringRecoil);
+	// 실 사격
+	FHitResult HitResult;
+	if (!FireShot(HitResult, TraceStart, ShotDirection))
+	{
+		return;
+	}
+	ServerNotifyHit(HitResult, ShotDirection);
+
+	UE_LOG(LogTemp, Log, TEXT("FireShot Success"));
+	MulticastPlayFiringMontage();
+	ClientApplyRecoil();
 
 	--CurrentBullets;
 	if (CurrentBullets <= 0)
 	{
 		CurrentBullets = MagazineSize;
 	}
-	WeaponOwner->UpdateWeaponHUD(CurrentBullets, MagazineSize);
-
-	// update the time of our last shot
 	TimeOfLastShot = GetWorld()->GetTimeSeconds();
 
-	// make noise so the AI perception system can hear us
 	MakeNoise(ShotLoudness, PawnOwner, PawnOwner->GetActorLocation(), ShotNoiseRange, ShotNoiseTag);
 
-	// are we full auto?
 	if (bFullAuto)
 	{
-		// schedule the next shot
 		GetWorld()->GetTimerManager().SetTimer(RefireTimer, this, &AShooterWeapon::Fire, RefireRate, false);
-	} else {
-
-		// for semi-auto weapons, schedule the cooldown notification
+	} 
+	else 
+	{
 		GetWorld()->GetTimerManager().SetTimer(RefireTimer, this, &AShooterWeapon::FireCooldownExpired, RefireRate, false);
-
 	}
 }
 
@@ -179,4 +202,49 @@ const TSubclassOf<UAnimInstance>& AShooterWeapon::GetFirstPersonAnimInstanceClas
 const TSubclassOf<UAnimInstance>& AShooterWeapon::GetThirdPersonAnimInstanceClass() const
 {
 	return ThirdPersonAnimInstanceClass;
+}
+
+
+void AShooterWeapon::ClientApplyRecoil_Implementation()
+{
+	if (WeaponOwner)
+	{
+		WeaponOwner->AddWeaponRecoil(FiringRecoil);
+	}
+}
+
+void AShooterWeapon::MulticastPlayFiringMontage_Implementation()
+{
+	// 서버에서는 애니메이션 재생이 필요가 없다. // 멀티캐스트니까 분기분 걸어준다.
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		if (WeaponOwner)
+		{
+			WeaponOwner->PlayFiringMontage(FiringMontage);
+		}
+	}
+}
+
+void AShooterWeapon::ServerNotifyHit_Implementation(const FHitResult& InHitResult, const FVector& InTraceStart)
+{
+	UE_LOG(LogTemp, Log, TEXT("ServerNotifyHit"));
+	if (InHitResult.bBlockingHit)
+	{
+		UGameplayStatics::ApplyPointDamage(InHitResult.GetActor(), HitDamage, InTraceStart,
+			InHitResult, PawnOwner->GetController(), this, HitDamageType);
+	}
+}
+
+void AShooterWeapon::OnRep_CurrentBullet()
+{
+	if (WeaponOwner)
+	{
+		WeaponOwner->UpdateWeaponHUD(CurrentBullets, MagazineSize);
+	}
+}
+
+void AShooterWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME_CONDITION(AShooterWeapon, CurrentBullets, COND_OwnerOnly);
 }

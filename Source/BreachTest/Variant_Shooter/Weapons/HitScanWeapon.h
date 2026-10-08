@@ -20,7 +20,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category="HitScan", meta = (ClampMin = 0, Units = "cm"))
 	float TraceRadius = 16.0f;
 
-	virtual bool FireShot() override;
+	virtual bool FireShot(FHitResult& OutHitResult, const FVector& InTraceStart, const FVector& InShotDirection) override;
 
 	/** Impact effects receive the trace result without a projectile actor. */
 	UFUNCTION(BlueprintImplementableEvent, Category="HitScan", meta = (DisplayName = "On HitScan Hit"))

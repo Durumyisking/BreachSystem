@@ -13,6 +13,8 @@
 #include "TimerManager.h"
 #include "ShooterGameMode.h"
 
+#include "Net/UnrealNetwork.h"
+
 AShooterCharacter::AShooterCharacter()
 {
 	// create the noise emitter component
@@ -61,6 +63,9 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 float AShooterCharacter::TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
+	// 우리 게임은 서버에서만 호출된다.
+	UE_LOG(LogTemp, Log, TEXT("TakeDamage"));
+
 	// ignore if already dead
 	if (CurrentHP <= 0.0f)
 	{
@@ -69,10 +74,12 @@ float AShooterCharacter::TakeDamage(float Damage, struct FDamageEvent const& Dam
 
 	// Reduce HP
 	CurrentHP -= Damage;
+	UE_LOG(LogTemp, Log, TEXT("%f"), CurrentHP);
 
 	// Have we depleted HP?
 	if (CurrentHP <= 0.0f)
 	{
+		UE_LOG(LogTemp, Log, TEXT("Dead"));
 		Die();
 	}
 
@@ -120,7 +127,6 @@ void AShooterCharacter::DoJumpEnd()
 
 void AShooterCharacter::DoStartFiring()
 {
-	// fire the current weapon
 	if (CurrentWeapon && !IsDead())
 	{
 		CurrentWeapon->StartFiring();
@@ -129,7 +135,6 @@ void AShooterCharacter::DoStartFiring()
 
 void AShooterCharacter::DoStopFiring()
 {
-	// stop firing the current weapon
 	if (CurrentWeapon && !IsDead())
 	{
 		CurrentWeapon->StopFiring();
@@ -141,9 +146,6 @@ void AShooterCharacter::DoSwitchWeapon()
 	// ensure we have at least two weapons two switch between
 	if (OwnedWeapons.Num() > 1 && !IsDead())
 	{
-		// deactivate the old weapon
-		CurrentWeapon->DeactivateWeapon();
-
 		// find the index of the current weapon in the owned list
 		int32 WeaponIndex = OwnedWeapons.Find(CurrentWeapon);
 
@@ -159,10 +161,9 @@ void AShooterCharacter::DoSwitchWeapon()
 		}
 
 		// set the new weapon as current
+		AShooterWeapon* PreviousWeapon = CurrentWeapon;
 		CurrentWeapon = OwnedWeapons[WeaponIndex];
-
-		// activate the new weapon
-		CurrentWeapon->ActivateWeapon();
+		OnRep_CurrentWeapon(PreviousWeapon);
 	}
 }
 
@@ -181,7 +182,19 @@ void AShooterCharacter::AttachWeaponMeshes(AShooterWeapon* Weapon)
 
 void AShooterCharacter::PlayFiringMontage(UAnimMontage* Montage)
 {
-	// stub
+	if (!Montage)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("Play Fire Montage"));
+
+	USkeletalMeshComponent* TargetMesh = IsLocallyControlled() ? GetFirstPersonMesh() : GetMesh();
+
+	if (UAnimInstance* AnimInstance = TargetMesh->GetAnimInstance())
+	{
+		AnimInstance->Montage_Play(Montage);
+	}
 }
 
 void AShooterCharacter::AddWeaponRecoil(float Recoil)
@@ -232,16 +245,10 @@ void AShooterCharacter::AddWeaponClass(const TSubclassOf<AShooterWeapon>& Weapon
 		{
 			// add the weapon to the owned list
 			OwnedWeapons.Add(AddedWeapon);
-
-			// if we have an existing weapon, deactivate it
-			if (CurrentWeapon)
-			{
-				CurrentWeapon->DeactivateWeapon();
-			}
-
-			// switch to the new weapon
+			AShooterWeapon* PreviousWeapon = CurrentWeapon;
 			CurrentWeapon = AddedWeapon;
-			CurrentWeapon->ActivateWeapon();
+			OnRep_CurrentWeapon(PreviousWeapon);
+
 		}
 	}
 }
@@ -319,6 +326,27 @@ void AShooterCharacter::OnRespawn()
 {
 	// destroy the character to force the PC to respawn
 	Destroy();
+}
+
+void AShooterCharacter::OnRep_CurrentWeapon(AShooterWeapon* ShooterWeapon)
+{
+	// if we have an existing weapon, deactivate it
+	if (ShooterWeapon)
+	{
+		ShooterWeapon->DeactivateWeapon();
+	}
+
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->ActivateWeapon();
+	}
+}
+
+void AShooterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME_CONDITION(AShooterCharacter, OwnedWeapons, COND_OwnerOnly);
+	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
 }
 
 bool AShooterCharacter::IsDead() const

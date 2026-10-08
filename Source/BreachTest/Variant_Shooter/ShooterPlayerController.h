@@ -9,6 +9,7 @@
 class UInputMappingContext;
 class AShooterCharacter;
 class UShooterBulletCounterUI;
+class UShooterUI;
 
 /**
  *  Simple PlayerController for a first person shooter game
@@ -54,6 +55,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category="Shooter|Player")
 	FName PlayerPawnTag = FName("Player");
 
+
+	/** Type of UI widget to spawn */
+	UPROPERTY(EditAnywhere, Category="Shooter")
+	TSubclassOf<UShooterUI> ShooterUIClass;
+
+	/** Pointer to the UI widget */
+	TObjectPtr<UShooterUI> ShooterUI;
+	
 	/** Pointer to the bullet counter UI widget */
 	UPROPERTY()
 	TObjectPtr<UShooterBulletCounterUI> BulletCounterUI;
@@ -83,4 +92,7 @@ protected:
 
 	/** Returns true if the player should use UMG touch controls */
 	bool ShouldUseTouchControls() const;
+
+protected:
+	void RefreshTeamScores();
 };

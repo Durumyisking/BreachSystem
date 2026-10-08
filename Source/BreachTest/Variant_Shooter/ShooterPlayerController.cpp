@@ -11,6 +11,9 @@
 #include "ShooterBulletCounterUI.h"
 #include "BreachTest.h"
 #include "Widgets/Input/SVirtualJoystick.h"
+#include "UI/ShooterUI.h"
+
+#include "ShooterGameState.h"
 
 void AShooterPlayerController::BeginPlay()
 {
@@ -43,12 +46,30 @@ void AShooterPlayerController::BeginPlay()
 		{
 			BulletCounterUI->AddToPlayerScreen(0);
 
-		} else {
-
+		} 
+		else 
+		{
 			UE_LOG(LogBreachTest, Error, TEXT("Could not spawn bullet counter widget."));
-
 		}
 		
+		// create the UI
+		ShooterUI = CreateWidget<UShooterUI>(this, ShooterUIClass);
+
+		if (ShooterUI)
+		{
+			ShooterUI->AddToViewport(0);
+			if (AShooterGameState* GS =	GetWorld()->GetGameState<AShooterGameState>())
+			{
+				GS->OnTeamScoresChanged.AddUObject(this, &AShooterPlayerController::RefreshTeamScores);
+
+				// UI 생성 전에 이미 복제된 점수도 바로 표시.
+				RefreshTeamScores();
+			}
+		}
+		else 
+		{
+			UE_LOG(LogBreachTest, Error, TEXT("Could not spawn Shooter widget."));
+		}
 	}
 }
 
@@ -151,3 +172,7 @@ bool AShooterPlayerController::ShouldUseTouchControls() const
 	// are we on a mobile platform? Should we force touch?
 	return SVirtualJoystick::ShouldDisplayTouchInterface() || bForceTouchControls;
 }
+
+void AShooterPlayerController::RefreshTeamScores()
+{}
+

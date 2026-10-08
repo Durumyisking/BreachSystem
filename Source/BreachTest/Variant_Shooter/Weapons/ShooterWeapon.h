@@ -50,6 +50,7 @@ protected:
 	int32 MagazineSize = 10;
 
 	/** Number of bullets in the current magazine */
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentBullet)
 	int32 CurrentBullets = 0;
 	
 	/** Animation montage to play when firing this weapon */
@@ -142,8 +143,8 @@ protected:
 	void FireCooldownExpired();
 
 	/** Perform the weapon-specific shot. False skips ammo consumption and effects. */
-	virtual bool FireShot() { return false; }
-
+	virtual bool FireShot(FHitResult& OutHitResult, const FVector& InTraceStart, const FVector& InShotDirection) { return false; }
+	
 public:
 
 	/** Returns the first person mesh */
@@ -165,4 +166,22 @@ public:
 
 	/** Returns the current bullet count */
 	int32 GetBulletCount() const { return CurrentBullets; }
+
+protected:
+	// Network
+	UFUNCTION(Server, Reliable)
+	void ServerNotifyHit(const FHitResult& InHitResult, const FVector& InTraceStart);
+
+
+	UFUNCTION(Client, Reliable) // 소유한 클라이언트만 실행
+	void ClientApplyRecoil();
+	UFUNCTION(NetMulticast, Unreliable) // 서버에서 호출하면 모든 클라가, 클라가 호출하면 클라만
+	void MulticastPlayFiringMontage();
+
+	UFUNCTION()
+	void OnRep_CurrentBullet();
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const;
+
+
 };

@@ -6,7 +6,6 @@
 #include "GameFramework/GameModeBase.h"
 #include "ShooterGameMode.generated.h"
 
-class UShooterUI;
 
 /**
  *  Simple GameMode for a first person shooter game
@@ -19,13 +18,6 @@ class BREACHTEST_API AShooterGameMode : public AGameModeBase
 	GENERATED_BODY()
 	
 protected:
-
-	/** Type of UI widget to spawn */
-	UPROPERTY(EditAnywhere, Category="Shooter")
-	TSubclassOf<UShooterUI> ShooterUIClass;
-
-	/** Pointer to the UI widget */
-	TObjectPtr<UShooterUI> ShooterUI;
 
 	/** Map of scores by team ID */
 	TMap<uint8, int32> TeamScores;
