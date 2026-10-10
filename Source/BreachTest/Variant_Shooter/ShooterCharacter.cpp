@@ -64,7 +64,7 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 float AShooterCharacter::TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	// 우리 게임은 서버에서만 호출된다.
-	UE_LOG(LogTemp, Log, TEXT("TakeDamage"));
+	//UE_LOG(LogTemp, Log, TEXT("TakeDamage"));
 
 	// ignore if already dead
 	if (CurrentHP <= 0.0f)
@@ -74,17 +74,12 @@ float AShooterCharacter::TakeDamage(float Damage, struct FDamageEvent const& Dam
 
 	// Reduce HP
 	CurrentHP -= Damage;
-	UE_LOG(LogTemp, Log, TEXT("%f"), CurrentHP);
 
 	// Have we depleted HP?
 	if (CurrentHP <= 0.0f)
 	{
-		UE_LOG(LogTemp, Log, TEXT("Dead"));
 		Die();
 	}
-
-	// update the HUD
-	OnDamaged.Broadcast(FMath::Max(0.0f, CurrentHP / MaxHP));
 
 	return Damage;
 }
@@ -291,11 +286,12 @@ AShooterWeapon* AShooterCharacter::FindWeaponOfType(TSubclassOf<AShooterWeapon> 
 
 void AShooterCharacter::Die()
 {
-	// deactivate the weapon
-	if (IsValid(CurrentWeapon))
+	if (!HasAuthority() || bIsDying)
 	{
-		CurrentWeapon->DeactivateWeapon();
+		return;
 	}
+
+	bIsDying = true;
 
 	// increment the team score
 	if (AShooterGameMode* GM = Cast<AShooterGameMode>(GetWorld()->GetAuthGameMode()))
@@ -303,29 +299,53 @@ void AShooterCharacter::Die()
 		GM->IncrementTeamScore(TeamByte);
 	}
 
+	// RepNotify runs on clients; apply death directly on the server.
+	OnDeath();
+	ForceNetUpdate();
+
+	// schedule character respawn on the server
+	GetWorld()->GetTimerManager().SetTimer(RespawnTimer, this, &AShooterCharacter::OnRespawn, RespawnTime, false);
+}
+
+void AShooterCharacter::OnDeath()
+{
+	// deactivate the weapon on each machine
+	if (IsValid(CurrentWeapon))
+	{
+		CurrentWeapon->DeactivateWeapon();
+	}
+
 	// grant the death tag to the character
-	Tags.Add(DeathTag);
+	Tags.AddUnique(DeathTag);
 		
 	// stop character movement
 	GetCharacterMovement()->StopMovementImmediately();
+	GetCharacterMovement()->DisableMovement();
 
-	// disable controls
-	DisableInput(nullptr);
+	if (IsLocallyControlled())
+	{
+		// disable controls
+		DisableInput(nullptr);
 
-	// reset the bullet counter UI
-	OnBulletCountUpdated.Broadcast(0, 0);
+		// reset the bullet counter UI
+		OnBulletCountUpdated.Broadcast(0, 0);
+	}
 
 	// call the BP handler
 	BP_OnDeath();
-
-	// schedule character respawn
-	GetWorld()->GetTimerManager().SetTimer(RespawnTimer, this, &AShooterCharacter::OnRespawn, RespawnTime, false);
 }
 
 void AShooterCharacter::OnRespawn()
 {
 	// destroy the character to force the PC to respawn
 	Destroy();
+}
+
+void AShooterCharacter::OnRep_CurrentHp()
+{
+	// 캐릭터 주인 빼고는 UI업데이트를 할 필요없다.
+	// update the HUD
+	OnDamaged.Broadcast(FMath::Max(0.0f, CurrentHP / MaxHP));
 }
 
 void AShooterCharacter::OnRep_CurrentWeapon(AShooterWeapon* ShooterWeapon)
@@ -338,19 +358,37 @@ void AShooterCharacter::OnRep_CurrentWeapon(AShooterWeapon* ShooterWeapon)
 
 	if (CurrentWeapon)
 	{
-		CurrentWeapon->ActivateWeapon();
+		// The weapon reference can arrive after the replicated death state.
+		if (bIsDying)
+		{
+			CurrentWeapon->DeactivateWeapon();
+		}
+		else
+		{
+			CurrentWeapon->ActivateWeapon();
+		}
+	}
+}
+
+void AShooterCharacter::OnRep_IsDying()
+{
+	if (bIsDying)
+	{
+		OnDeath();
 	}
 }
 
 void AShooterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME_CONDITION(AShooterCharacter, CurrentHP, COND_OwnerOnly);
+	DOREPLIFETIME(AShooterCharacter, bIsDying);
 	DOREPLIFETIME_CONDITION(AShooterCharacter, OwnedWeapons, COND_OwnerOnly);
 	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
 }
 
 bool AShooterCharacter::IsDead() const
 {
-	// the character is dead if their current HP drops to zero
-	return CurrentHP <= 0.0f;
+	// Remote clients receive the death state without receiving the owner's HP.
+	return bIsDying || CurrentHP <= 0.0f;
 }

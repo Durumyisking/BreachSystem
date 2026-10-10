@@ -56,7 +56,12 @@ protected:
 	float MaxHP = 500.0f;
 
 	/** Current HP remaining to this character */
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentHp, EditAnywhere, Category = "Health")
 	float CurrentHP = 0.0f;
+
+	/** Death state is needed by all clients, even though HP is owner-only. */
+	UPROPERTY(ReplicatedUsing = OnRep_IsDying)
+	bool bIsDying = false;
 
 	/** Team ID for this character*/
 	UPROPERTY(EditAnywhere, Category="Team")
@@ -175,8 +180,11 @@ protected:
 	/** Returns true if the character already owns a weapon of the given class */
 	AShooterWeapon* FindWeaponOfType(TSubclassOf<AShooterWeapon> WeaponClass) const;
 
-	/** Called when this character's HP is depleted */
+	/** Handles authoritative death state, scoring, and respawn scheduling. */
 	void Die();
+
+	/** Applies death on the server and on clients receiving the death state. */
+	void OnDeath();
 
 	/** Called to allow Blueprint code to react to this character's death */
 	UFUNCTION(BlueprintImplementableEvent, Category="Shooter", meta = (DisplayName = "On Death"))
@@ -188,7 +196,14 @@ protected:
 protected:
 	// Networks
 	UFUNCTION()
+	void OnRep_CurrentHp();
+
+	UFUNCTION()
 	void OnRep_CurrentWeapon(AShooterWeapon* ShooterWeapon);
+
+	UFUNCTION()
+	void OnRep_IsDying();
+
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const;
 public:
