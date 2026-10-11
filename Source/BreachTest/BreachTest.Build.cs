@@ -21,6 +21,7 @@ public class BreachTest : ModuleRules
 			"UMG",
 			"Slate",
 
+
 			"BreachSystem"
 		});
 

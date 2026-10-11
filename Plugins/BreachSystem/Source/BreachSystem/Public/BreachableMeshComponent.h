@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/StaticMeshComponent.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
 #include "BreachableMeshComponent.generated.h"
 
 class UDynamicMeshComponent;
@@ -18,11 +18,12 @@ namespace UE::Geometry
  * 
  */
 UCLASS(ClassGroup = (Breach), meta = (BlueprintSpawnableComponent))
-class BREACHSYSTEM_API UBreachableMeshComponent : public UStaticMeshComponent
+class BREACHSYSTEM_API UBreachableMeshComponent : public UGeometryCollectionComponent
 {
 	GENERATED_BODY()
 	
 public:
+	UBreachableMeshComponent();
 	virtual void ReceiveComponentDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 protected:
@@ -32,12 +33,6 @@ protected:
 	void ApplyBreachHit(UPrimitiveComponent* HitComponent, AActor* SourceActor, const FHitResult& Hit);
 
 	virtual void BeginPlay() override;
-
-	UFUNCTION()
-	void OnBreachableMeshHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
-
-	bool ConvertStaticMeshToDynamicMesh(UE::Geometry::FDynamicMesh3& OutMesh) const;
-	void CreateDynamicMeshProxy(UE::Geometry::FDynamicMesh3&& Mesh);
 
 protected:
 	UPROPERTY(Transient)

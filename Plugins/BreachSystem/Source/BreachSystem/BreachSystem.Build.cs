@@ -26,7 +26,7 @@ public class BreachSystem : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core", "CoreUObject", "GeometryCore",
+				"Core", "CoreUObject", "Engine", "GeometryCore", "GeometryFramework", "GeometryCollectionEngine",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -35,18 +35,6 @@ public class BreachSystem : ModuleRules
         PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Engine",
-				"Slate",
-				"SlateCore",
-
-				"GeometryFramework",
-				"GeometryCore",
-				"DynamicMesh",
-				"MeshDescription",
-				"StaticMeshDescription",
-				"MeshConversion", // FMeshDescriptionToDynamicMesh 사용에 필요
-				"MeshConversionEngineTypes",
-
 			}
 			);
 		

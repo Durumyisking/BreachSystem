@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "BreachSourceOption.h"
+#include "Components/ActorComponent.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "TransformTypes.h"
 #include "BreachSourceComponent.generated.h"
