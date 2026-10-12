@@ -16,18 +16,191 @@
                 {
                   "state": "{}",
                   "eState": "{}"
+                },
+                {
+                  "title": "이슈 - 메시 컷 프레임 드랍",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"video\",\"state\":{\"file\":\"영상/이슈 - 메시 컷 프레임 드랍.mkv\"},\"icon\":\"lucide-file\",\"title\":\"이슈 - 메시 컷 프레임 드랍\"}",
+                  "eState": "{}"
+                },
+                {
+                  "title": "2026-10-11 브리칭 방식 변경",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-11 브리칭 방식 변경.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-11 브리칭 방식 변경\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":16,\"ch\":81},\"to\":{\"line\":16,\"ch\":81}}}"
+                },
+                {
+                  "title": "StaticMesh에서 DynamicMesh변환",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/StaticMesh에서 DynamicMesh변환.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"StaticMesh에서 DynamicMesh변환\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-12 R6 표면 파괴 구현 계획 초안",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 R6 표면 파괴 구현 계획 초안\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":35,\"ch\":99},\"to\":{\"line\":35,\"ch\":99}},\"scroll\":21.444010416666668}"
                 }
               ]
             },
             "state": {
               "type": "markdown",
               "state": {
-                "file": "환영합니다!.md",
+                "file": "기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "환영합니다!"
+              "title": "2026-10-12 R6 표면 파괴 구현 계획 초안"
+            }
+          },
+          {
+            "id": "9f3c56c90cd30016",
+            "type": "leaf",
+            "pane-relief:history-v1": {
+              "pos": 0,
+              "stack": [
+                {
+                  "state": "{}",
+                  "eState": "{}"
+                },
+                {
+                  "title": "2026-10-12 1. 사각형 벽 데이터 캐시",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-12 1. 사각형 벽 데이터 캐시.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 1. 사각형 벽 데이터 캐시\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-12 1. 사각형 벽 데이터 캐시",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-12 1. 사각형 벽 데이터 캐시.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 1. 사각형 벽 데이터 캐시\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-10-12 R6 표면 파괴 구현 계획 초안",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 R6 표면 파괴 구현 계획 초안\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":30.471354166666668}"
+                },
+                {
+                  "title": "2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":5,\"ch\":3},\"to\":{\"line\":5,\"ch\":19}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-10-12 1. 사각형 벽 데이터 캐시",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-12 1. 사각형 벽 데이터 캐시.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 1. 사각형 벽 데이터 캐시\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":95,\"ch\":0},\"to\":{\"line\":95,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "메시에 구멍뚫기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/메시에 구멍뚫기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"메시에 구멍뚫기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-09-29 브리칭 1차 완성",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-09-29 브리칭 1차 완성.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-09-29 브리칭 1차 완성\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-11 브리칭 방식 변경",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-11 브리칭 방식 변경.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-11 브리칭 방식 변경\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-10-12 R6 표면 파괴 구현 계획 초안",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 R6 표면 파괴 구현 계획 초안\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":27,\"ch\":23},\"to\":{\"line\":27,\"ch\":18}},\"scroll\":14.950520833333334}"
+                },
+                {
+                  "title": "2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":5,\"ch\":0},\"to\":{\"line\":5,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-10-12 R6 표면 파괴 구현 계획 초안",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 R6 표면 파괴 구현 계획 초안\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":31,\"ch\":46},\"to\":{\"line\":31,\"ch\":3}},\"scroll\":21.4453125}"
+                },
+                {
+                  "title": "2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":5,\"ch\":0},\"to\":{\"line\":5,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-10-12 R6 표면 파괴 구현 계획 초안",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 R6 표면 파괴 구현 계획 초안\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":47,\"ch\":72},\"to\":{\"line\":45,\"ch\":0}},\"scroll\":27.116689280868385}"
+                },
+                {
+                  "title": "2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":1,\"ch\":0},\"to\":{\"line\":1,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-10-12 R6 표면 파괴 구현 계획 초안",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 R6 표면 파괴 구현 계획 초안\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":41,\"ch\":28},\"to\":{\"line\":41,\"ch\":7}},\"scroll\":24.0546875}"
+                },
+                {
+                  "title": "2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 폭·높이를 입력하면 사각형 벽을 표시하기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":1,\"ch\":0},\"to\":{\"line\":1,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-10-12 R6 표면 파괴 구현 계획 초안",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 R6 표면 파괴 구현 계획 초안\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":27,\"ch\":7},\"to\":{\"line\":27,\"ch\":29}},\"scroll\":8.768229166666666}"
+                },
+                {
+                  "title": "2026-10-12 클릭한 위치를 벽의 2D 좌표로 바꾸기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                }
+              ]
+            },
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기"
             }
           },
           {
@@ -894,6 +1067,78 @@
                   "eState": "{}"
                 },
                 {
+                  "title": "2026-10-12 R6 표면 파괴 구현 계획 초안",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 R6 표면 파괴 구현 계획 초안\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":91,\"ch\":42},\"to\":{\"line\":91,\"ch\":42}},\"scroll\":21.827543424317618}"
+                },
+                {
+                  "title": "시즈 방식 벽 파괴 기획",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/시즈 방식 벽 파괴 기획.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"시즈 방식 벽 파괴 기획\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":5,\"ch\":0},\"to\":{\"line\":5,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-11 브리칭 방식 변경",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-11 브리칭 방식 변경.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-11 브리칭 방식 변경\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":16,\"ch\":28},\"to\":{\"line\":16,\"ch\":28}}}"
+                },
+                {
+                  "title": "메시에 구멍뚫기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/메시에 구멍뚫기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"메시에 구멍뚫기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-10-12 R6 표면 파괴 구현 계획 초안",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 R6 표면 파괴 구현 계획 초안\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":15.950520833333334}"
+                },
+                {
+                  "title": "시즈 방식 벽 파괴 기획",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/시즈 방식 벽 파괴 기획.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"시즈 방식 벽 파괴 기획\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":5,\"ch\":0},\"to\":{\"line\":5,\"ch\":0}}}"
+                },
+                {
+                  "title": "메시의 Hit 지점 알아내기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/메시의 Hit 지점 알아내기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"메시의 Hit 지점 알아내기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-11 브리칭 방식 변경",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-11 브리칭 방식 변경.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-11 브리칭 방식 변경\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "메시에 구멍뚫기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/메시에 구멍뚫기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"메시에 구멍뚫기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-11 브리칭 방식 변경",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-11 브리칭 방식 변경.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-11 브리칭 방식 변경\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":15,\"ch\":53},\"to\":{\"line\":15,\"ch\":53}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-10-12 R6 표면 파괴 구현 계획 초안",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 R6 표면 파괴 구현 계획 초안\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":20,\"ch\":156},\"to\":{\"line\":20,\"ch\":156}},\"scroll\":4.063772048846675}"
+                },
+                {
+                  "title": "서버붙이기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/서버붙이기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"서버붙이기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":7.3132102272727275}"
+                },
+                {
                   "title": "네트워크 구현 - 템플릿 기본 기능 이전 완료",
                   "icon": "lucide-file",
                   "state": "{\"type\":\"video\",\"state\":{\"file\":\"영상/네트워크 구현 - 템플릿 기본 기능 이전 완료.mkv\"},\"icon\":\"lucide-file\",\"title\":\"네트워크 구현 - 템플릿 기본 기능 이전 완료\"}",
@@ -1102,16 +1347,16 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "개발노트/서버붙이기.md",
+                "file": "개발노트/2026-10-11 브리칭 방식 변경.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "서버붙이기"
+              "title": "2026-10-11 브리칭 방식 변경"
             }
           }
         ],
-        "currentTab": 12
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -1352,21 +1597,27 @@
       "vscode-editor:Create Code File": false
     }
   },
-  "active": "32c25ff1b530a946",
+  "active": "9f3c56c90cd30016",
   "lastOpenFiles": [
-    "영상/네트워크 구현 - 템플릿 기본 기능 이전 완료.mkv",
-    "개발노트/서버붙이기.md",
-    "개발노트/StaticMesh vs DynamicMesh.md",
-    "개발노트/메시의 Hit 지점 알아내기.md",
-    "영상/이슈 - MeshCut실패.mkv",
-    "영상/이슈 - 메시 컷 프레임 드랍.mkv",
-    "영상/첫 메시 컷 성공.mkv",
-    "개발노트/2026-09-29 브리칭 1차 완성.md",
+    "Pasted image 20261012232254.png",
+    "개발노트/2026-10-12 1. 사각형 벽 데이터 캐시.md",
+    "개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md",
+    "기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md",
+    "Pasted image 20261012225752.png",
     "개발노트/메시에 구멍뚫기.md",
+    "개발노트/2026-09-29 브리칭 1차 완성.md",
+    "개발노트/2026-10-11 브리칭 방식 변경.md",
+    "영상/이슈 - 메시 컷 프레임 드랍.mkv",
     "개발노트/StaticMesh에서 DynamicMesh변환.md",
+    "기획/시즈 방식 벽 파괴 기획.md",
+    "개발노트/메시의 Hit 지점 알아내기.md",
+    "개발노트/서버붙이기.md",
+    "영상/네트워크 구현 - 템플릿 기본 기능 이전 완료.mkv",
+    "개발노트/StaticMesh vs DynamicMesh.md",
+    "영상/이슈 - MeshCut실패.mkv",
+    "영상/첫 메시 컷 성공.mkv",
     "이슈/MeshBoolean.Compute 프레임 저하.md",
     "이슈/DynamicMeshComponent로 변환하면서 라이팅 변화.md",
-    "기획/시즈 방식 벽 파괴 기획.md",
     "영상/네트워크 구현 - 사격처리1.mkv",
     "개발노트/데.md",
     "시각화/siege-wall-pipeline.svg",
@@ -1387,7 +1638,6 @@
     "Pasted image 20260927200350.png",
     "영상/이슈 - 다이나믹메시 변경시 라이팅 변함.mkv",
     "영상/2026-09-27 14-45-33.mkv",
-    "mermaid-diagram.png",
     "클래스 구조.md",
     "언리얼에 이미 있는 요소.md",
     "링크를 만들거나.md",

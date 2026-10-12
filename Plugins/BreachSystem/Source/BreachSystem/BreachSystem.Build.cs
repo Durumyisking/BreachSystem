@@ -26,7 +26,7 @@ public class BreachSystem : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core", "CoreUObject", "Engine", "GeometryCore", "GeometryFramework", "GeometryCollectionEngine",
+				"Core", "CoreUObject", "Engine", "GeometryCore", "GeometryFramework",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -35,6 +35,8 @@ public class BreachSystem : ModuleRules
         PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"GeometryAlgorithms",
+				"MeshConversionEngineTypes",
 			}
 			);
 		
