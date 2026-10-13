@@ -43,9 +43,6 @@ protected:
 
 	void DebugDrawSurface();
 
-	FVector2D WorldToSurface(const FVector& InWorldPoint);
-	FVector SurfaceToWorld(const FVector2D& InSurfacePoint);
-
 private:
 	UPROPERTY(EditAnywhere, Category = "Breach")
 	TObjectPtr<UStaticMesh> SourceStaticMesh = nullptr;

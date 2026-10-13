@@ -14,6 +14,9 @@
 
 #include "Components/LineBatchComponent.h"
 
+#include "Surface/BreachSurfaceGeometry.h"
+#include "Curve/PolygonIntersectionUtils.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogBreachableSurface, Log, All);
 
 UBreachableSurfaceComponent::UBreachableSurfaceComponent()
@@ -179,22 +182,34 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		
 		const FPointDamageEvent& PointDamage = static_cast<const FPointDamageEvent&>(DamageEvent);
 
-		FVector2D SurfacePoint = WorldToSurface(PointDamage.HitInfo.ImpactPoint);
-		SLOG(TEXT("SurfacePoint : %s"), *SurfacePoint.ToString());
-		UWorld* World = GetWorld();
-		if (World)
-		{
-			for (auto& RemainingRegion : SurfaceState.RemainingRegions)
-			{
-				const TArray<FVector2D>& OuterVertices = RemainingRegion.GetOuter().GetVertices();
-				for (const FVector2D& Vertex : OuterVertices)
-				{
-					const FVector WorldVertex = SurfaceToWorld(Vertex);
-					DrawDebugLine(World, PointDamage.HitInfo.ImpactPoint, WorldVertex, FColor::Green, false, 2.f, SDPG_Foreground, 2.0f);
+		const FTransform& ComponentTransform = GetComponentTransform();
+		FVector2D SurfacePoint = BreachSurfaceGeometry::WorldToSurface(ComponentTransform, PointDamage.HitInfo.ImpactPoint);
 
-				}
-			}
-		}
+		//BreachSurfaceGeometry::DebugDrawPolygon2d(this, ComponentTransform, BreachSurfaceGeometry::MakeCircleCutter(SurfacePoint, 4, 32));
+		//BreachSurfaceGeometry::DebugDrawPolygon2d(this, ComponentTransform, BreachSurfaceGeometry::MakeBoxCutter(SurfacePoint, FVector2d(4, 3)));
+
+		TArray<FGeneralPolygon2d> Cutters;
+		TArray<FGeneralPolygon2d> OutRegions;
+		Cutters.Emplace(BreachSurfaceGeometry::MakeRoughCircleCutter(SurfacePoint, 10, 32, 1.3f, -1));
+		PolygonsDifference(SurfaceState.RemainingRegions, Cutters, SurfaceState.RemainingRegions);
+		BreachSurfaceGeometry::DebugDrawPolygon2ds(this, ComponentTransform, SurfaceState.RemainingRegions);
+
+		//SLOG(TEXT("SurfacePoint : %s"), *SurfacePoint.ToString());
+		//UWorld* World = GetWorld();
+		//if (World)
+		//{
+		//	for (auto& RemainingRegion : SurfaceState.RemainingRegions)
+		//	{
+		//		BreachSurfaceGeometry::DebugDrawPolygon2d(this, ComponentTransform, RemainingRegion);
+		//		const TArray<FVector2D>& OuterVertices = RemainingRegion.GetOuter().GetVertices();
+		//		for (const FVector2D& Vertex : OuterVertices)
+		//		{
+		//			const FVector WorldVertex = BreachSurfaceGeometry::SurfaceToWorld(ComponentTransform, Vertex);
+		//			DrawDebugLine(World, PointDamage.HitInfo.ImpactPoint, WorldVertex, FColor::Green, false, 2.f, SDPG_Foreground, 2.0f);
+
+		//		}
+		//	}
+		//}
 
 		// Trace의 표면 바깥 법선을 벽이 받는 이동 충돌의 법선 방향에 맞춘다.
 		//FHitResult BreachHit = PointDamage.HitInfo;
@@ -208,28 +223,8 @@ void UBreachableSurfaceComponent::DebugDrawSurface()
 	UWorld* World = GetWorld();
 	if (World)
 	{
-		for (auto& RemainingRegion : SurfaceState.RemainingRegions)
-		{
-			const TArray<FVector2D>& OuterVertices = RemainingRegion.GetOuter().GetVertices();
-			for (int32 i = 0; i < OuterVertices.Num(); ++i)
-			{
-				const FVector Start = SurfaceToWorld(OuterVertices[i]);
-				const FVector End = SurfaceToWorld(OuterVertices[(i + 1) % OuterVertices.Num()]);
-				DrawDebugLine(World, Start, End, FColor::Green, false, 2.f, SDPG_Foreground, 2.0f);
-			}
-
-			const TArray <UE::Geometry::FPolygon2d> Holes = RemainingRegion.GetHoles();
-			for (auto& Hole : Holes)
-			{
-				const TArray<FVector2D>& HoleVertices = Hole.GetVertices();
-				for (int32 i = 0; i < HoleVertices.Num(); ++i)
-				{
-					const FVector Start = SurfaceToWorld(HoleVertices[i]);
-					const FVector End = SurfaceToWorld(HoleVertices[(i + 1) % HoleVertices.Num()]);
-					DrawDebugLine(World, Start, End, FColor::Green, false, 2.f, SDPG_Foreground, 2.0f);
-				}
-			}
-		}
+		const FTransform& ComponentTransform = GetComponentTransform();
+		BreachSurfaceGeometry::DebugDrawPolygon2ds(this, ComponentTransform, SurfaceState.RemainingRegions);
 
 #pragma region LineBatch방식
 		/*for (auto& RemainingRegion : SurfaceState.RemainingRegions)
@@ -268,17 +263,5 @@ void UBreachableSurfaceComponent::DebugDrawSurface()
 
 
 	}
-}
-
-FVector2D UBreachableSurfaceComponent::WorldToSurface(const FVector& InWorldPoint)
-{
-	const FVector LocalPoint = GetComponentTransform().InverseTransformPosition(InWorldPoint);
-	return FVector2D(LocalPoint.X, LocalPoint.Z);
-}
-
-FVector UBreachableSurfaceComponent::SurfaceToWorld(const FVector2D& InSurfacePoint)
-{
-	const FVector LocalPoint(InSurfacePoint.X, 0.0, InSurfacePoint.Y);
-	return GetComponentTransform().TransformPosition(LocalPoint);
 }
 
