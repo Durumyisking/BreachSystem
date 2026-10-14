@@ -16,6 +16,7 @@
 
 #include "Surface/BreachSurfaceGeometry.h"
 #include "Curve/PolygonIntersectionUtils.h"
+#include "DynamicMesh/MeshNormals.h"
 
 #include "CompGeom/Delaunay2.h"
 
@@ -77,8 +78,8 @@ bool UBreachableSurfaceComponent::InitializeSurface()
 	const UE::Geometry::FAxisAlignedBox3d MeshBounds = Mesh.GetBounds();
 	FBreachSurfaceState InitialState;
 	InitialState.Size.Width = MeshBounds.Max.X - MeshBounds.Min.X;
-	InitialState.Size.Height = MeshBounds.Max.Y - MeshBounds.Min.Y;
-	InitialState.Size.Thickness = MeshBounds.Max.Z - MeshBounds.Min.Z;
+	InitialState.Size.Height = MeshBounds.Max.Z - MeshBounds.Min.Z;
+	InitialState.Size.Thickness = MeshBounds.Max.Y - MeshBounds.Min.Y;
 	if (InitialState.Size.Width <= UE_SMALL_NUMBER || InitialState.Size.Height <= UE_SMALL_NUMBER)
 	{
 		UE_LOG(LogBreachableSurface, Warning, TEXT("%s must have non-zero dimensions in local XY."), *SourceStaticMesh->GetName());
@@ -111,6 +112,7 @@ bool UBreachableSurfaceComponent::InitializeSurface()
 	// 8. 이전 단순 충돌을 지우고 현재 삼각형을 충돌로 사용한다. SetMesh가 렌더 갱신도 요청한다.
 	ClearSimpleCollisionShapes(false);
 	SetComplexAsSimpleCollisionEnabled(true, false);
+	//SetEnableFlatShading(true); 
 	SetMesh(MoveTemp(Mesh));
 	UpdateCollision();
 	return true;
@@ -175,7 +177,7 @@ bool UBreachableSurfaceComponent::ResetSurface()
 
 	return InitializeSurface();
 }
-
+UE_DISABLE_OPTIMIZATION
 void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitComponent, const FDamageEvent& DamageEvent, AActor* DamageCauser)
 {
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
@@ -186,14 +188,9 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 
 		const FTransform& ComponentTransform = GetComponentTransform();
 		FVector2D SurfacePoint = BreachSurfaceGeometry::WorldToSurface(ComponentTransform, PointDamage.HitInfo.ImpactPoint);
-
-		//BreachSurfaceGeometry::DebugDrawPolygon2d(this, ComponentTransform, BreachSurfaceGeometry::MakeCircleCutter(SurfacePoint, 4, 32));
-		//BreachSurfaceGeometry::DebugDrawPolygon2d(this, ComponentTransform, BreachSurfaceGeometry::MakeBoxCutter(SurfacePoint, FVector2d(4, 3)));
-
 		TArray<FGeneralPolygon2d> Cutters;
-		Cutters.Emplace(BreachSurfaceGeometry::MakeRoughCircleCutter(SurfacePoint, 10, 32, 1.3f, -1));
+		Cutters.Emplace(BreachSurfaceGeometry::MakeRoughCircleCutter(SurfacePoint, 5, 32, 1.3f, -1));
 		PolygonsDifference(SurfaceState.RemainingRegions, Cutters, SurfaceState.RemainingRegions);
-		//BreachSurfaceGeometry::DebugDrawPolygon2ds(this, ComponentTransform, SurfaceState.RemainingRegions);
 
 		// SurfaceState기반으로 메시를 갱신한다.
 		FDelaunay2 Delaunay;
@@ -207,55 +204,51 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 			{
 				continue;
 			}
+			TArray<int32> FrontIDs;
+			TArray<int32> BackIDs;
 
-			for (const FVector2d Vertex : Vertices)
+			for (const FVector2d& Vertex : Vertices)
 			{
-				RenewedMesh.AppendVertex(FVector3d(Vertex.X, 0.0, Vertex.Y));
+				FrontIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, 0.0, Vertex.Y)));
+				BackIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, SurfaceState.Size.Thickness, Vertex.Y)));
 			}
-			for (const FIndex3i Triangle : Triangles)
+			for (const FIndex3i& Triangle : Triangles)
 			{
-				RenewedMesh.AppendTriangle(Triangle);
+				RenewedMesh.AppendTriangle(FrontIDs[Triangle.A], FrontIDs[Triangle.C], FrontIDs[Triangle.B]);
+				RenewedMesh.AppendTriangle(BackIDs[Triangle.A], BackIDs[Triangle.B], BackIDs[Triangle.C]);
 			}
-			//// 3. 삼각형 디버그 드로잉
-			//for (const FIndex3i& Triangle : Triangles)
-			//{
-			//	const FVector A = BreachSurfaceGeometry::SurfaceToWorld(ComponentTransform, Vertices[Triangle.A]);
-			//	const FVector B = BreachSurfaceGeometry::SurfaceToWorld(ComponentTransform, Vertices[Triangle.B]);
-			//	const FVector C = BreachSurfaceGeometry::SurfaceToWorld(ComponentTransform, Vertices[Triangle.C]);
 
-			//	DrawDebugLine(GetWorld(), A, B, FColor::Green, false, 5.0f, SDPG_Foreground, 1.5f);
-			//	DrawDebugLine(GetWorld(), B, C, FColor::Green, false, 5.0f, SDPG_Foreground, 1.5f);
-			//	DrawDebugLine(GetWorld(), C, A, FColor::Green, false, 5.0f, SDPG_Foreground, 1.5f);
-			//}
+			// 사이드 면 채우기
+			auto AppendSideFaces = [&](const FPolygon2d& Boundary, bool bIsHole)
+			{
+				const int32 Count = Boundary.VertexCount();
+				const bool bReverse = Boundary.IsClockwise() != bIsHole;
+				for (int32 Index = 0; Index < Count; ++Index)
+				{
+					int32 A = Index;				// 0, 1, 2, 3
+					int32 B = (Index + 1) % Count; // 1, 2, 3, 0
+					if (bReverse)
+					{
+						Swap(A, B);
+					}
+					RenewedMesh.AppendTriangle(FrontIDs[A], FrontIDs[B], BackIDs[B]);
+					RenewedMesh.AppendTriangle(FrontIDs[A], BackIDs[B], BackIDs[A]);
+				}
+			};
+			AppendSideFaces(RemainingRegion.GetOuter(), false);
+			for (const FPolygon2d& Hole : RemainingRegion.GetHoles())
+			{
+				AppendSideFaces(Hole, true);
+			}
 		}
+
+		UE::Geometry::FMeshNormals::InitializeMeshToPerTriangleNormals(&RenewedMesh);
 		SetMesh(MoveTemp(RenewedMesh));
 		UpdateCollision();
 
-
-		//SLOG(TEXT("SurfacePoint : %s"), *SurfacePoint.ToString());
-		//UWorld* World = GetWorld();
-		//if (World)
-		//{
-		//	for (auto& RemainingRegion : SurfaceState.RemainingRegions)
-		//	{
-		//		BreachSurfaceGeometry::DebugDrawPolygon2d(this, ComponentTransform, RemainingRegion);
-		//		const TArray<FVector2D>& OuterVertices = RemainingRegion.GetOuter().GetVertices();
-		//		for (const FVector2D& Vertex : OuterVertices)
-		//		{
-		//			const FVector WorldVertex = BreachSurfaceGeometry::SurfaceToWorld(ComponentTransform, Vertex);
-		//			DrawDebugLine(World, PointDamage.HitInfo.ImpactPoint, WorldVertex, FColor::Green, false, 2.f, SDPG_Foreground, 2.0f);
-
-		//		}
-		//	}
-		//}
-
-		// Trace의 표면 바깥 법선을 벽이 받는 이동 충돌의 법선 방향에 맞춘다.
-		//FHitResult BreachHit = PointDamage.HitInfo;
-		//BreachHit.Normal = -BreachHit.Normal;
-		//BreachHit.ImpactNormal = -BreachHit.ImpactNormal;
 	}
 }
-
+UE_ENABLE_OPTIMIZATION
 void UBreachableSurfaceComponent::DebugDrawSurface()
 {
 	UWorld* World = GetWorld();
