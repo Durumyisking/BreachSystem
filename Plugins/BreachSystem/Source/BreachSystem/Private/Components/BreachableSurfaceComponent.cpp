@@ -17,6 +17,8 @@
 #include "Surface/BreachSurfaceGeometry.h"
 #include "Curve/PolygonIntersectionUtils.h"
 
+#include "CompGeom/Delaunay2.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogBreachableSurface, Log, All);
 
 UBreachableSurfaceComponent::UBreachableSurfaceComponent()
@@ -178,7 +180,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 {
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
-		DebugDrawSurface();
+		//DebugDrawSurface();
 		
 		const FPointDamageEvent& PointDamage = static_cast<const FPointDamageEvent&>(DamageEvent);
 
@@ -189,10 +191,46 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		//BreachSurfaceGeometry::DebugDrawPolygon2d(this, ComponentTransform, BreachSurfaceGeometry::MakeBoxCutter(SurfacePoint, FVector2d(4, 3)));
 
 		TArray<FGeneralPolygon2d> Cutters;
-		TArray<FGeneralPolygon2d> OutRegions;
 		Cutters.Emplace(BreachSurfaceGeometry::MakeRoughCircleCutter(SurfacePoint, 10, 32, 1.3f, -1));
 		PolygonsDifference(SurfaceState.RemainingRegions, Cutters, SurfaceState.RemainingRegions);
-		BreachSurfaceGeometry::DebugDrawPolygon2ds(this, ComponentTransform, SurfaceState.RemainingRegions);
+		//BreachSurfaceGeometry::DebugDrawPolygon2ds(this, ComponentTransform, SurfaceState.RemainingRegions);
+
+		// SurfaceState기반으로 메시를 갱신한다.
+		FDelaunay2 Delaunay;
+		FDynamicMesh3 RenewedMesh;
+		for (auto& RemainingRegion : SurfaceState.RemainingRegions)
+		{
+			TArray<FVector2d> Vertices;
+			TArray<FIndex3i> Triangles; // 삼각분할 결과로 만들어진 삼각형들의 정점 인덱스를 저장하는 배열 (그냥 int 3개임)
+
+			if (!Delaunay.Triangulate(RemainingRegion, &Triangles, &Vertices, false))
+			{
+				continue;
+			}
+
+			for (const FVector2d Vertex : Vertices)
+			{
+				RenewedMesh.AppendVertex(FVector3d(Vertex.X, 0.0, Vertex.Y));
+			}
+			for (const FIndex3i Triangle : Triangles)
+			{
+				RenewedMesh.AppendTriangle(Triangle);
+			}
+			//// 3. 삼각형 디버그 드로잉
+			//for (const FIndex3i& Triangle : Triangles)
+			//{
+			//	const FVector A = BreachSurfaceGeometry::SurfaceToWorld(ComponentTransform, Vertices[Triangle.A]);
+			//	const FVector B = BreachSurfaceGeometry::SurfaceToWorld(ComponentTransform, Vertices[Triangle.B]);
+			//	const FVector C = BreachSurfaceGeometry::SurfaceToWorld(ComponentTransform, Vertices[Triangle.C]);
+
+			//	DrawDebugLine(GetWorld(), A, B, FColor::Green, false, 5.0f, SDPG_Foreground, 1.5f);
+			//	DrawDebugLine(GetWorld(), B, C, FColor::Green, false, 5.0f, SDPG_Foreground, 1.5f);
+			//	DrawDebugLine(GetWorld(), C, A, FColor::Green, false, 5.0f, SDPG_Foreground, 1.5f);
+			//}
+		}
+		SetMesh(MoveTemp(RenewedMesh));
+		UpdateCollision();
+
 
 		//SLOG(TEXT("SurfacePoint : %s"), *SurfacePoint.ToString());
 		//UWorld* World = GetWorld();
