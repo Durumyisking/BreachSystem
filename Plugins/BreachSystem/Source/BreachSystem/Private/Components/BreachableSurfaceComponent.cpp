@@ -177,7 +177,6 @@ bool UBreachableSurfaceComponent::ResetSurface()
 
 	return InitializeSurface();
 }
-UE_DISABLE_OPTIMIZATION
 void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitComponent, const FDamageEvent& DamageEvent, AActor* DamageCauser)
 {
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
@@ -200,6 +199,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 			TArray<FVector2d> Vertices;
 			TArray<FIndex3i> Triangles; // 삼각분할 결과로 만들어진 삼각형들의 정점 인덱스를 저장하는 배열 (그냥 int 3개임)
 
+			// 삼각분할
 			if (!Delaunay.Triangulate(RemainingRegion, &Triangles, &Vertices, false))
 			{
 				continue;
@@ -219,14 +219,14 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 			}
 
 			// 사이드 면 채우기
-			auto AppendSideFaces = [&](const FPolygon2d& Boundary, bool bIsHole)
+			auto AppendSideFaces = [&](const FPolygon2d& Boundary, bool bIsHole, int32 VertexOffset)
 			{
 				const int32 Count = Boundary.VertexCount();
 				const bool bReverse = Boundary.IsClockwise() != bIsHole;
 				for (int32 Index = 0; Index < Count; ++Index)
 				{
-					int32 A = Index;				// 0, 1, 2, 3
-					int32 B = (Index + 1) % Count; // 1, 2, 3, 0
+					int32 A = VertexOffset + Index;
+					int32 B = VertexOffset + (Index + 1) % Count;
 					if (bReverse)
 					{
 						Swap(A, B);
@@ -235,10 +235,12 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 					RenewedMesh.AppendTriangle(FrontIDs[A], BackIDs[B], BackIDs[A]);
 				}
 			};
-			AppendSideFaces(RemainingRegion.GetOuter(), false);
+			AppendSideFaces(RemainingRegion.GetOuter(), false, 0);
+			int32 HoleVertexOffset = RemainingRegion.GetOuter().VertexCount();
 			for (const FPolygon2d& Hole : RemainingRegion.GetHoles())
 			{
-				AppendSideFaces(Hole, true);
+				AppendSideFaces(Hole, true, HoleVertexOffset);
+				HoleVertexOffset += Hole.VertexCount();
 			}
 		}
 
@@ -248,7 +250,6 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 
 	}
 }
-UE_ENABLE_OPTIMIZATION
 void UBreachableSurfaceComponent::DebugDrawSurface()
 {
 	UWorld* World = GetWorld();
