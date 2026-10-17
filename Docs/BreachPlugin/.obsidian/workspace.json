@@ -264,9 +264,139 @@
               "icon": "lucide-file",
               "title": "이슈 - 다이나믹메시 변경시 라이팅 변함"
             }
+          },
+          {
+            "id": "9c262c6f4b44f386",
+            "type": "leaf",
+            "pane-relief:history-v1": {
+              "pos": 0,
+              "stack": [
+                {
+                  "state": "{}",
+                  "eState": "{}"
+                },
+                {
+                  "title": "무제",
+                  "icon": "lucide-layout-dashboard",
+                  "state": "{\"type\":\"canvas\",\"state\":{\"file\":\"무제.canvas\",\"viewState\":{\"x\":0,\"y\":0,\"zoom\":0}},\"icon\":\"lucide-layout-dashboard\",\"title\":\"무제\"}",
+                  "eState": "{}"
+                },
+                {
+                  "title": "언리얼에 이미 있는 요소",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"언리얼에 이미 있는 요소.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"언리얼에 이미 있는 요소\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "클래스 구조",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"클래스 구조.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"클래스 구조\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "삼각분할 함수 분석",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/삼각분할 함수 분석.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"삼각분할 함수 분석\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":47,\"ch\":1},\"to\":{\"line\":47,\"ch\":1}}}"
+                }
+              ]
+            },
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "개발노트/삼각분할 함수 분석.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "삼각분할 함수 분석"
+            }
+          },
+          {
+            "id": "c7c737173e02166f",
+            "type": "leaf",
+            "pane-relief:history-v1": {
+              "pos": 0,
+              "stack": [
+                {
+                  "state": "{}",
+                  "eState": "{}"
+                },
+                {
+                  "title": "Convex Hull이란",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/Convex Hull이란.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"Convex Hull이란\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":3,\"ch\":36},\"to\":{\"line\":3,\"ch\":36}},\"scroll\":22.11907150021493}"
+                },
+                {
+                  "title": "삼각분할 함수 분석",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/삼각분할 함수 분석.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"삼각분할 함수 분석\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":155,\"ch\":0},\"to\":{\"line\":155,\"ch\":0}},\"scroll\":141.48936170212767}"
+                },
+                {
+                  "title": "메시의 Hit 지점 알아내기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/메시의 Hit 지점 알아내기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"메시의 Hit 지점 알아내기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "Convex Hull이란",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/Convex Hull이란.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"Convex Hull이란\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":9,\"ch\":12},\"to\":{\"line\":9,\"ch\":12}},\"scroll\":5.833333333333333}"
+                },
+                {
+                  "title": "Dedicated Server 환경으로 변경",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/Dedicated Server 환경으로 변경.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"Dedicated Server 환경으로 변경\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":33.466277689873415}"
+                },
+                {
+                  "title": "Convex Hull이란",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/Convex Hull이란.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"Convex Hull이란\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "StaticMesh vs DynamicMesh",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/StaticMesh vs DynamicMesh.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"StaticMesh vs DynamicMesh\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "StaticMesh에서 DynamicMesh변환",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/StaticMesh에서 DynamicMesh변환.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"StaticMesh에서 DynamicMesh변환\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "StaticMesh vs DynamicMesh",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/StaticMesh vs DynamicMesh.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"StaticMesh vs DynamicMesh\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "Convex Hull이란",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/Convex Hull이란.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"Convex Hull이란\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":5,\"ch\":5},\"to\":{\"line\":5,\"ch\":5}},\"scroll\":3.6666666666666665}"
+                }
+              ]
+            },
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "개발노트/삼각분할 함수 분석.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "삼각분할 함수 분석"
+            }
           }
         ],
-        "currentTab": 1
+        "currentTab": 3
       }
     ],
     "direction": "vertical"
@@ -507,8 +637,29 @@
       "vscode-editor:Create Code File": false
     }
   },
-  "active": "95aaec89038ea2eb",
+  "active": "c7c737173e02166f",
   "lastOpenFiles": [
+    "Pasted image 20261017194133.png",
+    "Pasted image 20261017193359.png",
+    "Pasted image 20261017193114.png",
+    "Pasted image 20261017192537.png",
+    "Pasted image 20261017192352.png",
+    "Pasted image 20261017192337.png",
+    "Pasted image 20261017192329.png",
+    "Pasted image 20261017175832.png",
+    "Pasted image 20261017174209.png",
+    "Pasted image 20261017174158.png",
+    "Pasted image 20261017174141.png",
+    "개발노트/Convex Hull이란.md",
+    "개발노트/삼각분할 함수 분석.md",
+    "개발노트/메시의 Hit 지점 알아내기.md",
+    "개발노트/Dedicated Server 환경으로 변경.md",
+    "개발노트/StaticMesh vs DynamicMesh.md",
+    "개발노트/StaticMesh에서 DynamicMesh변환.md",
+    "언리얼에 이미 있는 요소.md",
+    "무제.canvas",
+    "클래스 구조.md",
+    "영상/이슈 - 다이나믹메시 변경시 라이팅 변함.mkv",
     "영상/네트워크 구현 - 템플릿 기본 기능 이전 완료.mkv",
     "개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md",
     "개발노트/2026-10-12 1. 사각형 벽 데이터 캐시.md",
@@ -516,45 +667,24 @@
     "개발노트/2026-09-29 브리칭 1차 완성.md",
     "개발노트/2026-10-14 6. 2D 폴리곤 to 3D 메시.md",
     "2026-10-14 18-47-19.mkv",
-    "Pasted image 20261014184602.png",
-    "Pasted image 20261014184537.png",
-    "Pasted image 20261014183940.png",
     "영상/이슈 - 메시 컷 프레임 드랍.mkv",
     "영상/이슈 - 메시 절반 분할시 이슈.mkv",
-    "Pasted image 20261014161522.png",
-    "Pasted image 20261014161453.png",
-    "Pasted image 20261014161451.png",
-    "Pasted image 20261014161311.png",
-    "Pasted image 20261014161231.png",
-    "Pasted image 20261014161222.png",
     "이슈/이슈 - 메시 절반 분할시 문제생김.md",
     "이슈/DynamicMeshComponent로 변환하면서 라이팅 변화.md",
     "영상/이슈 - MeshCut실패.mkv",
-    "Pasted image 20261014153237.png",
     "개발노트/2026-10-14 5. 2D 폴리곤 삼각분할.md",
     "개발노트/2026-10-13 4. 2D 폴리곤 절단.md",
     "기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md",
     "개발노트/2026-10-13 3. 맞은 곳 주변에 절단용 다각형 만들기.md",
-    "클래스 구조.md",
-    "개발노트/메시의 Hit 지점 알아내기.md",
-    "개발노트/서버붙이기.md",
     "기획/시즈 방식 벽 파괴 기획.md",
     "이슈/MeshCut 실패.md",
-    "개발노트/StaticMesh에서 DynamicMesh변환.md",
     "영상/2D 폴리곤 절단.mkv",
     "surface-destruction-guide/visualization.html",
     "surface-destruction-guide/THIRD_PARTY_LICENSES.txt",
     "surface-destruction-guide/rebuild.py",
-    "surface-destruction-guide/README.txt",
-    "surface-destruction-guide/lab.js",
-    "언리얼에 이미 있는 요소.md",
     "개발노트/메시에 구멍뚫기.md",
-    "개발노트/StaticMesh vs DynamicMesh.md",
     "이슈/MeshBoolean.Compute 프레임 저하.md",
     "개발노트/데.md",
-    "기획/직접 구현 마일스톤.md",
-    "기획/시즈의 고립 조각과 누적 파괴 조사.md",
-    "무제.canvas",
-    "링크를 만들거나.md"
+    "기획/직접 구현 마일스톤.md"
   ]
 }
