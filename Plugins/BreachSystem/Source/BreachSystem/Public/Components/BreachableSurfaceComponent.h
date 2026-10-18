@@ -43,6 +43,7 @@ private:
 
 	UE::Geometry::FPolygon2d OriginalOuter;
 	TArray<FVector2d> OriginalVertices;
+	UE::Geometry::FAxisAlignedBox2d OriginBounds;
 
 	FBreachSurfaceState SurfaceState;
 };

@@ -96,6 +96,7 @@ bool UBreachableSurfaceComponent::InitializeSurface()
 	InitialState.RemainingRegions.Add(UE::Geometry::FGeneralPolygon2d(Outer));
 	OriginalOuter = Outer;
 	OriginalVertices = Outer.GetVertices();
+	OriginBounds = OriginalOuter.Bounds();
 
 	// 6. 복사한 삼각형의 머티리얼 ID와 대응하도록 원본의 슬롯 순서를 유지한다.
 	TArray<UMaterialInterface*> Materials;
@@ -137,10 +138,9 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		Cutters.Emplace(BreachSurfaceGeometry::MakeRoughCircleCutter(SurfacePoint, 5, 32, 1.3f, -1));
 		PolygonsDifference(SurfaceState.RemainingRegions, Cutters, SurfaceState.RemainingRegions);
 
-		const FAxisAlignedBox2d AAB2d = OriginalOuter.Bounds();
 		SurfaceState.RemainingRegions.RemoveAll([&](const FGeneralPolygon2d& Region)
 		{
-			return !TouchesOriginalBorder(Region.GetOuter(), AAB2d);
+			return !TouchesOriginalBorder(Region.GetOuter(), OriginBounds);
 		});
 
 		// SurfaceState기반으로 메시를 갱신한다.
