@@ -27,27 +27,22 @@ protected:
 	UFUNCTION(BlueprintCallable, Category="Breach")
 	bool InitializeSurface();
 
-	// cm 단위의 폭(X), 높이(Y), 두께(Z)로 원점 중심의 사각판을 생성한다.
-	bool InitializeSurface(double Width, double Height, double Thickness);
-
-	// 블루프린트에서는 같은 이름의 함수 오버로드를 지원하지 않아 별도 이름으로 노출한다.
-	UFUNCTION(BlueprintCallable, Category="Breach")
-	bool InitializeSurfaceFromSize(double Width, double Height, double Thickness);
-
 	// 마지막으로 성공한 초기화 방식과 원본을 사용해 복구한다.
 	UFUNCTION(BlueprintCallable, Category="Breach")
 	bool ResetSurface();
 
 	// Breach
 	void HandleBreachDamage(UPrimitiveComponent* HitComponent, const FDamageEvent& DamageEvent, AActor* DamageCauser);
-
 	void DebugDrawSurface();
 
+
+	static bool TouchesOriginalBorder(const UE::Geometry::FPolygon2d& Outer, const UE::Geometry::FAxisAlignedBox2d& Bounds);
 private:
 	UPROPERTY(EditAnywhere, Category = "Breach")
 	TObjectPtr<UStaticMesh> SourceStaticMesh = nullptr;
 
-	bool bInitializedFromSize = false;
-	FBreachSurfaceSize InitialSize;
+	UE::Geometry::FPolygon2d OriginalOuter;
+	TArray<FVector2d> OriginalVertices;
+
 	FBreachSurfaceState SurfaceState;
 };
