@@ -19,18 +19,18 @@ bool AHitScanWeapon::FireShot(FHitResult& OutHitResult, const FVector& InTraceSt
 		? GetWorld()->SweepSingleByChannel(OutHitResult, InTraceStart, TraceEnd, FQuat::Identity,
 			ShotChannel, FCollisionShape::MakeSphere(TraceRadius), QueryParams)
 		: GetWorld()->LineTraceSingleByChannel(OutHitResult, InTraceStart, TraceEnd, ShotChannel, QueryParams);
-#if ENABLE_DRAW_DEBUG
-	if (TraceRadius > 0.0f)
-	{
-		DrawDebugSphereTraceSingle(GetWorld(), InTraceStart, TraceEnd, TraceRadius,
-			EDrawDebugTrace::ForDuration, bBlockingHit, OutHitResult, FLinearColor::Red, FLinearColor::Green, 2.0f);
-	}
-	else
-	{
-		DrawDebugLineTraceSingle(GetWorld(), InTraceStart, TraceEnd,
-			EDrawDebugTrace::ForDuration, bBlockingHit, OutHitResult, FLinearColor::Red, FLinearColor::Green, 2.0f);
-	}
-#endif
+//#if ENABLE_DRAW_DEBUG
+//	if (TraceRadius > 0.0f)
+//	{
+//		DrawDebugSphereTraceSingle(GetWorld(), InTraceStart, TraceEnd, TraceRadius,
+//			EDrawDebugTrace::ForDuration, bBlockingHit, OutHitResult, FLinearColor::Red, FLinearColor::Green, 2.0f);
+//	}
+//	else
+//	{
+//		DrawDebugLineTraceSingle(GetWorld(), InTraceStart, TraceEnd,
+//			EDrawDebugTrace::ForDuration, bBlockingHit, OutHitResult, FLinearColor::Red, FLinearColor::Green, 2.0f);
+//	}
+//#endif
 
 	// A miss still consumes a round and plays firing effects.
 	return true;

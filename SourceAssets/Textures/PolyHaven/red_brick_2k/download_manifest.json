@@ -1,0 +1,54 @@
+{
+  "asset": "Red Brick",
+  "author": "Rob Tuytel",
+  "source": "https://polyhaven.com/a/red_brick",
+  "license": "CC0",
+  "license_url": "https://polyhaven.com/license",
+  "source_width_m": 1.4,
+  "downloaded_on": "2026-10-19",
+  "segmentation_mask_provided": false,
+  "maps": [
+    {
+      "type": "Diffuse",
+      "file": "red_brick_diff_2k.png",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/red_brick/red_brick_diff_2k.png",
+      "bytes": 22217598,
+      "md5": "5ff6f18025bccf81596feb4f0359fab5"
+    },
+    {
+      "type": "nor_dx",
+      "file": "red_brick_nor_dx_2k.png",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/red_brick/red_brick_nor_dx_2k.png",
+      "bytes": 8905934,
+      "md5": "b05f5c96dbdc0663d1f4bdd953a2c73d"
+    },
+    {
+      "type": "Rough",
+      "file": "red_brick_rough_2k.png",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/red_brick/red_brick_rough_2k.png",
+      "bytes": 5487715,
+      "md5": "2a5a607763d30efdb33a966d5a9348a9"
+    },
+    {
+      "type": "AO",
+      "file": "red_brick_ao_2k.png",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/red_brick/red_brick_ao_2k.png",
+      "bytes": 7535227,
+      "md5": "96dd0be477711516111ecd7ed5dd24d4"
+    },
+    {
+      "type": "Displacement",
+      "file": "red_brick_disp_2k.png",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/red_brick/red_brick_disp_2k.png",
+      "bytes": 6312343,
+      "md5": "6f59ffbd6ef53153afac554fcc9dc970"
+    },
+    {
+      "type": "arm",
+      "file": "red_brick_arm_2k.png",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/red_brick/red_brick_arm_2k.png",
+      "bytes": 15276151,
+      "md5": "76e69b6931a61844a784b5e58d363bf3"
+    }
+  ]
+}

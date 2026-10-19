@@ -40,6 +40,10 @@ public class BreachSystem : ModuleRules
 			}
 			);
 		
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(new string[] { "MeshDescription", "StaticMeshDescription" });
+		}
 		
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]

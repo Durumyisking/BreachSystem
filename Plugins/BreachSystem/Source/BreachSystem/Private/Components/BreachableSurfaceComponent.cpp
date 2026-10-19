@@ -23,6 +23,8 @@
 
 #include "Math/BreachSystemDelaunay.h"
 
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogBreachableSurface, Log, All);
 
 UBreachableSurfaceComponent::UBreachableSurfaceComponent()
@@ -42,7 +44,7 @@ void UBreachableSurfaceComponent::OnComponentDestroyed(bool bDestroyingHierarchy
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
 }
 
-void UBreachableSurfaceComponent::ReceiveComponentDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+void UBreachableSurfaceComponent::ReceiveComponentDamage_Implementation(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	Super::ReceiveComponentDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 	HandleBreachDamage(this, DamageEvent, DamageCauser);
@@ -109,6 +111,69 @@ bool UBreachableSurfaceComponent::InitializeSurface()
 		return false;
 	}
 
+	// 사각 면의 UV = Offset + X * PerX + Z * PerZ. 원본에서 한 번만 구한다.
+	const auto* SourceUV = Mesh.HasAttributes() ? Mesh.Attributes()->PrimaryUV() : nullptr;
+	if (!SourceUV)
+	{
+		UE_LOG(LogBreachableSurface, Warning, TEXT("%s needs UV0 to initialize the breach surface; keeping the static mesh."), *SourceStaticMesh->GetName());
+		return false;
+	}
+	FPlanarUVMapping InitialUVs[2];
+	bool bFoundUVs[2] = { false, false };
+	for (int32 TriangleID : Mesh.TriangleIndicesItr())
+	{
+		const FVector3d Normal = Mesh.GetTriNormal(TriangleID);
+		if (FMath::Abs(Normal.Y) < 0.99)
+		{
+			continue;
+		}
+		if (!SourceUV->IsSetTriangle(TriangleID))
+		{
+			UE_LOG(LogBreachableSurface, Warning, TEXT("%s has a surface triangle without UV0; keeping the static mesh."), *SourceStaticMesh->GetName());
+			return false;
+		}
+		FVector3d A, B, C;
+		Mesh.GetTriVertices(TriangleID, A, B, C);
+		const UE::Geometry::FIndex3i Elements = SourceUV->GetTriangle(TriangleID);
+		const FVector2d UV0(SourceUV->GetElement(Elements.A));
+		const FVector2d UV1(SourceUV->GetElement(Elements.B));
+		const FVector2d UV2(SourceUV->GetElement(Elements.C));
+		const int32 Side = Normal.Y > 0 ? 1 : 0;
+		FPlanarUVMapping& Mapping = InitialUVs[Side];
+		if (!bFoundUVs[Side])
+		{
+			const FVector3d AB = B - A, AC = C - A;
+			const double Determinant = AB.X * AC.Z - AC.X * AB.Z;
+			if (FMath::Abs(Determinant) <= UE_DOUBLE_SMALL_NUMBER)
+			{
+				continue;
+			}
+			Mapping.PerX = ((UV1 - UV0) * AC.Z - (UV2 - UV0) * AB.Z) / Determinant;
+			Mapping.PerZ = ((UV2 - UV0) * AB.X - (UV1 - UV0) * AC.X) / Determinant;
+			Mapping.Offset = UV0 - Mapping.PerX * A.X - Mapping.PerZ * A.Z;
+			bFoundUVs[Side] = true;
+		}
+		// 한 면 안에 UV 이음선이나 서로 다른 배율이 있으면 단일 변환으로 보존할 수 없다.
+		const FVector3d Positions[3] = { A, B, C };
+		const FVector2d UVs[3] = { UV0, UV1, UV2 };
+		for (int32 Corner = 0; Corner < 3; ++Corner)
+		{
+			const FVector2d Expected = Mapping.Offset + Mapping.PerX * Positions[Corner].X + Mapping.PerZ * Positions[Corner].Z;
+			if ((Expected - UVs[Corner]).Length() > 0.0001)
+			{
+				UE_LOG(LogBreachableSurface, Warning, TEXT("%s requires one linear UV mapping per surface face; keeping the static mesh."), *SourceStaticMesh->GetName());
+				return false;
+			}
+		}
+	}
+	if (!bFoundUVs[0] || !bFoundUVs[1])
+	{
+		UE_LOG(LogBreachableSurface, Warning, TEXT("%s needs UV0 on both XZ faces; keeping the static mesh."), *SourceStaticMesh->GetName());
+		return false;
+	}
+	SurfaceUVs[0] = InitialUVs[0];
+	SurfaceUVs[1] = InitialUVs[1];
+
 	// 5. 아직 구멍이 없으므로 남은 영역은 사각형 하나다. 피벗이 중앙이 아니어도 원래 좌표를 쓴다.
 	// 사각형 판이라는 전제에서 XZ 경계를 사용하며, 임의 메시의 윤곽을 추출하는 과정은 아니다.
 	UE::Geometry::FPolygon2d Outer;
@@ -120,6 +185,7 @@ bool UBreachableSurfaceComponent::InitializeSurface()
 	OriginalOuter = Outer;
 	OriginalVertices = Outer.GetVertices();
 	OriginBounds = OriginalOuter.Bounds();
+	OriginalDepthRange = FVector2d(MeshBounds.Min.Y, MeshBounds.Max.Y);
 
 	// 6. 복사한 삼각형의 머티리얼 ID와 대응하도록 원본의 슬롯 순서를 유지한다.
 	TArray<UMaterialInterface*> Materials;
@@ -174,8 +240,11 @@ bool UBreachableSurfaceComponent::ResetSurface()
 		SetHiddenInGame(bOriginalHiddenInGame, false);
 	}
 	SurfaceState = FBreachSurfaceState();
+	SurfaceUVs[0] = FPlanarUVMapping();
+	SurfaceUVs[1] = FPlanarUVMapping();
 	return true;
 }
+
 void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitComponent, const FDamageEvent& DamageEvent, AActor* DamageCauser)
 {
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
@@ -235,8 +304,8 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 
 			for (const FVector2d& Vertex : Vertices)
 			{
-				FrontIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, 0.0, Vertex.Y)));
-				BackIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, SurfaceState.Size.Thickness, Vertex.Y)));
+				FrontIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, OriginalDepthRange.X, Vertex.Y)));
+				BackIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, OriginalDepthRange.Y, Vertex.Y)));
 			}
 			for (const FIndex3i& Triangle : Triangles)
 			{
@@ -271,9 +340,44 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		}
 
 		UE::Geometry::FMeshNormals::InitializeMeshToPerTriangleNormals(&RenewedMesh);
+
+		// 새 메시의 각 삼각형에 UV 좌표를 만들어 연결
+		// Attribute : 노멀, UV 등의 부가 데이터에 접근
+		RenewedMesh.Attributes()->SetNumUVLayers(1); // UV 채널을 1개로 설정
+		auto* UVOverlay = RenewedMesh.Attributes()->PrimaryUV();  // 첫 번째 UV 채널에 접근 (기존 UV 포인터)
+
+		const FVector2d Min = OriginBounds.Min;
+		const FVector2d Size = OriginBounds.Max - Min;
+
+		for (int32 TriangleID : RenewedMesh.TriangleIndicesItr())
+		{
+			const FIndex3i Triangle = RenewedMesh.GetTriangle(TriangleID);
+			const FVector3d Normal = RenewedMesh.GetTriNormal(TriangleID);
+			FIndex3i UVElementIDs;
+
+			for (int32 Corner = 0; Corner < 3; ++Corner)
+			{
+				const FVector3d Position = RenewedMesh.GetVertex(Triangle[Corner]);
+
+				// 벽의 좌표를 0~1 범위로 바꾼다.
+				FVector2f UV(static_cast<float>((Position.X - Min.X) / Size.X),
+					static_cast<float>((Position.Z - Min.Y) / Size.Y));
+				if (FMath::Abs(Normal.Y) > 0.99)
+				{
+					const FPlanarUVMapping& Mapping = SurfaceUVs[Normal.Y > 0 ? 1 : 0];
+					UV = FVector2f(Mapping.Offset + Mapping.PerX * Position.X + Mapping.PerZ * Position.Z);
+				}
+
+				UVElementIDs[Corner] = UVOverlay->AppendElement(UV);
+			}
+
+			UVOverlay->SetTriangle(TriangleID, UVElementIDs);
+		}
+
 		DynamicMeshProxy->SetMesh(MoveTemp(RenewedMesh));
 		DynamicMeshProxy->UpdateCollision();
 
+		OnBreachedDelegate.Broadcast(PointDamage.HitInfo, DynamicMeshProxy);
 	}
 }
 

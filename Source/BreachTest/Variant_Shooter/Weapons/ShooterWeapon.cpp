@@ -165,7 +165,7 @@ void AShooterWeapon::Fire()
 	}
 	ServerNotifyHit(HitResult, ShotDirection);
 
-	UE_LOG(LogTemp, Log, TEXT("FireShot Success"));
+	//UE_LOG(LogTemp, Log, TEXT("FireShot Success"));
 	MulticastPlayFiringMontage();
 	ClientApplyRecoil();
 
@@ -227,7 +227,7 @@ void AShooterWeapon::MulticastPlayFiringMontage_Implementation()
 
 void AShooterWeapon::ServerNotifyHit_Implementation(const FHitResult& InHitResult, const FVector& InTraceStart)
 {
-	UE_LOG(LogTemp, Log, TEXT("ServerNotifyHit"));
+	//UE_LOG(LogTemp, Log, TEXT("ServerNotifyHit"));
 	if (InHitResult.bBlockingHit)
 	{
 		UGameplayStatics::ApplyPointDamage(InHitResult.GetActor(), HitDamage, InTraceStart,
