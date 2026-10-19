@@ -1,4 +1,4 @@
-#include "BreachSourceComponent.h"
+#include "Components/BreachSourceComponent.h"
 #include "Shape/BreachShape.h"
 #include "Misc/AutomationTest.h"
 
@@ -11,83 +11,100 @@ bool FBreachSourceBindingTest::RunTest(const FString& Parameters)
 {
 	using namespace UE::Geometry;
 	UBreachSourceComponent* Source = NewObject<UBreachSourceComponent>();
-	const FAxisAlignedBox3d CubeBounds(FVector3d(-50.0, -50.0, -50.0), FVector3d(50.0, 50.0, 50.0));
-	const FTransform ThinWall(FQuat::Identity, FVector::ZeroVector, FVector(5.0, 0.1, 5.0));
-	const FTransform ThickWall(FQuat::Identity, FVector::ZeroVector, FVector(5.0, 10.0, 5.0));
+	FGeneralPolygon2d Polygon;
+	const FTransform Wall(FRotator(15, 45, 5), FVector(100, 200, 300), FVector(2, 0.1, 4));
+	const FVector Hit = Wall.TransformPosition(FVector(10, -50, 20));
+	Source->BindBox(FVector2D(40, 80));
+	TestTrue(TEXT("Resolve rotated and scaled wall"), Source->ResolveCutterPolygon(Wall, Hit, Polygon));
+	const FAxisAlignedBox2d Bounds = Polygon.GetOuter().Bounds();
+	TestTrue(TEXT("World dimensions converted to local XZ"),
+		FMath::IsNearlyEqual(Bounds.Min.X, 0.0, 0.001) && FMath::IsNearlyEqual(Bounds.Max.X, 20.0, 0.001)
+		&& FMath::IsNearlyEqual(Bounds.Min.Y, 10.0, 0.001) && FMath::IsNearlyEqual(Bounds.Max.Y, 30.0, 0.001));
+	TestFalse(TEXT("Boundary is counterclockwise"), Polygon.GetOuter().IsClockwise());
+	FGeneralPolygon2d Repeated;
+	Source->ResolveCutterPolygon(Wall, Hit, Repeated);
+	TestTrue(TEXT("Resolving does not mutate cache"), Polygon.GetOuter().GetVertices() == Repeated.GetOuter().GetVertices());
+	FTransform Mirrored = Wall;
+	Mirrored.SetScale3D(FVector(-2, 0.1, 4));
+	TestTrue(TEXT("Mirrored scale is supported"), Source->ResolveCutterPolygon(Mirrored, Hit, Repeated));
+	TestFalse(TEXT("Mirrored scale preserves winding"), Repeated.GetOuter().IsClockwise());
+	Source->BindCircle(10, 32, 2, 7);
+	TestTrue(TEXT("Rough circle binding"), Source->ResolveCutterPolygon(FTransform::Identity, FVector::ZeroVector, Polygon));
+	Source->BindCircle(0);
+	TestFalse(TEXT("Invalid rebind discards previous cache"), Source->ResolveCutterPolygon(Wall, Hit, Polygon));
+	Source->BindBox(FVector2D(40, 20), 5, 16, 5, 0, 0);
+	TestTrue(TEXT("Rounded rectangle binding"), Source->ResolveCutterPolygon(FTransform::Identity, FVector::ZeroVector, Polygon));
+	TestTrue(TEXT("Rounded binding keeps shape options"), FMath::IsNearlyEqual(Polygon.SignedArea(), 778.54, 0.2));
+	FTransform ZeroScale = Wall;
+	ZeroScale.SetScale3D(FVector(0, 1, 1));
+	TestFalse(TEXT("Degenerate transform rejected"), Source->ResolveCutterPolygon(ZeroScale, Hit, Polygon));
+	return !HasAnyErrors();
+}
 
-	auto CheckCutter = [this, Source, &CubeBounds](const TCHAR* What, const FTransform& Wall,
-		const FVector& Position, const FVector& Direction, double Width, double Height)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachSourceSeedPolicyTest, "BreachSystem.Source.SeedPolicy",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+bool FBreachSourceSeedPolicyTest::RunTest(const FString& Parameters)
+{
+	using namespace UE::Geometry;
+	UBreachSourceComponent* Source = NewObject<UBreachSourceComponent>();
+	auto CheckRepeated = [this, Source](const FString& Label, bool bExpectSame)
 	{
-		const FAxisAlignedBox3d WorldBounds(CubeBounds, FTransformSRT3d(Wall));
-		FTransformSRT3d Transform;
-		const FDynamicMesh3* Mesh = Source->ResolveCutterMesh(WorldBounds, Position, Direction, Transform);
-		if (!TestNotNull(What, Mesh))
+		FGeneralPolygon2d First, Repeated;
+		TestTrue(Label + TEXT(" first resolve"), Source->ResolveCutterPolygon(FTransform::Identity, FVector::ZeroVector, First));
+		bool bAllSame = true;
+		// A random seed can repeat once without indicating a cached shape.
+		for (int32 Attempt = 0; Attempt < 4; ++Attempt)
 		{
-			return false;
+			TestTrue(Label + TEXT(" repeated resolve"), Source->ResolveCutterPolygon(FTransform::Identity, FVector::ZeroVector, Repeated));
+			if (First.GetOuter().GetVertices() != Repeated.GetOuter().GetVertices())
+			{
+				bAllSame = false;
+			}
 		}
-
-		const FAxisAlignedBox3d Bounds = Mesh->GetBounds();
-		bool bPassed = TestTrue(FString(What) + TEXT(": closed cutter"), Mesh->IsClosed());
-		bPassed &= TestTrue(FString(What) + TEXT(": cached cutter has unit length"),
-			FMath::IsNearlyEqual(Bounds.Min.Z, -0.5, 0.001)
-			&& FMath::IsNearlyEqual(Bounds.Max.Z, 0.5, 0.001));
-		bPassed &= TestTrue(FString(What) + TEXT(": world size preserved"),
-			FMath::IsNearlyEqual(Bounds.Width(), Width, 0.001)
-			&& FMath::IsNearlyEqual(Bounds.Height(), Height, 0.001)
-			&& FMath::IsNearlyEqual(Transform.GetScale().X, 1.0, 0.001)
-			&& FMath::IsNearlyEqual(Transform.GetScale().Y, 1.0, 0.001));
-		const FVector3d LocalHit = Transform.InverseTransformPosition(FVector3d(Position));
-		bPassed &= TestTrue(FString(What) + TEXT(": cross section stays on hit axis"),
-			FMath::IsNearlyZero(LocalHit.X, 0.001) && FMath::IsNearlyZero(LocalHit.Y, 0.001));
-		bool bCapsOutside = true;
-		for (int32 CornerIndex = 0; CornerIndex < 8; ++CornerIndex)
-		{
-			const double Z = Transform.InverseTransformPosition(WorldBounds.GetCorner(CornerIndex)).Z;
-			bCapsOutside &= Bounds.Min.Z < Z && Z < Bounds.Max.Z;
-		}
-		bPassed &= TestTrue(FString(What) + TEXT(": both caps outside target"), bCapsOutside);
-		return bPassed;
+		TestEqual(Label + TEXT(" repeated boundary"), bAllSame, bExpectSame);
 	};
+	for (bool bCircle : { true, false })
+	{
+		const FString Name = bCircle ? TEXT("Circle") : TEXT("Box");
+		auto Bind = [Source, bCircle](float Roughness, int32 Seed)
+		{
+			if (bCircle)
+			{
+				Source->BindCircle(10, 32, Roughness, Seed);
+			}
+			else
+			{
+				Source->BindBox(FVector2D(40, 20), 0, 8, 5, Roughness, Seed);
+			}
+		};
+		Bind(2, 123);
+		CheckRepeated(Name + TEXT(" fixed seed"), true);
+		Bind(2, 0);
+		CheckRepeated(Name + TEXT(" zero seed with roughness"), false);
+		Bind(0, 0);
+		CheckRepeated(Name + TEXT(" zero seed without roughness"), true);
+		Bind(2, -7);
+		CheckRepeated(Name + TEXT(" negative fixed seed"), true);
 
-	Source->BindCylinder(0.25f);
-	bool bPassed = CheckCutter(TEXT("Thin wall front"), ThinWall, FVector(17.0, -5.0, 0.0), FVector(0.0, 1.0, 0.0), 0.5, 0.5);
-	bPassed &= CheckCutter(TEXT("Thin wall back"), ThinWall, FVector(-17.0, 5.0, 0.0), FVector(0.0, -1.0, 0.0), 0.5, 0.5);
-	bPassed &= CheckCutter(TEXT("Thick wall"), ThickWall, FVector(0.0, -500.0, 0.0), FVector(0.0, 1.0, 0.0), 0.5, 0.5);
-	FTransformSRT3d ThinTransform;
-	FTransformSRT3d ThickTransform;
-	const FDynamicMesh3* ThinCutter = Source->ResolveCutterMesh(FAxisAlignedBox3d(CubeBounds, FTransformSRT3d(ThinWall)),
-		FVector(0.0, -5.0, 0.0), FVector(0.0, 1.0, 0.0), ThinTransform);
-	const FDynamicMesh3* ThickCutter = Source->ResolveCutterMesh(FAxisAlignedBox3d(CubeBounds, FTransformSRT3d(ThickWall)),
-		FVector(0.0, -500.0, 0.0), FVector(0.0, 1.0, 0.0), ThickTransform);
-	bPassed &= TestTrue(TEXT("Different walls use the same cached cutter"), ThinCutter && ThinCutter == ThickCutter);
-	bPassed &= TestTrue(TEXT("Only axial scale changes with wall thickness"),
-		FMath::IsNearlyEqual(ThinTransform.GetScale().Z, 12.0, 0.001)
-		&& FMath::IsNearlyEqual(ThickTransform.GetScale().Z, 1020.0, 0.001));
-	Source->BindCylinder(1.f);
-	bPassed &= CheckCutter(TEXT("Left edge"), ThinWall, FVector(-249.5, -5.0, 0.0), FVector(0.0, 1.0, 0.0), 2.0, 2.0);
-	bPassed &= CheckCutter(TEXT("Right edge"), ThinWall, FVector(249.5, 5.0, 0.0), FVector(0.0, -1.0, 0.0), 2.0, 2.0);
-	bPassed &= CheckCutter(TEXT("Side face"), ThinWall, FVector(250.0, 0.0, 0.0), FVector(-1.0, 0.0, 0.0), 2.0, 2.0);
-	const FTransform RotatedWall(FRotator(0.0, 45.0, 0.0), FVector(100.0, 200.0, 300.0), FVector(5.0, 0.1, 5.0));
-	bPassed &= CheckCutter(TEXT("Rotated wall"), RotatedWall, RotatedWall.TransformPosition(FVector(0.0, -50.0, 0.0)),
-		RotatedWall.TransformVectorNoScale(FVector(0.0, 1.0, 0.0)), 2.0, 2.0);
-
-	Source->BindBox(FVector2D(300.0, 400.0));
-	bPassed &= CheckCutter(TEXT("Hammer box"), ThinWall, FVector(0.0, -5.0, 0.0), FVector(0.0, 1.0, 0.0), 300.0, 400.0);
-	Source->BindBox(FVector2D(0.25, 0.5));
-	bPassed &= CheckCutter(TEXT("Small box"), ThinWall, FVector(0.0, -5.0, 0.0), FVector(0.0, 1.0, 0.0), 0.25, 0.5);
-
-	Source->BindSphere(0.25f);
-	bPassed &= CheckCutter(TEXT("Sphere circular projection"), ThinWall, FVector(0.0, -5.0, 0.0), FVector(0.0, 1.0, 0.0), 0.5, 0.5);
-	Source->BindCapsule(0.25f);
-	bPassed &= CheckCutter(TEXT("Capsule axial projection"), ThinWall, FVector(0.0, -5.0, 0.0), FVector(0.0, 1.0, 0.0), 0.5, 0.5);
-
-	FBreachSourceOption LegacyOption;
-	LegacyOption.ShapeClass = UBreachBoxShape::StaticClass();
-	FBreachBoxShapeOption& Box = LegacyOption.ShapeOption.InitializeAs<FBreachBoxShapeOption>();
-	Box.Size = FVector2D(30.0, 40.0);
-	Source->UpdateBreachSourceOption(LegacyOption);
-	bPassed &= CheckCutter(TEXT("Existing shape options"), ThinWall, FVector(0.0, -5.0, 0.0), FVector(0.0, 1.0, 0.0), 30.0, 40.0);
-	return bPassed;
+		// Direct options cover Blueprint defaults, which bypass BindCircle/BindBox.
+		FBreachSourceOption Option;
+		if (bCircle)
+		{
+			Option.ShapeClass = UBreachCircleShape::StaticClass();
+			auto& Shape = Option.ShapeOption.InitializeAs<FBreachCircleShapeOption>();
+			Shape.Roughness = 2;
+		}
+		else
+		{
+			Option.ShapeClass = UBreachBoxShape::StaticClass();
+			auto& Shape = Option.ShapeOption.InitializeAs<FBreachBoxShapeOption>();
+			Shape.Roughness = 2;
+		}
+		Source->UpdateBreachSourceOption(Option);
+		CheckRepeated(Name + TEXT(" direct zero-seed options"), false);
+	}
+	return !HasAnyErrors();
 }
 
 #endif

@@ -2,6 +2,9 @@
 
 
 #include "Components/BreachableSurfaceComponent.h"
+#include "Components/BreachSurfaceProxy.h"
+#include "Components/BreachSourceComponent.h"
+#include "GameFramework/Actor.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
 #include "Generators/MinimalBoxMeshGenerator.h"
@@ -24,13 +27,19 @@ DEFINE_LOG_CATEGORY_STATIC(LogBreachableSurface, Log, All);
 
 UBreachableSurfaceComponent::UBreachableSurfaceComponent()
 {
+	PrimaryComponentTick.bCanEverTick = false;
 	SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 }
 
-void UBreachableSurfaceComponent::BeginPlay()
+void UBreachableSurfaceComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
-	Super::BeginPlay();
-	InitializeSurface();
+	if (IsValid(DynamicMeshProxy))
+	{
+		DynamicMeshProxy->SetSurface(nullptr);
+		DynamicMeshProxy->DestroyComponent();
+		DynamicMeshProxy = nullptr;
+	}
+	Super::OnComponentDestroyed(bDestroyingHierarchy);
 }
 
 void UBreachableSurfaceComponent::ReceiveComponentDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
@@ -41,15 +50,26 @@ void UBreachableSurfaceComponent::ReceiveComponentDamage(float DamageAmount, con
 
 bool UBreachableSurfaceComponent::InitializeSurface()
 {
-	// 1. 원본과 수정 가능 여부를 검사한다. 실패하면 현재 표면은 그대로 유지한다.
-	if (!IsValid(SourceStaticMesh) || !IsEditable())
+	if (IsValid(DynamicMeshProxy))
+	{
+		return true;
+	}
+
+	// 1. 원본을 검사한다. 실패하면 현재 표면은 그대로 유지한다.
+	UStaticMesh* SourceStaticMesh = GetStaticMesh();
+	if (!IsValid(SourceStaticMesh))
 	{
 		return false;
 	}
 
 	// 2. 원본의 LOD0 렌더 데이터를 가져온다. 이 버퍼를 읽어 DynamicMesh로 복사한다.
 	const FStaticMeshRenderData* RenderData = SourceStaticMesh->GetRenderData();
-	if (!RenderData || RenderData->LODResources.Num() == 0)
+	if (!RenderData)
+	{
+		UE_LOG(LogBreachableSurface, Warning, TEXT("%s has no render data."), *SourceStaticMesh->GetName());
+		return false;
+	}
+	if (RenderData->LODResources.Num() == 0)
 	{
 		UE_LOG(LogBreachableSurface, Warning, TEXT("%s has no render LOD to initialize from."), *SourceStaticMesh->GetName());
 		return false;
@@ -68,8 +88,11 @@ bool UBreachableSurfaceComponent::InitializeSurface()
 	// 3. 정점, 삼각형, 노멀, UV, 머티리얼 ID를 복사한다. 원본 에셋은 수정하지 않는다. (Mesh가 결과물이다)
 	UE::Geometry::FDynamicMesh3 Mesh;
 	const UE::Geometry::FStaticMeshLODResourcesToDynamicMesh::ConversionOptions Options;
-	if (!UE::Geometry::FStaticMeshLODResourcesToDynamicMesh::Convert(&LOD, Options, Mesh)
-		|| Mesh.TriangleCount() == 0)
+	if (!UE::Geometry::FStaticMeshLODResourcesToDynamicMesh::Convert(&LOD, Options, Mesh))
+	{
+		return false;
+	}
+	if (Mesh.TriangleCount() == 0)
 	{
 		return false;
 	}
@@ -82,17 +105,17 @@ bool UBreachableSurfaceComponent::InitializeSurface()
 	InitialState.Size.Thickness = MeshBounds.Max.Y - MeshBounds.Min.Y;
 	if (InitialState.Size.Width <= UE_SMALL_NUMBER || InitialState.Size.Height <= UE_SMALL_NUMBER)
 	{
-		UE_LOG(LogBreachableSurface, Warning, TEXT("%s must have non-zero dimensions in local XY."), *SourceStaticMesh->GetName());
+		UE_LOG(LogBreachableSurface, Warning, TEXT("%s must have non-zero dimensions in local XZ."), *SourceStaticMesh->GetName());
 		return false;
 	}
 
 	// 5. 아직 구멍이 없으므로 남은 영역은 사각형 하나다. 피벗이 중앙이 아니어도 원래 좌표를 쓴다.
-	// 사각형 판이라는 전제에서 XY 경계를 사용하며, 임의 메시의 윤곽을 추출하는 과정은 아니다.
+	// 사각형 판이라는 전제에서 XZ 경계를 사용하며, 임의 메시의 윤곽을 추출하는 과정은 아니다.
 	UE::Geometry::FPolygon2d Outer;
-	Outer.AppendVertex(FVector2d(MeshBounds.Min.X, MeshBounds.Min.Y));
-	Outer.AppendVertex(FVector2d(MeshBounds.Max.X, MeshBounds.Min.Y));
-	Outer.AppendVertex(FVector2d(MeshBounds.Max.X, MeshBounds.Max.Y));
-	Outer.AppendVertex(FVector2d(MeshBounds.Min.X, MeshBounds.Max.Y));
+	Outer.AppendVertex(FVector2d(MeshBounds.Min.X, MeshBounds.Min.Z));
+	Outer.AppendVertex(FVector2d(MeshBounds.Max.X, MeshBounds.Min.Z));
+	Outer.AppendVertex(FVector2d(MeshBounds.Max.X, MeshBounds.Max.Z));
+	Outer.AppendVertex(FVector2d(MeshBounds.Min.X, MeshBounds.Max.Z));
 	InitialState.RemainingRegions.Add(UE::Geometry::FGeneralPolygon2d(Outer));
 	OriginalOuter = Outer;
 	OriginalVertices = Outer.GetVertices();
@@ -100,42 +123,93 @@ bool UBreachableSurfaceComponent::InitializeSurface()
 
 	// 6. 복사한 삼각형의 머티리얼 ID와 대응하도록 원본의 슬롯 순서를 유지한다.
 	TArray<UMaterialInterface*> Materials;
-	for (int32 Index = 0; Index < SourceStaticMesh->GetStaticMaterials().Num(); ++Index)
+	for (int32 Index = 0; Index < GetNumMaterials(); ++Index)
 	{
-		Materials.Add(SourceStaticMesh->GetMaterial(Index));
+		Materials.Add(GetMaterial(Index));
 	}
 
-	// 7. 준비가 끝난 뒤에 원본과 파괴 상태를 교체한다. Reset은 이 원본으로 다시 초기화한다.
-	//SourceStaticMesh = SourceStaticMesh;
+	// 7. 첫 피격에서 DynamicMesh를 만들고 원본과 같은 위치에 부착한다.
+	AActor* Owner = GetOwner();
+	if (!ensureMsgf(Owner, TEXT("Breach surface requires an owner to create its proxy.")))
+	{
+		return false;
+	}
+	DynamicMeshProxy = NewObject<UBreachSurfaceProxy>(Owner);
+	DynamicMeshProxy->SetSurface(this);
+	DynamicMeshProxy->SetupAttachment(this);
+	DynamicMeshProxy->SetRelativeTransform(FTransform::Identity);
+	DynamicMeshProxy->SetMobility(GetMobility());
+	DynamicMeshProxy->SetCastShadow(CastShadow);
+	DynamicMeshProxy->SetCollisionObjectType(GetCollisionObjectType());
+	DynamicMeshProxy->SetCollisionResponseToChannels(GetCollisionResponseToChannels());
+	DynamicMeshProxy->ConfigureMaterialSet(Materials);
+	DynamicMeshProxy->SetTangentsType(EDynamicMeshComponentTangentsMode::ExternallyProvided);
+	DynamicMeshProxy->SetComplexAsSimpleCollisionEnabled(true, false);
+	DynamicMeshProxy->SetMesh(MoveTemp(Mesh));
+	DynamicMeshProxy->RegisterComponent();
+	DynamicMeshProxy->UpdateCollision();
 	SurfaceState = MoveTemp(InitialState);
-	ConfigureMaterialSet(Materials);
-	SetTangentsType(EDynamicMeshComponentTangentsMode::ExternallyProvided);
 
-	// 8. 이전 단순 충돌을 지우고 현재 삼각형을 충돌로 사용한다. SetMesh가 렌더 갱신도 요청한다.
-	ClearSimpleCollisionShapes(false);
-	SetComplexAsSimpleCollisionEnabled(true, false);
-	//SetEnableFlatShading(true); 
-	SetMesh(MoveTemp(Mesh));
-	UpdateCollision();
+	// 8. 원본의 표시와 충돌을 Proxy로 전환한다.
+	OriginalCollisionEnabled = GetCollisionEnabled();
+	bOriginalVisible = IsVisible();
+	bOriginalHiddenInGame = bHiddenInGame;
+	SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	SetVisibility(false, false);
+	DynamicMeshProxy->SetCollisionEnabled(OriginalCollisionEnabled);
+	DynamicMeshProxy->SetVisibility(bOriginalVisible, false);
+	DynamicMeshProxy->SetHiddenInGame(bOriginalHiddenInGame, false);
 	return true;
 }
 
 bool UBreachableSurfaceComponent::ResetSurface()
 {
-	return InitializeSurface();
+	if (IsValid(DynamicMeshProxy))
+	{
+		DynamicMeshProxy->SetSurface(nullptr);
+		DynamicMeshProxy->DestroyComponent();
+		DynamicMeshProxy = nullptr;
+		SetCollisionEnabled(OriginalCollisionEnabled);
+		SetVisibility(bOriginalVisible, false);
+		SetHiddenInGame(bOriginalHiddenInGame, false);
+	}
+	SurfaceState = FBreachSurfaceState();
+	return true;
 }
 void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitComponent, const FDamageEvent& DamageEvent, AActor* DamageCauser)
 {
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
+		if (!IsValid(DamageCauser))
+		{
+			return;
+		}
+		UBreachSourceComponent* Source = DamageCauser->FindComponentByClass<UBreachSourceComponent>();
+		if (!Source)
+		{
+			UE_LOG(LogBreachableSurface, Warning, TEXT("%s has no BreachSourceComponent."), *DamageCauser->GetName());
+			return;
+		}
+		if (!IsValid(DynamicMeshProxy))
+		{
+			if (!InitializeSurface())
+			{
+				return;
+			}
+		}
+
 		//DebugDrawSurface();
 		
 		const FPointDamageEvent& PointDamage = static_cast<const FPointDamageEvent&>(DamageEvent);
 
 		const FTransform& ComponentTransform = GetComponentTransform();
-		FVector2D SurfacePoint = BreachSurfaceGeometry::WorldToSurface(ComponentTransform, PointDamage.HitInfo.ImpactPoint);
+		FGeneralPolygon2d Cutter;
+		if (!Source->ResolveCutterPolygon(ComponentTransform, PointDamage.HitInfo.ImpactPoint, Cutter))
+		{
+			return;
+		}
 		TArray<FGeneralPolygon2d> Cutters;
-		Cutters.Emplace(BreachSurfaceGeometry::MakeRoughCircleCutter(SurfacePoint, 5, 32, 1.3f, -1));
+		Cutters.Add(Cutter);
 		PolygonsDifference(SurfaceState.RemainingRegions, Cutters, SurfaceState.RemainingRegions);
 
 		SurfaceState.RemainingRegions.RemoveAll([&](const FGeneralPolygon2d& Region)
@@ -197,8 +271,8 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		}
 
 		UE::Geometry::FMeshNormals::InitializeMeshToPerTriangleNormals(&RenewedMesh);
-		SetMesh(MoveTemp(RenewedMesh));
-		UpdateCollision();
+		DynamicMeshProxy->SetMesh(MoveTemp(RenewedMesh));
+		DynamicMeshProxy->UpdateCollision();
 
 	}
 }

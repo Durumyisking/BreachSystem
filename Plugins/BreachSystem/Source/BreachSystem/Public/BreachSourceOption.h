@@ -13,27 +13,21 @@ struct BREACHSYSTEM_API FBreachShapeOption
 };
 
 USTRUCT(BlueprintType)
-struct BREACHSYSTEM_API FBreachCylinderShapeOption : public FBreachShapeOption
+struct BREACHSYSTEM_API FBreachCircleShapeOption : public FBreachShapeOption
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FVector2D Radius = FVector2D(10.f, 10.f);
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	int32 Segments = 16;
-};
-
-USTRUCT(BlueprintType)
-struct BREACHSYSTEM_API FBreachSphereShapeOption : public FBreachShapeOption
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="0.001", Units="cm"))
 	float Radius = 10.f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="3", ClampMax="512"))
+	int32 Segments = 32;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="0", Units="cm"))
+	float Roughness = 0.f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	int32 ThetaSegments = 16;
+	int32 Seed = 0;
 };
 
 USTRUCT(BlueprintType)
@@ -43,18 +37,22 @@ struct BREACHSYSTEM_API FBreachBoxShapeOption : public FBreachShapeOption
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FVector2D Size = FVector2D(10.f, 10.f);
-};
 
-USTRUCT(BlueprintType)
-struct BREACHSYSTEM_API FBreachCapsuleShapeOption : public FBreachShapeOption
-{
-	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="0", Units="cm"))
+	float CornerRadius = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="1", ClampMax="128"))
+	int32 CornerSegments = 8;
+
+	/** Maximum spacing of samples along straight edges, in world centimeters. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="0.1", Units="cm"))
+	float EdgeSpacing = 10.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="0", Units="cm"))
+	float Roughness = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float Radius = 10.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	int32 CircleSegments = 16;
+	int32 Seed = 0;
 };
 
 USTRUCT(BlueprintType)

@@ -1,103 +1,112 @@
 #include "Shape/BreachShape.h"
 
-#include "DynamicMesh/DynamicMesh3.h"
-#include "Generators/SweepGenerator.h"
-#include "DynamicMesh/MeshTransforms.h"
-#include "Generators/MinimalBoxMeshGenerator.h"
-
 namespace
-{
-	void GenerateRoundCutter(const FVector2D& Radius, int32 Segments, double Length,
-		UE::Geometry::FDynamicMesh3& OutMesh)
-	{
-		using namespace UE::Geometry;
-		FCylinderGenerator Generator;
-		Generator.Radius[0] = FMath::Max(Radius.X, UE_DOUBLE_KINDA_SMALL_NUMBER);
-		Generator.Radius[1] = FMath::Max(Radius.Y, UE_DOUBLE_KINDA_SMALL_NUMBER);
-		Generator.Height = static_cast<float>(Length);
-		Generator.AngleSamples = FMath::Max(Segments, 3);
-		Generator.LengthSamples = 1;
-		Generator.bCapped = true;
-		Generator.Generate();
-		OutMesh = FDynamicMesh3(&Generator);
-		// 생성기의 Z=0~Length를 중심 기준으로 옮겨, Z Scale을 늘려도 양 끝이 대칭으로 뻗게 한다.
-		MeshTransforms::Translate(OutMesh, FVector3d(0.0, 0.0, -Length * 0.5));
-	}
-}
-
-void UBreachCylinderShape::GenerateMesh(const FBreachSourceOption& Option, double Length,
-	UE::Geometry::FDynamicMesh3& OutMesh) const
-{
-	const FBreachCylinderShapeOption* ShapeOption = Option.ShapeOption.GetPtr<FBreachCylinderShapeOption>();
-	if (!ShapeOption)
-	{
-		OutMesh.Clear();
-		return;
-	}
-	GenerateRoundCutter(ShapeOption->Radius, ShapeOption->Segments, Length, OutMesh);
-}
-
-
-void UBreachSphereShape::GenerateMesh(
-	const FBreachSourceOption& Option,
-	double Length,
-	UE::Geometry::FDynamicMesh3& OutMesh) const
-{
-	const FBreachSphereShapeOption* ShapeOption = Option.ShapeOption.GetPtr<FBreachSphereShapeOption>();
-	if (!ShapeOption)
-	{
-		OutMesh.Clear();
-		return;
-	}
-
-	GenerateRoundCutter(FVector2D(ShapeOption->Radius, ShapeOption->Radius), ShapeOption->ThetaSegments, Length, OutMesh);
-}
-
-
-void UBreachBoxShape::GenerateMesh(
-	const FBreachSourceOption& Option,
-	double Length,
-	UE::Geometry::FDynamicMesh3& OutMesh) const
 {
 	using namespace UE::Geometry;
 
-	const FBreachBoxShapeOption* ShapeOption = Option.ShapeOption.GetPtr<FBreachBoxShapeOption>();
-	if (!ShapeOption)
+	void ApplyRoughness(FPolygon2d& Polygon, double Roughness, int32 Seed)
 	{
-		OutMesh.Clear();
-		return;
+		FRandomStream Random(Seed == 0 ? FMath::Rand() : Seed);
+		for (int32 Index = 0; Index < Polygon.VertexCount(); ++Index)
+		{
+			const double Radius = Polygon[Index].Length();
+			// Positive radial distances preserve angular order, avoiding self-intersections.
+			const double Amplitude = FMath::Min(FMath::Max(0.0, Roughness), Radius * 0.9);
+			Polygon[Index] *= (Radius + Random.FRandRange(-Amplitude, Amplitude)) / Radius;
+		}
 	}
 
-	const FVector3d HalfExtent(
-		FMath::Max(ShapeOption->Size.X * 0.5, UE_DOUBLE_KINDA_SMALL_NUMBER),
-		FMath::Max(ShapeOption->Size.Y * 0.5, UE_DOUBLE_KINDA_SMALL_NUMBER),
-		Length * 0.5
-	);
-
-	FMinimalBoxMeshGenerator Generator;
-
-	Generator.Box = FOrientedBox3d(
-		FVector3d::Zero(),
-		HalfExtent
-	);
-
-	Generator.Generate();
-
-	OutMesh = FDynamicMesh3(&Generator);
+	bool MakeCircle(double Radius, int32 Segments, double Roughness, int32 Seed, FPolygon2d& OutPolygon)
+	{
+		OutPolygon = FPolygon2d();
+		if (!FMath::IsFinite(Radius) || Radius <= UE_SMALL_NUMBER || !FMath::IsFinite(Roughness))
+		{
+			return false;
+		}
+		OutPolygon = FPolygon2d::MakeCircle(Radius, FMath::Clamp(Segments, 3, 512));
+		ApplyRoughness(OutPolygon, Roughness, Seed);
+		if (OutPolygon.IsClockwise())
+		{
+			OutPolygon.Reverse();
+		}
+		return true;
+	}
 }
 
-
-void UBreachCapsuleShape::GenerateMesh(
-	const FBreachSourceOption& Option,
-	double Length,
-	UE::Geometry::FDynamicMesh3& OutMesh) const
+bool UBreachCircleShape::GeneratePolygon(const FBreachSourceOption& Option, UE::Geometry::FPolygon2d& OutPolygon) const
 {
-	const FBreachCapsuleShapeOption* ShapeOption = Option.ShapeOption.GetPtr<FBreachCapsuleShapeOption>();
-	if (!ShapeOption)
+	const auto* Shape = Option.ShapeOption.GetPtr<FBreachCircleShapeOption>();
+	OutPolygon = UE::Geometry::FPolygon2d();
+	if (!Shape)
 	{
-		OutMesh.Clear();
-		return;
+		return false;
 	}
+	return MakeCircle(Shape->Radius, Shape->Segments, Shape->Roughness, Shape->Seed, OutPolygon);
+}
 
-	GenerateRoundCutter(FVector2D(ShapeOption->Radius, ShapeOption->Radius), ShapeOption->CircleSegments, Length, OutMesh);
+bool UBreachBoxShape::GeneratePolygon(const FBreachSourceOption& Option, UE::Geometry::FPolygon2d& OutPolygon) const
+{
+	using namespace UE::Geometry;
+	OutPolygon = FPolygon2d();
+	const auto* Shape = Option.ShapeOption.GetPtr<FBreachBoxShapeOption>();
+	if (!Shape)
+	{
+		return false;
+	}
+	if (!FMath::IsFinite(Shape->Size.X) || !FMath::IsFinite(Shape->Size.Y)
+		|| Shape->Size.X <= UE_SMALL_NUMBER || Shape->Size.Y <= UE_SMALL_NUMBER
+		|| !FMath::IsFinite(Shape->CornerRadius) || !FMath::IsFinite(Shape->EdgeSpacing) || !FMath::IsFinite(Shape->Roughness))
+	{
+		return false;
+	}
+	const FVector2d Half = FVector2d(Shape->Size) * 0.5;
+	const double Radius = FMath::Clamp(double(Shape->CornerRadius), 0.0, FMath::Min(Half.X, Half.Y));
+	TArray<FVector2d> Boundary;
+	if (Radius <= UE_SMALL_NUMBER)
+	{
+		Boundary = { FVector2d(-Half.X, -Half.Y), FVector2d(Half.X, -Half.Y),
+			FVector2d(Half.X, Half.Y), FVector2d(-Half.X, Half.Y) };
+	}
+	else
+	{
+		const FVector2d Centers[] = { {Half.X - Radius, -Half.Y + Radius}, {Half.X - Radius, Half.Y - Radius},
+			{-Half.X + Radius, Half.Y - Radius}, {-Half.X + Radius, -Half.Y + Radius} };
+		const int32 Segments = FMath::Clamp(Shape->CornerSegments, 1, 128);
+		for (int32 Corner = 0; Corner < 4; ++Corner)
+		{
+			for (int32 Step = 0; Step <= Segments; ++Step)
+			{
+				const double Angle = (Corner - 1 + double(Step) / Segments) * UE_DOUBLE_PI * 0.5;
+				const FVector2d Point = Centers[Corner] + Radius * FVector2d(FMath::Cos(Angle), FMath::Sin(Angle));
+				if (!Boundary.IsEmpty())
+				{
+					if (Boundary.Last().Equals(Point, UE_SMALL_NUMBER))
+					{
+						continue;
+					}
+				}
+				Boundary.Add(Point);
+			}
+		}
+		if (Boundary.Num() > 1)
+		{
+			if (Boundary[0].Equals(Boundary.Last(), UE_SMALL_NUMBER))
+			{
+				Boundary.Pop();
+			}
+		}
+	}
+	for (int32 Index = 0; Index < Boundary.Num(); ++Index)
+	{
+		const FVector2d A = Boundary[Index];
+		const FVector2d B = Boundary[(Index + 1) % Boundary.Num()];
+		const double Steps = FMath::CeilToDouble((B - A).Length() / FMath::Max(0.1, double(Shape->EdgeSpacing)));
+		const int32 Segments = int32(FMath::Clamp(Steps, 1.0, 512.0));
+		for (int32 Step = 0; Step < Segments; ++Step)
+		{
+			OutPolygon.AppendVertex(FMath::Lerp(A, B, double(Step) / Segments));
+		}
+	}
+	ApplyRoughness(OutPolygon, Shape->Roughness, Shape->Seed);
+	return true;
 }

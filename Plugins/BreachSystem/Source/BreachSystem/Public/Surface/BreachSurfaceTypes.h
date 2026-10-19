@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Curve/GeneralPolygon2.h"
 
-// Dimensions in centimeters. The surface lies in local XY; thickness runs along Z.
+// Dimensions in centimeters. The surface lies in local XZ; thickness runs along Y.
 struct BREACHSYSTEM_API FBreachSurfaceSize
 {
 	double Width = 400.0;
