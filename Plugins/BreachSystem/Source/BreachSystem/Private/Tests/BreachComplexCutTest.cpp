@@ -13,7 +13,10 @@ namespace
 	FPolygon2d MakePolygon(std::initializer_list<FVector2d> Points)
 	{
 		FPolygon2d Result;
-		for (const FVector2d& Point : Points) { Result.AppendVertex(Point); }
+		for (const FVector2d& Point : Points)
+		{
+			Result.AppendVertex(Point);
+		}
 		return Result;
 	}
 }
@@ -28,12 +31,19 @@ bool FBreachComplexCutTest::RunTest(const FString& Parameters)
 	UBreachableSurfaceComponent* Surface = NewObject<UBreachableSurfaceComponent>(Wall);
 	Wall->SetRootComponent(Surface);
 	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-	if (!TestNotNull(TEXT("Cube fixture exists"), Cube)) { World->DestroyWorld(false); return false; }
+	if (!TestNotNull(TEXT("Cube fixture exists"), Cube))
+	{
+		World->DestroyWorld(false);
+		return false;
+	}
 	Surface->SetStaticMesh(Cube);
 	Surface->RegisterComponent();
 	auto Reset = [Surface]()
 	{
-		struct { bool ReturnValue = false; } Params;
+		struct
+		{
+			bool ReturnValue = false;
+		} Params;
 		Surface->ProcessEvent(Surface->FindFunctionChecked(TEXT("ResetSurface")), &Params);
 	};
 	auto Hits = [World](double X, double Z)
@@ -59,9 +69,15 @@ bool FBreachComplexCutTest::RunTest(const FString& Parameters)
 		Reset();
 		const bool bCut = Surface->ApplyCutterPolygon(Cutter);
 		TestTrue(TEXT("Manual complex cutter succeeds"), bCut);
-		if (!bCut) { continue; }
+		if (!bCut)
+		{
+			continue;
+		}
 		Wall->GetComponents(Proxies);
-		if (!TestEqual(TEXT("One proxy per surface"), Proxies.Num(), 1)) { continue; }
+		if (!TestEqual(TEXT("One proxy per surface"), Proxies.Num(), 1))
+		{
+			continue;
+		}
 		const FDynamicMesh3* Mesh = Proxies[0]->GetMesh();
 		TestTrue(TEXT("Complex cut remains a closed solid"), Mesh->IsClosed());
 		for (int32 X = -45; X <= 45; X += 10)
@@ -69,7 +85,10 @@ bool FBreachComplexCutTest::RunTest(const FString& Parameters)
 			for (int32 Z = -45; Z <= 45; Z += 10)
 			{
 				const FVector2d Point(X,Z);
-				if (Cutter.DistanceSquared(Point) < 0.25) { continue; }
+				if (Cutter.DistanceSquared(Point) < 0.25)
+				{
+					continue;
+				}
 				TestEqual(TEXT("Trace matches manually specified cutter"), Hits(X,Z), !Cutter.Contains(Point));
 			}
 		}
@@ -84,12 +103,20 @@ bool FBreachComplexCutTest::RunTest(const FString& Parameters)
 	}
 	Reset();
 	FPolygon2d Teeth;
-	Teeth.AppendVertex(FVector2d(-30,-20)); Teeth.AppendVertex(FVector2d(30,-20));
-	for (int32 X = 30; X >= -30; --X) { Teeth.AppendVertex(FVector2d(X, (X % 2 == 0) ? 20 : 16)); }
+	Teeth.AppendVertex(FVector2d(-30,-20));
+	Teeth.AppendVertex(FVector2d(30,-20));
+	for (int32 X = 30; X >= -30; --X)
+	{
+		Teeth.AppendVertex(FVector2d(X, (X % 2 == 0) ? 20 : 16));
+	}
 	TestTrue(TEXT("Many short teeth cut successfully"), Surface->ApplyCutterPolygon(Teeth));
 	TestFalse(TEXT("Sawtooth interior is open"), Hits(0,0));
 	FBreachContourOptions Options;
-	Options.bEnabled = true; Options.MacroDepth = 8; Options.MacroWidth = 20; Options.MediumDepth = 2; Options.MicroDepth = 0.5f;
+	Options.bEnabled = true;
+	Options.MacroDepth = 8;
+	Options.MacroWidth = 20;
+	Options.MediumDepth = 2;
+	Options.MicroDepth = 0.5f;
 	for (int32 Seed = 1; Seed <= 8; ++Seed)
 	{
 		Reset();
@@ -98,13 +125,52 @@ bool FBreachComplexCutTest::RunTest(const FString& Parameters)
 		Options.Seed = Seed;
 		const bool bGenerated = BreachContour::Generate(FPolygon2d::MakeCircle(25,32), Options, Cutter, Error);
 		TestTrue(TEXT("Generated cutter available"), bGenerated);
-		if (bGenerated) { TestTrue(TEXT("Generated contour cuts actual wall"), Surface->ApplyCutterPolygon(Cutter)); }
+		if (bGenerated)
+		{
+			TestTrue(TEXT("Generated contour cuts actual wall"), Surface->ApplyCutterPolygon(Cutter));
+		}
 	}
 	Reset();
 	TestTrue(TEXT("Whole-wall removal is a success"), Surface->ApplyCutterPolygon(MakePolygon({{-100,-100}, {100,-100}, {100,100}, {-100,100}})));
 	TestFalse(TEXT("Whole-wall removal clears collision"), Hits(0,0));
 	Reset();
 	TestTrue(TEXT("Reset restores collision"), Hits(0,0));
+
+	// Each cutter is simple, but point contact produces a non-manifold remaining boundary.
+	const FPolygon2d TouchesWall = MakePolygon({{20,-10}, {50,0}, {20,10}});
+	FString Error;
+	TestTrue(TEXT("Late-failure fixture passes input validation"), BreachContour::Validate(TouchesWall, Error));
+	TestFalse(TEXT("Point contact with wall is rejected after clipping"), Surface->ApplyCutterPolygon(TouchesWall));
+	Wall->GetComponents(Proxies);
+	TestEqual(TEXT("Late failure removes newly initialized proxy"), Proxies.Num(), 0);
+	TestTrue(TEXT("Late first failure restores static visibility"), Surface->IsVisible());
+	TestTrue(TEXT("Late first failure restores collision"), Hits(30,0));
+
+	const FPolygon2d FirstHole = MakePolygon({{-10,-10}, {10,-10}, {10,10}, {-10,10}});
+	const FPolygon2d TouchesHole = MakePolygon({{10,10}, {30,10}, {30,30}, {10,30}});
+	TestTrue(TEXT("Prepare existing hole for late failure"), Surface->ApplyCutterPolygon(FirstHole));
+	Wall->GetComponents(Proxies);
+	if (TestEqual(TEXT("Existing-hole fixture has one proxy"), Proxies.Num(), 1))
+	{
+		const FDynamicMesh3 Before = *Proxies[0]->GetMesh();
+		TestTrue(TEXT("Touching second cutter is itself simple"), BreachContour::Validate(TouchesHole, Error));
+		TestFalse(TEXT("Point contact with existing hole is rejected after clipping"), Surface->ApplyCutterPolygon(TouchesHole));
+		const FDynamicMesh3& After = *Proxies[0]->GetMesh();
+		TestEqual(TEXT("Late failure preserves triangle count"), After.TriangleCount(), Before.TriangleCount());
+		TestEqual(TEXT("Late failure preserves vertex count"), After.VertexCount(), Before.VertexCount());
+		for (int32 ID : Before.VertexIndicesItr())
+		{
+			TestTrue(TEXT("Late failure preserves every vertex"), After.IsVertex(ID) && After.GetVertex(ID) == Before.GetVertex(ID));
+		}
+		for (int32 ID : Before.TriangleIndicesItr())
+		{
+			TestTrue(TEXT("Late failure preserves every triangle"), After.IsTriangle(ID) && After.GetTriangle(ID) == Before.GetTriangle(ID));
+		}
+		TestFalse(TEXT("Existing hole remains open after late failure"), Hits(0,0));
+		TestTrue(TEXT("Rejected second hole remains solid"), Hits(20,20));
+		TestTrue(TEXT("Valid repeat after late failure"), Surface->ApplyCutterPolygon(FirstHole));
+		TestEqual(TEXT("Late failure did not commit candidate polygon state"), Proxies[0]->GetMesh()->TriangleCount(), Before.TriangleCount());
+	}
 	World->DestroyWorld(false);
 	return !HasAnyErrors();
 }

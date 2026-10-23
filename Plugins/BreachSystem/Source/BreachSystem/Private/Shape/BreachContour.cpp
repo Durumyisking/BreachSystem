@@ -6,7 +6,10 @@ namespace
 	using namespace UE::Geometry;
 	constexpr int32 MaxVertices = 2048;
 
-	double Cross(const FVector2d& A, const FVector2d& B) { return A.X * B.Y - A.Y * B.X; }
+	double Cross(const FVector2d& A, const FVector2d& B)
+	{
+		return A.X * B.Y - A.Y * B.X;
+	}
 
 	// Periodic asymmetric teeth. Width is measured along the boundary, not by vertex count.
 	struct FBoundaryDetail
@@ -17,7 +20,10 @@ namespace
 
 		void Initialize(double Perimeter, double Width, double Depth, FRandomStream& Random)
 		{
-			if (Depth == 0) { return; }
+			if (Depth == 0)
+			{
+				return;
+			}
 			const int32 Count = FMath::Clamp(FMath::CeilToInt(Perimeter / Width), 2, MaxVertices);
 			Period = Perimeter / Count;
 			Phase = Random.FRand() * Perimeter;
@@ -31,7 +37,10 @@ namespace
 
 		double Evaluate(double Distance) const
 		{
-			if (Peaks.IsEmpty()) { return 0; }
+			if (Peaks.IsEmpty())
+			{
+				return 0;
+			}
 			const double Position = FMath::Fmod(Distance + Phase, Period * Peaks.Num()) / Period;
 			const int32 Index = FMath::Min(FMath::FloorToInt(Position), Peaks.Num() - 1);
 			const double T = Position - Index;
@@ -86,7 +95,10 @@ bool BreachContour::Validate(const UE::Geometry::FPolygon2d& Polygon, FString& O
 		const FSegment2d Segment(A, B);
 		for (int32 Other = Index + 2; Other < Count; ++Other)
 		{
-			if (Index == 0 && Other == Count - 1) { continue; }
+			if (Index == 0 && Other == Count - 1)
+			{
+				continue;
+			}
 			const FSegment2d OtherSegment(Polygon[Other], Polygon[(Other + 1) % Count]);
 			if (Segment.Intersects(OtherSegment, 1.e-10, Tolerance))
 			{
@@ -114,13 +126,16 @@ bool BreachContour::Generate(const UE::Geometry::FPolygon2d& Base, const FBreach
 		OutPolygon = Input;
 		return true;
 	}
-	if (!Validate(Input, OutError)) { return false; }
+	if (!Validate(Input, OutError))
+	{
+		return false;
+	}
 	if (!FMath::IsFinite(Options.MacroDepth) || Options.MacroDepth < 0
 		|| !FMath::IsFinite(Options.MediumDepth) || Options.MediumDepth < 0
 		|| !FMath::IsFinite(Options.MicroDepth) || Options.MicroDepth < 0
 		|| !FMath::IsFinite(Options.MacroWidth) || Options.MacroWidth < 0.1f
 		|| !FMath::IsFinite(Options.MediumWidth) || Options.MediumWidth < 0.1f
-		|| !FMath::IsFinite(Options.SampleSpacing) || Options.SampleSpacing < 0.1f
+		|| !FMath::IsFinite(Options.MicroWidth) || Options.MicroWidth < 0.1f
 		|| !FMath::IsFinite(Options.MaxDisplacementFraction) || Options.MaxDisplacementFraction < 0
 		|| Options.MaxDisplacementFraction > 0.45f)
 	{
@@ -133,11 +148,20 @@ bool BreachContour::Generate(const UE::Geometry::FPolygon2d& Base, const FBreach
 		return true;
 	}
 	FPolygon2d Boundary = Input;
-	if (Boundary.IsClockwise()) { Boundary.Reverse(); }
+	if (Boundary.IsClockwise())
+	{
+		Boundary.Reverse();
+	}
 	const int32 Count = Boundary.VertexCount();
-	double Spacing = Options.SampleSpacing;
-	if (Options.MacroDepth > 0) { Spacing = FMath::Min(Spacing, Options.MacroWidth / 6.0); }
-	if (Options.MediumDepth > 0) { Spacing = FMath::Min(Spacing, Options.MediumWidth / 6.0); }
+	double Spacing = Options.MicroWidth;
+	if (Options.MacroDepth > 0)
+	{
+		Spacing = FMath::Min(Spacing, Options.MacroWidth / 6.0);
+	}
+	if (Options.MediumDepth > 0)
+	{
+		Spacing = FMath::Min(Spacing, Options.MediumWidth / 6.0);
+	}
 	TArray<double> Starts, Lengths, CornerDistances;
 	TArray<int32> Steps;
 	double Perimeter = 0;
@@ -157,7 +181,10 @@ bool BreachContour::Generate(const UE::Geometry::FPolygon2d& Base, const FBreach
 		SampleCount += int32(NumSteps);
 		const FVector2d Prev = (Boundary[Index] - Boundary[(Index + Count - 1) % Count]).GetSafeNormal();
 		const FVector2d Next = (Boundary[(Index + 1) % Count] - Boundary[Index]).GetSafeNormal();
-		if (Prev.Dot(Next) < 0.8660254037844386) { CornerDistances.Add(Perimeter); }
+		if (Prev.Dot(Next) < 0.8660254037844386)
+		{
+			CornerDistances.Add(Perimeter);
+		}
 		Perimeter += Length;
 	}
 	const auto Bounds = Boundary.Bounds();
@@ -167,7 +194,8 @@ bool BreachContour::Generate(const UE::Geometry::FPolygon2d& Base, const FBreach
 	Macro.Initialize(Perimeter, Options.MacroWidth, Options.MacroDepth, Random);
 	Medium.Initialize(Perimeter, Options.MediumWidth, Options.MediumDepth, Random);
 	TArray<FVector2d> Points, Offsets;
-	Points.Reserve(SampleCount); Offsets.Reserve(SampleCount);
+	Points.Reserve(SampleCount);
+	Offsets.Reserve(SampleCount);
 	for (int32 EdgeIndex = 0; EdgeIndex < Count; ++EdgeIndex)
 	{
 		const FVector2d A = Boundary[EdgeIndex], B = Boundary[(EdgeIndex + 1) % Count];
@@ -194,10 +222,16 @@ bool BreachContour::Generate(const UE::Geometry::FPolygon2d& Base, const FBreach
 			// Limit movement across thin necks by the next boundary along this normal.
 			for (int32 Other = 0; Other < Count; ++Other)
 			{
-				if (Other == EdgeIndex || Other == (EdgeIndex + Count - 1) % Count || Other == (EdgeIndex + 1) % Count) { continue; }
+				if (Other == EdgeIndex || Other == (EdgeIndex + Count - 1) % Count || Other == (EdgeIndex + 1) % Count)
+				{
+					continue;
+				}
 				const FVector2d C = Boundary[Other], Edge = Boundary[(Other + 1) % Count] - C;
 				const double Denominator = Cross(Normal, Edge);
-				if (FMath::Abs(Denominator) < 1.e-10) { continue; }
+				if (FMath::Abs(Denominator) < 1.e-10)
+				{
+					continue;
+				}
 				const double U = Cross(C - Point, Normal) / Denominator;
 				if (U >= 0 && U <= 1)
 				{
@@ -213,7 +247,10 @@ bool BreachContour::Generate(const UE::Geometry::FPolygon2d& Base, const FBreach
 	{
 		FPolygon2d Candidate;
 		const double Strength = 1.0 / (1 << Attempt);
-		for (int32 Index = 0; Index < Points.Num(); ++Index) { Candidate.AppendVertex(Points[Index] + Offsets[Index] * Strength); }
+		for (int32 Index = 0; Index < Points.Num(); ++Index)
+		{
+			Candidate.AppendVertex(Points[Index] + Offsets[Index] * Strength);
+		}
 		if (Validate(Candidate, OutError))
 		{
 			if (Candidate.Area() > 0)

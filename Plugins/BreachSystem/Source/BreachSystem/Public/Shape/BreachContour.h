@@ -35,7 +35,7 @@ struct BREACHSYSTEM_API FBreachContourOptions
 
 	/** Upper bound on sample spacing. Smaller features may require finer sampling. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="0.1", Units="cm", EditCondition="bEnabled"))
-	float SampleSpacing = 2.f;
+	float MicroWidth = 2.f;
 
 	/** Combined displacement is capped to this fraction of the base's shorter dimension. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="0", ClampMax="0.45", EditCondition="bEnabled"))

@@ -15,7 +15,10 @@ namespace
 	FPolygon2d Polygon(std::initializer_list<FVector2d> Points)
 	{
 		FPolygon2d Result;
-		for (const FVector2d& Point : Points) { Result.AppendVertex(Point); }
+		for (const FVector2d& Point : Points)
+		{
+			Result.AppendVertex(Point);
+		}
 		return Result;
 	}
 }
@@ -77,8 +80,14 @@ bool FBreachContourGenerationTest::RunTest(const FString& Parameters)
 		{
 			const double Distance = FMath::Sqrt(Box.DistanceSquared(Point));
 			TestTrue(TEXT("Displacement remains within base shape envelope"), Distance <= 20.001);
-			if (Box.Contains(Point)) { MaxInward = FMath::Max(MaxInward, Distance); }
-			else { MaxOutward = FMath::Max(MaxOutward, Distance); }
+			if (Box.Contains(Point))
+			{
+				MaxInward = FMath::Max(MaxInward, Distance);
+			}
+			else
+			{
+				MaxOutward = FMath::Max(MaxOutward, Distance);
+			}
 		}
 		TestTrue(TEXT("Macro produces deep notches beyond micro roughness"), MaxInward > 5);
 		TestTrue(TEXT("Macro produces large protrusions beyond micro roughness"), MaxOutward > 5);
@@ -87,8 +96,14 @@ bool FBreachContourGenerationTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("Box corners are retained"), Result.GetVertices().Contains(Corner));
 		}
 		FString CSV = TEXT("shape,x,y\n");
-		for (const FVector2d& P : Box.GetVertices()) { CSV += FString::Printf(TEXT("base,%.9f,%.9f\n"), P.X, P.Y); }
-		for (const FVector2d& P : Result.GetVertices()) { CSV += FString::Printf(TEXT("contour,%.9f,%.9f\n"), P.X, P.Y); }
+		for (const FVector2d& P : Box.GetVertices())
+		{
+			CSV += FString::Printf(TEXT("base,%.9f,%.9f\n"), P.X, P.Y);
+		}
+		for (const FVector2d& P : Result.GetVertices())
+		{
+			CSV += FString::Printf(TEXT("contour,%.9f,%.9f\n"), P.X, P.Y);
+		}
 		const FString Directory = FPaths::ProjectSavedDir() / TEXT("Codex/ComplexContour");
 		IFileManager::Get().MakeDirectory(*Directory, true);
 		FFileHelper::SaveStringToFile(CSV, *(Directory / TEXT("generated-box.csv")));
@@ -106,14 +121,29 @@ bool FBreachContourGenerationTest::RunTest(const FString& Parameters)
 			{
 				TestTrue(TEXT("Every generated boundary is valid"), BreachContour::Validate(Result, Error));
 				TestTrue(TEXT("Vertex work is bounded"), Result.VertexCount() <= 2048);
+				const auto Bounds = Base.Bounds();
+				const double Envelope = FMath::Min(Bounds.Width(), Bounds.Height()) * Options.MaxDisplacementFraction;
+				for (const FVector2d& Point : Result.GetVertices())
+				{
+					TestTrue(TEXT("Every shape stays within its displacement envelope"), Base.DistanceSquared(Point) <= FMath::Square(Envelope + 0.001));
+				}
+				if (Base.VertexCount() == Concave.VertexCount())
+				{
+					TestFalse(TEXT("Deep U opening remains outside the cutter"), Result.Contains(FVector2d(40,65)));
+					TestTrue(TEXT("U connecting base remains inside"), Result.Contains(FVector2d(40,10)));
+					for (const FVector2d& Corner : Concave.GetVertices())
+					{
+						TestTrue(TEXT("Concave corners retain their positions"), Result.GetVertices().Contains(Corner));
+					}
+				}
 			}
 		}
 	}
 	Options.Seed = 123;
-	Options.SampleSpacing = 0;
+	Options.MicroWidth = 0;
 	TestFalse(TEXT("Invalid sample spacing rejected"), BreachContour::Generate(Box, Options, Result, Error));
 	TestEqual(TEXT("Failure clears output"), Result.VertexCount(), 0);
-	Options.SampleSpacing = 0.1f;
+	Options.MicroWidth = 0.1f;
 	const FPolygon2d Huge = Polygon({{-100000, -100000}, {100000,-100000}, {100000,100000}, {-100000,100000}});
 	TestFalse(TEXT("Excessive sampling is rejected before allocation"), BreachContour::Generate(Huge, Options, Result, Error));
 	return !HasAnyErrors();
@@ -138,7 +168,8 @@ bool FBreachContourBindingTest::RunTest(const FString& Parameters)
 		{
 			Option.ShapeClass = UBreachBoxShape::StaticClass();
 			auto& Shape = Option.ShapeOption.InitializeAs<FBreachBoxShapeOption>();
-			Shape.Size = FVector2D(120,80); Shape.CornerRadius = 5;
+			Shape.Size = FVector2D(120,80);
+			Shape.CornerRadius = 5;
 		}
 		FPolygon2d Legacy;
 		Option.ShapeClass->GetDefaultObject<UBreachShape>()->GeneratePolygon(Option, Legacy);
