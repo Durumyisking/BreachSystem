@@ -182,8 +182,6 @@ void AShooterCharacter::PlayFiringMontage(UAnimMontage* Montage)
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("Play Fire Montage"));
-
 	USkeletalMeshComponent* TargetMesh = IsLocallyControlled() ? GetFirstPersonMesh() : GetMesh();
 
 	if (UAnimInstance* AnimInstance = TargetMesh->GetAnimInstance())

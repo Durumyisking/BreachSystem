@@ -23,7 +23,7 @@ public:
 
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 
-	UFUNCTION(Server, Reliable)
+	//UFUNCTION(Server, Reliable)
 	virtual void ReceiveComponentDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 	void HandleBreachDamage(UPrimitiveComponent* HitComponent, const FDamageEvent& DamageEvent, AActor* DamageCauser);
@@ -47,6 +47,11 @@ protected:
 
 
 	static bool TouchesOriginalBorder(const UE::Geometry::FPolygon2d& Outer, const UE::Geometry::FAxisAlignedBox2d& Bounds);
+
+protected:
+	UPROPERTY(EditAnywhere)
+	TObjectPtr<UTexture2D> MaskTexture;
+
 private:
 	struct FPlanarUVMapping
 	{

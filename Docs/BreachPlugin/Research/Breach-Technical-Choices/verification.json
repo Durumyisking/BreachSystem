@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "sections": 14,
+  "method_cards": 19,
+  "svg_sheets": 6,
+  "panels": 23,
+  "duplicate_ids": 0,
+  "broken_local_links": 0,
+  "external_runtime_resources": 0,
+  "voronoi_partition_area_checks": 3,
+  "radius_graph_components_independently_checked": 1,
+  "svg_visual_inspection": "6 sheets rendered with sharp and inspected; corrected removed-region sheet reinspected",
+  "html_browser_visual_check": "not performed; local browser URL policy prevented preview",
+  "unreal_build_runtime_and_ms_measurements": "not performed; documentation and synthetic examples only"
+}

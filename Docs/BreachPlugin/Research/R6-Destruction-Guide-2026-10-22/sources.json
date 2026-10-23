@@ -1,0 +1,133 @@
+[
+  {
+    "id": "photo-01",
+    "source": "C:\\Users\\csh\\AppData\\Local\\Temp\\codex-clipboard-ddabfee0-7e4b-4a11-ad0b-e3f14da4088e.png",
+    "sha256": "894151bca5978086756fd1b97712447fb9f1c317b29db6c18b6439a9435200c8"
+  },
+  {
+    "id": "photo-02",
+    "source": "C:\\Users\\csh\\AppData\\Local\\Temp\\codex-clipboard-60c6dd41-e7d9-4ed5-aac6-9a1544517052.png",
+    "sha256": "d235fec20f90d1c2dbb2939b4c31216236ad17789f70f4eca8a2b74e9d5729d4"
+  },
+  {
+    "id": "photo-03",
+    "source": "C:\\Users\\csh\\AppData\\Local\\Temp\\codex-clipboard-196ebd41-5ff6-4497-82f6-a33326ef5656.png",
+    "sha256": "9dd19ab8542c08e1e209d38ddaa3c90e2b53dfcb02c349c1f5e1fe994cae5d09"
+  },
+  {
+    "id": "photo-04",
+    "source": "C:\\Users\\csh\\AppData\\Local\\Temp\\codex-clipboard-611887b7-aaf9-4b26-8a19-0f4780f52f4d.png",
+    "sha256": "40d0701575649da263922924017f7fb22584d5e3c577c4d1b32e99a5d8821345"
+  },
+  {
+    "id": "photo-05",
+    "source": "C:\\Users\\csh\\AppData\\Local\\Temp\\codex-clipboard-37c2a98d-0fe3-4fb6-8d61-c4a25afb53e1.png",
+    "sha256": "2caf527b0064daa9e19ba83a32a0a4964c9ceaf7e0f9ff1141b79560b476c064"
+  },
+  {
+    "id": "photo-06",
+    "source": "C:\\Users\\csh\\AppData\\Local\\Temp\\codex-clipboard-ed167c27-779f-4988-8c25-7e0cacabab0f.png",
+    "sha256": "0e7a087580e70bf054df5cf0bc42a2acdc86d67b99313d34641e73ac88b698b1"
+  },
+  {
+    "id": "photo-07",
+    "source": "C:\\Users\\csh\\AppData\\Local\\Temp\\codex-clipboard-1b907065-4504-4738-abf0-3d342d2717ab.png",
+    "sha256": "15722f1611473064829263d42b628d2a3876ad411b9e52d73949ade5ef1d94fc"
+  },
+  {
+    "id": "photo-08",
+    "source": "C:\\Users\\csh\\AppData\\Local\\Temp\\codex-clipboard-fd3cdff1-bce6-4b3e-b9e7-d8079caeae89.png",
+    "sha256": "7218922d014aa4d0e37284c793d133e681362cd4dfcec58acaf6eb96cd7c28a4"
+  },
+  {
+    "id": "photo-09",
+    "source": "C:\\Users\\csh\\AppData\\Local\\Temp\\codex-clipboard-6f493de3-e2a6-4377-b17f-241377b911b3.png",
+    "sha256": "8c89331a6bba3fc2e7c42a9829aa5c7230c521564e45ce1842806a43220af2d6"
+  },
+  {
+    "id": "photo-10",
+    "source": "C:\\Users\\csh\\AppData\\Local\\Temp\\codex-clipboard-9518b0d7-80bd-419b-ac1a-7317ecb280dd.png",
+    "sha256": "b9133677ceba033fcb52c018f0305dbf2c52ec2f3d884044bb84a389719a40a1"
+  },
+  {
+    "id": "photo-11",
+    "source": "C:\\Users\\csh\\AppData\\Local\\Temp\\codex-clipboard-c3f8b666-4e75-4e43-9660-f5f0cedbee06.png",
+    "sha256": "1826bccf8b87b3eb021f389e876dc49d86615e07be46dd01d7e15f11430f0286"
+  },
+  {
+    "id": "slide-35",
+    "source": "Docs/BreachPlugin/surface-destruction-guide/explanation.html",
+    "sha256": "6bd65e5fada0affad3d4581d16283ec3f571e02b42efbbbb61821393dfd009e2"
+  },
+  {
+    "id": "slide-36",
+    "source": "Docs/BreachPlugin/surface-destruction-guide/explanation.html",
+    "sha256": "625b10e3496d7b2b3988e417e75fa281b23f40bcb583e713556f89127bd9454d"
+  },
+  {
+    "id": "slide-37",
+    "source": "Docs/BreachPlugin/surface-destruction-guide/explanation.html",
+    "sha256": "abaa372f019a96bfa8b69d6d6ad31cfc88c2f5d32fc2af1425c10324d4fa4c53"
+  },
+  {
+    "id": "slide-38",
+    "source": "Docs/BreachPlugin/surface-destruction-guide/explanation.html",
+    "sha256": "3ac7d0193f6380892d1b18bab5b9be57f2dc032af1f0568c22ef52eae3bad561"
+  },
+  {
+    "id": "slide-39",
+    "source": "Docs/BreachPlugin/surface-destruction-guide/explanation.html",
+    "sha256": "cfcdcdebc6fba302eb91ae71fb556cdb9ac593257042d66e92e296756d8f6b28"
+  },
+  {
+    "id": "slide-40",
+    "source": "Docs/BreachPlugin/surface-destruction-guide/explanation.html",
+    "sha256": "74a8d02c0c24ebfc94c2734c5584d73ea8bfe72b555ad27d4d6529c3260733cd"
+  },
+  {
+    "id": "slide-41",
+    "source": "Docs/BreachPlugin/surface-destruction-guide/explanation.html",
+    "sha256": "7d2d8631b5396f76e01479afff0bf9e1e5871dc14dad4f034729a9ce7a25ba01"
+  },
+  {
+    "id": "slide-42",
+    "source": "Docs/BreachPlugin/surface-destruction-guide/explanation.html",
+    "sha256": "86e2242fa6ca8670163cc4f0cc73e8c22be5b2ca5e06d0331a612f0e83be8265"
+  },
+  {
+    "id": "slide-44",
+    "source": "Docs/BreachPlugin/surface-destruction-guide/explanation.html",
+    "sha256": "a73ea06ac853431e16a3b955772d2db086a0c2cff8526630830947884eeceb68"
+  },
+  {
+    "id": "slide-45",
+    "source": "Docs/BreachPlugin/surface-destruction-guide/explanation.html",
+    "sha256": "8792954abe6d5c8e1fab63368bdf64282d5d126294b6524b5b53b227fc01dcf2"
+  },
+  {
+    "id": "slide-46",
+    "source": "Docs/BreachPlugin/surface-destruction-guide/explanation.html",
+    "sha256": "17fbbf42ea43b53999c7c32ce4d45602783d58c497651555359de8fdf55d4557"
+  },
+  {
+    "id": "slide-47",
+    "source": "Docs/BreachPlugin/surface-destruction-guide/explanation.html",
+    "sha256": "04affdc3ad3dc1a3eb552943601db77d8959ab774b73e8dd4532d478dcb5a888"
+  },
+  {
+    "id": "slide-48",
+    "source": "Docs/BreachPlugin/surface-destruction-guide/explanation.html",
+    "sha256": "f7864800e21587d6c0c6fd7d4cf0a1b693978b825e765d2befc4d69ea96a44c7"
+  },
+  {
+    "id": "slide-49",
+    "source": "Docs/BreachPlugin/surface-destruction-guide/explanation.html",
+    "sha256": "929640641124f3950991e8c0a391e37afc11793b785579f1622c2fe3c8ab1614"
+  },
+  {
+    "id": "transcript",
+    "source": "C:\\Users\\csh\\Downloads\\Rainbow_Six_Siege_Destruction_KO_full.txt",
+    "sha256": "32af75afe97f73c4517874d380c4bb24dbe8b96c7f4aacc15ce3505b491dbe4f",
+    "segments": 178
+  }
+]

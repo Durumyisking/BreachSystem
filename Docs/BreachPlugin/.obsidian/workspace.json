@@ -506,22 +506,129 @@
                 {
                   "state": "{}",
                   "eState": "{}"
+                },
+                {
+                  "title": "R6 분석",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/R6 분석.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"R6 분석\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":54,\"ch\":0},\"to\":{\"line\":54,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "StaticMesh vs DynamicMesh",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/StaticMesh vs DynamicMesh.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"StaticMesh vs DynamicMesh\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "메시에 구멍뚫기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/메시에 구멍뚫기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"메시에 구멍뚫기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "Pasted image 20261013155053",
+                  "icon": "lucide-image",
+                  "state": "{\"type\":\"image\",\"state\":{\"file\":\"Pasted image 20261013155053.png\"},\"icon\":\"lucide-image\",\"title\":\"Pasted image 20261013155053\"}",
+                  "eState": "{}"
+                },
+                {
+                  "title": "R6 분석",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/R6 분석.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"R6 분석\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":44,\"ch\":0},\"to\":{\"line\":44,\"ch\":0}},\"scroll\":39.367080479452056}"
+                },
+                {
+                  "title": "Recording_2026-10-18_11-21-22-1-476",
+                  "icon": "lucide-image",
+                  "state": "{\"type\":\"image\",\"state\":{\"file\":\"Recording_2026-10-18_11-21-22-1-476.gif\"},\"icon\":\"lucide-image\",\"title\":\"Recording_2026-10-18_11-21-22-1-476\"}",
+                  "eState": "{}"
+                },
+                {
+                  "title": "Pasted image 20261022173741",
+                  "icon": "lucide-image",
+                  "state": "{\"type\":\"image\",\"state\":{\"file\":\"Pasted image 20261022173741.png\"},\"icon\":\"lucide-image\",\"title\":\"Pasted image 20261022173741\"}",
+                  "eState": "{}"
+                },
+                {
+                  "title": "Pasted image 20261017192337",
+                  "icon": "lucide-image",
+                  "state": "{\"type\":\"image\",\"state\":{\"file\":\"Pasted image 20261017192337.png\"},\"icon\":\"lucide-image\",\"title\":\"Pasted image 20261017192337\"}",
+                  "eState": "{}"
+                },
+                {
+                  "title": "2037EA~1",
+                  "icon": "lucide-image",
+                  "state": "{\"type\":\"image\",\"state\":{\"file\":\"2037EA~1.jpg\"},\"icon\":\"lucide-image\",\"title\":\"2037EA~1\"}",
+                  "eState": "{}"
+                },
+                {
+                  "title": "R6 분석",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/R6 분석.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"R6 분석\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":60,\"ch\":93},\"to\":{\"line\":60,\"ch\":93}},\"scroll\":44.66756801048837}"
+                },
+                {
+                  "title": "멀티스레드, ComputeShader방식 폴리곤 절단 고찰",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"멀티스레드, ComputeShader방식 폴리곤 절단 고찰\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":25,\"ch\":25},\"to\":{\"line\":25,\"ch\":25}},\"scroll\":9.019697502638058}"
                 }
               ]
             },
             "state": {
               "type": "markdown",
               "state": {
-                "file": "개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md",
+                "file": "개발노트/2026-10-18 7. 고립 폴리곤 제거.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "멀티스레드, ComputeShader방식 폴리곤 절단 고찰"
+              "title": "2026-10-18 7. 고립 폴리곤 제거"
+            }
+          },
+          {
+            "id": "f2f81bb63014c252",
+            "type": "leaf",
+            "pane-relief:history-v1": {
+              "pos": 0,
+              "stack": [
+                {
+                  "state": "{}",
+                  "eState": "{}"
+                },
+                {
+                  "title": "2026-10-23 9. 공간적 피해 누적",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 9. 공간적 피해 누적\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":6,\"ch\":0},\"to\":{\"line\":6,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-18 7. 고립 폴리곤 제거",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-18 7. 고립 폴리곤 제거.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-18 7. 고립 폴리곤 제거\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-23 9. 공간적 피해 누적",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"무제\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                }
+              ]
+            },
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "2026-10-23 8. 복잡한 다각형 브리칭"
             }
           }
         ],
-        "currentTab": 4
+        "currentTab": 5
       }
     ],
     "direction": "vertical"
@@ -762,10 +869,36 @@
       "vscode-editor:Create Code File": false
     }
   },
-  "active": "41244a82a21296e6",
+  "active": "f2f81bb63014c252",
   "lastOpenFiles": [
+    "개발노트/2026-10-23 9. 공간적 피해 누적.md",
+    "개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md",
     "개발노트/2026-10-18 7. 고립 폴리곤 제거.md",
+    "개발노트/R6 분석.md",
+    "개발노트/StaticMesh vs DynamicMesh.md",
+    "개발노트/메시에 구멍뚫기.md",
+    "Pasted image 20261013155053.png",
+    "09_six_horizontal_far.jpg",
+    "11_repeat_uv_four_breaches.jpg",
+    "15_color_group_overlaid.png",
+    "12_sniper_two_hits.png",
+    "08_six_horizontal.png",
+    "06_six_two_rows.png",
+    "05_frost_3x2.png",
+    "04_rifle_compact_3x2.png",
+    "03_rifle_2x3.png",
     "개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md",
+    "2026-10-22 8. 물리 형상 변형 기준 반영하기.md",
+    "Research/R6-Destruction-Guide-2026-10-22/video-study/R6-Destruction-Video-Study.pdf",
+    "Research/R6-Destruction-Guide-2026-10-22/video-study/print-study.html",
+    "Research/R6-Destruction-Guide-2026-10-22/video-study/export_pdf.py",
+    "Research/R6-Destruction-Guide-2026-10-22/video-study/verification.json",
+    "Research/R6-Destruction-Guide-2026-10-22/video-study/README.txt",
+    "Research/R6-Destruction-Guide-2026-10-22/video-study/qa/viewer-check.js",
+    "Research/R6-Destruction-Guide-2026-10-22/video-study/qa/server-error.log",
+    "Research/R6-Destruction-Guide-2026-10-22/video-study/qa/server.log",
+    "Research/R6-Destruction-Guide-2026-10-22/video-study/capture-manifest.json",
+    "Research/R6-Destruction-Guide-2026-10-22/video-study/index.html",
     "개발노트/2026-10-10 Chaos Destruction 브리칭.md",
     "개발노트/2026-10-11 브리칭 방식 변경.md",
     "개발노트/2026-09-29 브리칭 1차 완성.md",
@@ -775,41 +908,15 @@
     "개발노트/2026-10-13 4. 2D 폴리곤 절단.md",
     "개발노트/2026-10-14 5. 2D 폴리곤 삼각분할.md",
     "개발노트/2026-10-14 6. 2D 폴리곤 to 3D 메시.md",
-    "Recording_2026-10-18_11-21-22-1-476.gif",
-    "영상/폴리곤 절단방식 브리칭 구현 완료.mkv",
     "개발노트/삼각분할 함수 분석.md",
-    "Pasted image 20261017194133.png",
-    "Pasted image 20261017193359.png",
-    "Pasted image 20261017193114.png",
-    "Pasted image 20261017192537.png",
-    "Pasted image 20261017192352.png",
-    "Pasted image 20261017192337.png",
-    "Pasted image 20261017192329.png",
-    "Pasted image 20261017175832.png",
-    "Pasted image 20261017174209.png",
     "개발노트/Convex Hull이란.md",
     "개발노트/메시의 Hit 지점 알아내기.md",
     "개발노트/Dedicated Server 환경으로 변경.md",
-    "개발노트/StaticMesh vs DynamicMesh.md",
     "개발노트/StaticMesh에서 DynamicMesh변환.md",
     "언리얼에 이미 있는 요소.md",
     "무제.canvas",
     "클래스 구조.md",
-    "영상/이슈 - 다이나믹메시 변경시 라이팅 변함.mkv",
-    "영상/네트워크 구현 - 템플릿 기본 기능 이전 완료.mkv",
-    "2026-10-14 18-47-19.mkv",
-    "영상/이슈 - 메시 컷 프레임 드랍.mkv",
-    "영상/이슈 - 메시 절반 분할시 이슈.mkv",
     "이슈/이슈 - 메시 절반 분할시 문제생김.md",
-    "이슈/DynamicMeshComponent로 변환하면서 라이팅 변화.md",
-    "영상/이슈 - MeshCut실패.mkv",
-    "기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md",
-    "기획/시즈 방식 벽 파괴 기획.md",
-    "이슈/MeshCut 실패.md",
-    "영상/2D 폴리곤 절단.mkv",
-    "surface-destruction-guide/visualization.html",
-    "surface-destruction-guide/THIRD_PARTY_LICENSES.txt",
-    "개발노트/메시에 구멍뚫기.md",
-    "이슈/MeshBoolean.Compute 프레임 저하.md"
+    "이슈/DynamicMeshComponent로 변환하면서 라이팅 변화.md"
   ]
 }

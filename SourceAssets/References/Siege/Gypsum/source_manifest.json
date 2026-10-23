@@ -1,0 +1,112 @@
+{
+  "provenance": "Extracted locally from the installed Rainbow Six Siege game. Ubisoft game reference asset.",
+  "source_archive": "datapc64_pvp01_house_v3_mod.forge",
+  "source_owner_uid": "800020680F0C2F75",
+  "source_package_body_offset": 9959988,
+  "source_material_uid": 404543912773,
+  "basecolor_compiled_uid": 404543912838,
+  "normal_source": {
+    "archive": "datapc64_merged_set01_bnk_textures2.forge",
+    "container_offset": 97239103,
+    "uid": 404543912830,
+    "format": [
+      2048,
+      2048,
+      6,
+      1
+    ],
+    "path": "C:\\Users\\csh\\.codex\\visualizations\\2026\\10\\21\\01a15dfb-fcdd-7900-93e0-3b2f19fcb54a\\r6-wall-analysis\\gypsum_normal_5E30B23B7E.png"
+  },
+  "source_first_float_pairs": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      -8.79999828338623
+    ],
+    [
+      3.0,
+      -8.79999828338623
+    ],
+    [
+      2.999999761581421,
+      0.0
+    ]
+  ],
+  "vertices_cm": [
+    [
+      -439.9999141693115,
+      0,
+      -150.0
+    ],
+    [
+      439.9999141693115,
+      0,
+      -150.0
+    ],
+    [
+      439.9999141693115,
+      0,
+      150.0
+    ],
+    [
+      -439.9999141693115,
+      0,
+      149.9999761581421
+    ]
+  ],
+  "uvs": [
+    [
+      0.0,
+      1.25
+    ],
+    [
+      3.666665951410929,
+      1.25
+    ],
+    [
+      3.666665951410929,
+      0.0
+    ],
+    [
+      0.0,
+      9.934107462565105e-08
+    ]
+  ],
+  "triangles": [
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      2,
+      3
+    ]
+  ],
+  "reconstruction": {
+    "scale_from_source_units": 100,
+    "origin": "centered on surface",
+    "plane": "XZ, Y=0",
+    "depth_cm": 0,
+    "uvs": "new project UVs at 240 cm per square tile; original UV semantics are unverified",
+    "runtime_destruction_imported": false
+  },
+  "files": {
+    "siege_gypsum_basecolor.png": {
+      "bytes": 812994,
+      "sha256": "2b1610ce359fa01c740e714f8142db9c6733327c90289ef026789ea9d2214435"
+    },
+    "siege_gypsum_normal.png": {
+      "bytes": 2407817,
+      "sha256": "12b313f823d1aca67c6ac26f2432e52bf882818d7c30a34e570f94d6c36c0c5e"
+    },
+    "siege_gypsum_surface.obj": {
+      "bytes": 452,
+      "sha256": "b90afeebd678fca08796836aa9a277ff6cbc2447a51e29e0e05c10ae4a1e7638"
+    }
+  }
+}

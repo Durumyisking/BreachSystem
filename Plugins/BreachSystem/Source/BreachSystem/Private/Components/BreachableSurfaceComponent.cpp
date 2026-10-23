@@ -12,6 +12,7 @@
 #include "StaticMeshLODResourcesToDynamicMesh.h"
 #include "StaticMeshResources.h"
 #include "Engine/DamageEvents.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 #include "BreachSystemLog.h"
 
@@ -44,12 +45,16 @@ void UBreachableSurfaceComponent::OnComponentDestroyed(bool bDestroyingHierarchy
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
 }
 
-void UBreachableSurfaceComponent::ReceiveComponentDamage_Implementation(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+//void UBreachableSurfaceComponent::ReceiveComponentDamage_Implementation(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+//{
+//	Super::ReceiveComponentDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+//	HandleBreachDamage(this, DamageEvent, DamageCauser);
+//}
+void UBreachableSurfaceComponent::ReceiveComponentDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	Super::ReceiveComponentDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 	HandleBreachDamage(this, DamageEvent, DamageCauser);
 }
-
 bool UBreachableSurfaceComponent::InitializeSurface()
 {
 	if (IsValid(DynamicMeshProxy))
@@ -249,6 +254,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 {
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Total");
 		if (!IsValid(DamageCauser))
 		{
 			return;
@@ -261,7 +267,8 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		}
 		if (!IsValid(DynamicMeshProxy))
 		{
-			if (!InitializeSurface())
+			const bool bInitialized = InitializeSurface();
+			if (!bInitialized)
 			{
 				return;
 			}
@@ -273,7 +280,8 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 
 		const FTransform& ComponentTransform = GetComponentTransform();
 		FGeneralPolygon2d Cutter;
-		if (!Source->ResolveCutterPolygon(ComponentTransform, PointDamage.HitInfo.ImpactPoint, Cutter))
+		const bool bResolvedCutter = Source->ResolveCutterPolygon(ComponentTransform, PointDamage.HitInfo.ImpactPoint, Cutter);
+		if (!bResolvedCutter)
 		{
 			return;
 		}

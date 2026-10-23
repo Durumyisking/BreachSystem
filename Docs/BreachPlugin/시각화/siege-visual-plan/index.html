@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="BreachSystem의 시즈 참고 파괴 비주얼 목표, 현재 구현과의 차이, 재료별 파손·단면·장식·잔해 및 검증 계획.">
+  <title>BreachSystem · 파괴 비주얼 구현 계획</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+<noscript><p class="no-script">본문은 그대로 읽을 수 있습니다. 단계 전환·벽돌 선택·점검 기록 기능에는 JavaScript가 필요합니다.</p></noscript>
+<a class="skip" href="#main">본문으로 이동</a>
+<aside class="sidebar">
+  <a class="brand" href="#top"><span class="brand-mark">B/</span><span>BreachSystem<small>VISUAL DEVELOPMENT</small></span></a>
+  <p class="nav-caption">이 문서의 순서</p>
+  <nav aria-label="문서 목차">
+    <a href="#reference"><span>01</span> 목표 화면</a>
+    <a href="#scope"><span>02</span> 유지 · 수정 · 신규</a>
+    <a href="#pipeline"><span>03</span> 파괴 한 번의 구성</a>
+    <a href="#materials"><span>04</span> 재료별 파괴 규칙</a>
+    <a href="#brick"><span>05</span> 벽돌과 줄눈</a>
+    <a href="#section"><span>06</span> 단면 · UV · 재질</a>
+    <a href="#recut"><span>07</span> 재타격과 장식 수명</a>
+    <a href="#patterns"><span>08</span> 분할선과 삼각분할선</a>
+    <a href="#roadmap"><span>09</span> 작업 순서</a>
+    <a href="#acceptance"><span>10</span> 완료 기준</a>
+    <a href="#sources"><span>11</span> 근거와 실제 파일</a>
+  </nav>
+  <div class="sidebar-note"><b>비주얼 품질을 완료 조건으로.</b><p>가까이, 옆에서, 반대편에서 보아도 파괴의 이유와 재료가 읽혀야 합니다.</p></div>
+  <button class="text-button print-button" type="button">인쇄 / PDF로 저장 ↗</button>
+  <small class="date">대화 정리 · 2026.10.21</small>
+</aside>
+
+<main id="main">
+  <header class="hero" id="top">
+    <div class="hero-top"><span class="eyebrow">BREACH / VISUAL SPECIFICATION</span><span class="hero-tag">구현 계획 · 오프라인 문서</span></div>
+    <h1>구멍을 내는 것에서,<br><em>재료가 부서지는 모습으로.</em></h1>
+    <p class="hero-lead">2D 절단 기반은 유지합니다. 그 위에 재료별 파손, 노출된 단면, 표면 박리, 돌출 조각과 잔해를 만들고, 다음 타격에도 모든 요소가 같은 파괴 상태를 따르게 합니다.</p>
+    <div class="hero-bottom"><a class="button hero-button" href="#pipeline">구성 요소 직접 보기 <span>↓</span></a><span>목표는 첨부한 시즈 화면과의 시각적 비교입니다.</span></div>
+    <div class="hero-line" aria-hidden="true"></div>
+  </header>
+
+  <div class="content">
+    <div class="overview-strip"><div><span class="status keep">유지</span><b>2D 절단 기반</b><small>차집합 · 삼각분할 · 두께 생성</small></div><div><span class="status modify">수정</span><b>파괴 결과와 단면</b><small>입출력 · UV · 재질 · 상태 반영</small></div><div><span class="status new">신규</span><b>재료의 파손 표현</b><small>도안 · 누적 손상 · 장식 · 잔해</small></div></div>
+
+    <section id="reference">
+      <div class="section-heading"><span class="section-number">01</span><div><p class="eyebrow">VISUAL TARGET</p><h2>완료 기준은 이 화면에 있습니다.</h2></div></div>
+      <p class="section-intro">사용자가 직접 촬영한 시즈 참고 화면입니다. 보이는 현상은 목표로 삼고, 공개되지 않은 내부 알고리즘은 단정하지 않습니다. 이미지를 누르면 원본 크기로 볼 수 있습니다.</p>
+      <div class="reference-grid">
+        <figure><button class="image-button" type="button" data-image="assets/reference-drywall.jpg" data-caption="석고보드: 불규칙한 탈락, 들뜬 표면, 노출된 심재와 주변 균열."><img src="assets/reference-drywall.jpg" alt="큰 구멍 주위에 석고 조각과 표면 박리가 남은 시즈 석고벽" loading="lazy"></button><figcaption><span>석고보드</span><b>구멍 바깥에도 파손의 흔적이 남는다.</b>균열, 표면 박리, 들뜬 조각, 심재의 깊이.</figcaption></figure>
+        <figure><button class="image-button" type="button" data-image="assets/reference-barricade.jpg" data-caption="바리케이드: 판재의 경계를 읽을 수 있고 절단 경계에 가시와 불규칙한 파편이 남습니다."><img src="assets/reference-barricade.jpg" alt="가로 판재와 불규칙한 구멍이 보이는 나무 바리케이드" loading="lazy"></button><figcaption><span>바리케이드</span><b>판재의 구성과 쪼개지는 방향이 읽힌다.</b>관찰한 삼등분 현상은 도안 설계의 참고이며 고정 규칙으로 확정하지 않습니다.</figcaption></figure>
+        <figure><button class="image-button" type="button" data-image="assets/reference-thermite.jpg" data-caption="써마이트형 브리칭: 큰 사각형 외곽과 불규칙한 가장자리, 그을음, 남은 구조 조각."><img src="assets/reference-thermite.jpg" alt="사각형으로 크게 열린 벽과 그을린 불규칙한 가장자리" loading="lazy"></button><figcaption><span>사각 브리칭</span><b>전체 윤곽과 작은 파손이 동시에 존재한다.</b>큰 사각형, 가장자리 요철, 그을음과 돌출 형상.</figcaption></figure>
+        <figure><button class="image-button" type="button" data-image="assets/reference-rifle.jpg" data-caption="라이플 연속 피격 뒤의 큰 탈락. 누적 손상·연결 손실 등의 후보 규칙으로 재현할 수 있지만 사진만으로 실제 내부 규칙을 확정할 수는 없습니다."><img src="assets/reference-rifle.jpg" alt="라이플 연속 피격 후 불규칙하게 탈락한 석고벽" loading="lazy"></button><figcaption><span>누적 피격</span><b>작은 손상이 큰 영역의 탈락으로 이어진다.</b>단순히 작은 구멍만 더하는 것 이상의 추가 제거 판정이 필요합니다.</figcaption></figure>
+      </div>
+      <aside class="note"><b>도식과 품질 목표를 구분합니다.</b> 아래 상호작용은 데이터와 형상 관계를 설명하는 SVG 도식입니다. Unreal 렌더링, 실제 물리·손상 solver, 완성 비주얼 샘플을 대신하지 않습니다. 최종 검증은 실제 프로젝트 화면과 위 참고 화면을 비교합니다.</aside>
+    </section>
+
+    <section id="scope">
+      <div class="section-heading"><span class="section-number">02</span><div><p class="eyebrow">SCOPE & OWNERSHIP</p><h2>무엇을 유지하고, 무엇을 만들어야 하나.</h2></div></div>
+      <div class="section-toolbar"><p>앞선 대화에서 합의한 9개 요구 영역입니다. 기능이 존재한다는 코드 확인과 화면에서 완성됐다는 판정은 구분합니다.</p><div class="segmented" role="group" aria-label="요구사항 종류 필터"><button type="button" data-filter="all" aria-pressed="true">전체</button><button type="button" data-filter="keep" aria-pressed="false">유지</button><button type="button" data-filter="modify" aria-pressed="false">수정</button><button type="button" data-filter="new" aria-pressed="false">신규</button></div></div>
+      <div class="requirements">
+        <article class="requirement" data-kind="keep"><div class="requirement-top"><span class="req-id">R01</span><span class="status keep">유지 · 코드 확인</span></div><h3>2D 차집합 · 삼각분할 · 두께</h3><p>구멍과 남는 벽의 기본 형상을 계속 담당합니다. Delaunay를 사용한다는 이유로 알고리즘을 교체하지 않습니다.</p><div class="requirement-foot"><b>기준</b> 외곽 · 내부 hole · 분리된 영역을 보존하고 닫힌 두께 메시를 생성.</div></article>
+        <article class="requirement" data-kind="modify"><div class="requirement-top"><span class="req-id">R02</span><span class="status modify">수정</span></div><h3>커터 입력과 파괴 결과</h3><p>공격·재료·표면 좌표를 함께 입력받고, 남는 표면·제거 영역·조각 윤곽·새 경계를 구분해 반환합니다.</p><div class="requirement-foot"><b>기준</b> 구멍·단면·조각이 같은 파괴 결과에서 생성.</div></article>
+        <article class="requirement" data-kind="new"><div class="requirement-top"><span class="req-id">R03</span><span class="status new">신규</span></div><h3>재료별 파괴 도안</h3><p>석고의 불규칙한 탈락, 목재 판재와 결, 벽돌·줄눈 영역을 정의합니다. 벽돌 마스크의 벡터·ID 전처리와 부분 파손도 포함합니다.</p><div class="requirement-foot"><b>기준</b> 색을 가려도 파손 형태로 재료를 구분.</div></article>
+        <article class="requirement" data-kind="new"><div class="requirement-top"><span class="req-id">R04</span><span class="status new">신규</span></div><h3>누적 손상 · 지지 연결</h3><p>타격 주변 피해, 영역 내구도, 판재 고정점과 연결 강도를 관리합니다. 현재의 외곽 접촉 판정을 확장합니다.</p><div class="requirement-foot"><b>기준</b> 작은 손상 → 큰 탈락이 납득 가능한 위치와 순서로 진행.</div></article>
+        <article class="requirement" data-kind="modify"><div class="requirement-top"><span class="req-id">R05</span><span class="status modify">수정</span></div><h3>단면 형상 · UV · 재질</h3><p>두께 방향을 가진 측면 UV, 표면·내부의 Material ID, 거친 단면과 박리 형상, 법선·탄젠트를 구성합니다.</p><div class="requirement-foot"><b>기준</b> 근접·측면에서 늘어난 텍스처나 평평한 띠가 보이지 않음.</div></article>
+        <article class="requirement" data-kind="new"><div class="requirement-top"><span class="req-id">R06</span><span class="status new">신규</span></div><h3>표면 장식 · 경계 장식</h3><p>균열·긁힘은 표면과 함께 자르고, 종이 박리·석고 조각·목재 가시는 해당 경계의 수명에 연결합니다.</p><div class="requirement-foot"><b>기준</b> 다음 타격에서 장식이 구멍을 덮거나 허공에 남지 않음.</div></article>
+        <article class="requirement" data-kind="new"><div class="requirement-top"><span class="req-id">R07</span><span class="status new">신규</span></div><h3>잔해 · 효과 · 아트 자산</h3><p>윤곽과 두께가 맞는 큰 탈락 조각, 재료별 작은 파편·분진·그을음, 박리 메시와 내부 재질을 준비하고 연동합니다.</p><div class="requirement-foot"><b>기준</b> 형상 · 위치 · 재질 · 움직임 · 발생 시점이 하나의 파괴로 읽힘.</div></article>
+        <article class="requirement" data-kind="modify"><div class="requirement-top"><span class="req-id">R08</span><span class="status modify">수정</span></div><h3>일관된 상태와 반영 순서</h3><p>표면 상태가 파괴의 기준을 소유합니다. 계산을 완성한 뒤 메시·충돌·장식에 반영하고, 실패한 일부 영역이 사라지지 않도록 합니다.</p><div class="requirement-foot"><b>기준</b> 연속 타격과 실패 처리에서도 표시 형상과 상태가 일치.</div></article>
+        <article class="requirement" data-kind="modify"><div class="requirement-top"><span class="req-id">R09</span><span class="status modify">완료 판정 강화</span></div><h3>시각적 검증을 완료 조건으로</h3><p>정면 한 장 대신 근접·측면·반대편·연속 피격·재료별 비교를 남깁니다. 각 항목은 실제 Editor/PIE 증거로 확인합니다.</p><div class="requirement-foot"><b>기준</b> 도식이나 빌드 성공을 실제 화면 검증으로 취급하지 않음.</div></article>
+      </div>
+    </section>
+
+    <section id="pipeline">
+      <div class="section-heading"><span class="section-number">03</span><div><p class="eyebrow">ONE DESTRUCTION EVENT</p><h2>한 번의 파괴가 만드는 여섯 가지 결과.</h2></div></div>
+      <p class="section-intro">단계를 선택하면 같은 구멍 위에 어떤 결과가 추가되는지 비교할 수 있습니다. 재료와 공격을 바꿔도 공통 처리 흐름은 유지합니다.</p>
+      <div class="control-bar"><div class="field"><label for="material">재료</label><select id="material"><option value="plaster">석고보드</option><option value="wood">바리케이드</option><option value="brick">벽돌</option></select></div><div class="field"><label for="attack">공격</label><select id="attack"><option value="rifle">라이플 · 누적 탈락 이후</option><option value="shotgun">샷건</option><option value="melee">근접 공격</option><option value="breach">사각 브리칭</option></select></div><button type="button" class="button primary" id="play-stages">단계 재생</button><span class="control-note">아래 단계 버튼으로 직접 이동할 수 있습니다.</span></div>
+      <div class="pipeline-steps" role="group" aria-label="파괴 구성 단계"><button type="button" data-phase="0" aria-pressed="false"><span>1</span>영향 · 도안</button><button type="button" data-phase="1" aria-pressed="false"><span>2</span>구멍 · 조각</button><button type="button" data-phase="2" aria-pressed="false"><span>3</span>단면 · 재질</button><button type="button" data-phase="3" aria-pressed="false"><span>4</span>표면 장식</button><button type="button" data-phase="4" aria-pressed="false"><span>5</span>경계 장식</button><button type="button" data-phase="5" aria-pressed="true"><span>6</span>잔해 · 효과</button></div>
+      <div class="lab-pair"><div class="lab-panel"><div class="panel-label"><span>기본 절단만 사용 · 동일 도안 입력 가정</span><b>구멍과 균일한 돌출 단면</b></div><div id="current-scene" class="scene"></div></div><div class="lab-panel target"><div class="panel-label"><span>구현 목표의 구성 도식</span><b id="target-scene-title">잔해 · 효과까지 연결</b></div><div id="target-scene" class="scene"></div></div></div>
+      <div class="legend"><span><i class="swatch retained"></i>남는 표면</span><span><i class="swatch removed"></i>영향 · 제거 영역</span><span><i class="swatch core"></i>노출된 내부</span><span><i class="swatch decoration"></i>균열 · 경계 장식</span></div>
+      <div class="step-inspector" aria-live="polite"><span id="phase-count">06 / 06</span><div><h3 id="phase-title">잔해 · 효과</h3><p id="phase-description"></p><div id="phase-data" class="data-tags"></div></div></div>
+      <p class="caption">개념도는 시각적 구성 요소를 설명합니다. 정확한 커터 클리핑·누적 피해·물리 낙하를 계산하는 게임 프로토타입은 아닙니다. 현재 C++ 비교에는 확인하지 않은 Blueprint 효과를 포함하지 않았습니다.</p>
+    </section>
+
+    <section id="materials">
+      <div class="section-heading"><span class="section-number">04</span><div><p class="eyebrow">MATERIAL RESPONSE</p><h2>공격이 범위를, 재료가 깨지는 모습을 결정합니다.</h2></div></div>
+      <div class="material-grid"><article><div class="material-sample plaster-sample" aria-hidden="true"></div><span class="eyebrow">DRYWALL</span><h3>석고보드</h3><p>불규칙한 외곽과 내부 분할. 표면 종이는 들뜨고, 심재는 잘게 부스러지며, 주변 균열이 남습니다.</p><p class="must">필수: 종이 박리 · 심재 단면 · 돌출 조각 · 누적 탈락.</p></article><article><div class="material-sample wood-sample" aria-hidden="true"></div><span class="eyebrow">BARRICADE</span><h3>목재 판재</h3><p>판자 경계를 보존하고 결을 따라 분할합니다. 일부 조각은 고정점에 붙어 남고, 날카로운 가시가 실루엣을 만듭니다.</p><p class="must">필수: 판재 도안 · 결 방향 · 가시 · 고정점 연결.</p></article><article><div class="material-sample brick-sample" aria-hidden="true"></div><span class="eyebrow">MASONRY</span><h3>벽돌과 줄눈</h3><p>벽돌별 탈락과 벽돌 자체의 부분 파손을 함께 다룹니다. 줄눈도 제거 영역에 포함하되 실제 테두리에는 모르타르 깨짐을 표현합니다.</p><p class="must">필수: 벽돌 ID · 줄눈 배정 · 모서리 깨짐 · 내부 재질.</p></article></div>
+      <div class="note"><b>반경만 바꾼 같은 모양으로 끝내지 않습니다.</b> 라이플은 작은 손상과 누적, 샷건은 넓은 영향, 근접 공격은 국소 탈락, 사각 브리칭은 큰 사각 윤곽과 그을음을 공급합니다. 재료 규칙이 최종 형상을 결정합니다.</div>
+      <div class="mini-flow"><span>마스크 / 아티스트 도안</span><i>→</i><span>2D 영역 · 내부 분할 · 재료 방향</span><i>→</i><span>공격에 따른 제거 판정</span><i>→</i><span>클리핑 결과와 새 경계</span></div>
+      <p class="caption">내부 분할은 계산용 2D 도안으로 시작할 수 있습니다. 모든 도안 셀을 처음부터 개별 3D 물리 객체로 만들 필요는 없습니다. 모양을 만드는 규칙과 떨어질 조건은 별도로 관리합니다.</p>
+      <h3 class="subsection-title">작은 탄흔에서 큰 탈락으로 이어지는 과정</h3>
+      <div class="lab-pair"><div class="lab-panel"><div class="panel-label"><span>작은 구멍만 추가하는 경우</span><b>서로 떨어진 탄흔만 남음</b></div><div id="damage-simple" class="scene"></div></div><div class="lab-panel target"><div class="panel-label"><span>2D 영역에 주변 피해를 누적하는 예시</span><b>임계값에 도달한 영역이 추가로 탈락</b></div><div id="damage-cells" class="scene"></div></div></div>
+      <div class="inline-actions"><button type="button" class="button" id="damage-add">1발 추가</button><button type="button" class="button" id="damage-six">6발 연속</button><button type="button" class="button ghost" id="damage-reset">피격 초기화</button><span id="damage-count" aria-live="polite">타격 0회</span></div>
+      <p class="caption">피해 분포와 임계값은 관계를 설명하기 위한 임의의 교육용 설정입니다. 실제 시즈의 6발 규칙이나 물성값을 재현한 것이 아닙니다. 옅은 주황색은 누적 피해, 열린 초록색 영역은 추가 탈락입니다. 도식은 최대 12발까지 추가할 수 있으며, 이 예시와 별도로 지지 연결 손실도 판정해야 합니다.</p>
+    </section>
+
+    <section id="brick">
+      <div class="section-heading"><span class="section-number">05</span><div><p class="eyebrow">MASK TO CUTTING CELLS</p><h2>흰 벽돌만 지우면, 검은 줄눈이 남습니다.</h2></div></div>
+      <p class="section-intro">벽돌을 눌러 제거해 보세요. 왼쪽은 벽돌 면만 지우고, 오른쪽은 줄눈을 배정한 셀 전체를 지웁니다. 두 화면의 선택은 함께 움직입니다.</p>
+      <div class="lab-pair"><div class="lab-panel"><div class="panel-label"><span>흰색 영역만 제거</span><b>줄눈이 그물처럼 남음</b></div><div id="brick-white" class="brick-demo"></div></div><div class="lab-panel target"><div class="panel-label"><span>벽돌 + 배정된 줄눈 제거</span><b>제거된 셀 사이에 줄눈이 남지 않음</b></div><div id="brick-cells" class="brick-demo"></div></div></div>
+      <div class="inline-actions"><button type="button" class="button" id="brick-preset">인접한 벽돌 3개 제거</button><button type="button" class="button ghost" id="brick-reset">선택 초기화</button><span id="brick-count" aria-live="polite">선택 0개</span></div>
+      <p class="caption">직사각형 셀로 단순화한 줄눈 배정 도식입니다. 실제 데이터는 보정 마스크에서 벽돌을 구분하고 반복 경계를 연결해 만듭니다. 줄눈의 중간선은 계산용 경계이며, 최종 비주얼에는 모르타르 파편과 모서리 깨짐을 더합니다.</p>
+      <details><summary>현재 보정 마스크와 남은 작업 보기</summary><img class="wide-image" src="assets/brick-mask-comparison.png" alt="알베도와 2048x2048 이진 마스크, 청록색 경계를 겹쳐 비교한 이미지" loading="lazy"><p>PNG와 Unreal 임포트 원본의 픽셀 일치, 흑백 2색, 반대쪽 경계 샘플 일치는 확인했습니다. 원본 알베도 색상과 기존 초안의 내부 영역을 이용한 보정이며 수작업 정답 마스크는 아닙니다. 벡터 추출·줄눈 배정·실제 파괴 연결은 앞으로 구현할 범위입니다.</p><a href="../../../../SourceAssets/Textures/PolyHaven/red_brick_2k/mask_generation.json">마스크 생성 기록 보기 ↗</a></details>
+    </section>
+
+    <section id="section">
+      <div class="section-heading"><span class="section-number">06</span><div><p class="eyebrow">CROSS SECTION & SHADING</p><h2>옆에서 보면 드러나는 차이를 고칩니다.</h2></div></div>
+      <p class="section-intro">현재 측면 UV는 XZ만 사용합니다. 두께 Y가 달라도 같은 XZ를 가진 정점에는 같은 UV가 들어가므로, 측면의 면적이 UV에서 선으로 눌립니다.</p>
+      <div class="uv-comparison"><div><span class="eyebrow">현재 측면 UV의 문제</span><svg viewBox="0 0 430 210" role="img" aria-label="두께 방향의 두 정점이 같은 UV로 모여 선이 되는 도식"><rect x="28" y="30" width="180" height="100" rx="4" fill="#dae2d8"/><path d="M40 110H195M40 110V44" stroke="#69796d" fill="none"/><path d="M65 93L175 67" stroke="#bf6745" stroke-width="5"/><circle cx="65" cy="93" r="7" fill="#bf6745"/><circle cx="175" cy="67" r="7" fill="#bf6745"/><text x="47" y="157">앞뒤 두 정점 → 같은 UV</text><text x="260" y="72">U = X</text><text x="260" y="104">V = Z</text><text x="260" y="151" fill="#a44831">두께 Y가 빠짐</text></svg></div><div><span class="eyebrow">필요한 측면 UV</span><svg viewBox="0 0 430 210" role="img" aria-label="경계를 따라가는 거리와 두께를 두 축으로 사용하는 직사각형 UV 도식"><defs><pattern id="uv-checker" width="28" height="28" patternUnits="userSpaceOnUse"><rect width="28" height="28" fill="#e7eee0"/><path d="M0 0H14V14H0ZM14 14H28V28H14Z" fill="#9bb2a0"/></pattern></defs><rect x="40" y="40" width="160" height="84" fill="url(#uv-checker)" stroke="#3d654e" stroke-width="2"/><path d="M40 143H200M22 40V124" stroke="#3d654e"/><text x="47" y="170">경계를 따라가는 거리</text><text x="247" y="72">U = 경계 거리</text><text x="247" y="104">V = 두께 위치</text><text x="247" y="151" fill="#3d654e">두 축 모두 유지</text></svg></div></div>
+      <div class="cross-section"><div class="cross-title"><span class="eyebrow">석고 단면 구성 예시</span><span>실제 비율이 아닌 구조 도식</span></div><svg viewBox="0 0 900 230" role="img" aria-label="표면 종이, 거친 석고 심재, 뒤쪽 표면과 들뜬 종이를 구분한 단면 도식"><defs><pattern id="core-grain" width="21" height="19" patternUnits="userSpaceOnUse"><rect width="21" height="19" fill="#c8bca5"/><path d="m3 4 5 2m6 6 3-3M2 15l3-2" stroke="#a99b82" stroke-width="2"/></pattern></defs><path d="M90 75H470L493 95L476 112L504 129L482 149H90Z" fill="url(#core-grain)"/><path d="M90 65H461L512 31L525 41L475 80H90Z" fill="#f2eee3" stroke="#a99b82"/><path d="M90 149H482L493 160H90Z" fill="#ded9cb" stroke="#a99b82"/><path d="M484 95L560 80L554 107L499 121Z" fill="#e1d6bf" stroke="#a99b82"/><path d="M480 68L612 39H710M533 99H710M491 154L613 182H710" stroke="#536e5b" fill="none"/><text x="722" y="45">표면 종이 · 박리</text><text x="722" y="106">노출 심재 · 깨짐</text><text x="722" y="189">뒤쪽 표면</text><text x="92" y="202">앞뒤 표면 / 내부 / 돌출 조각에 맞는 형상과 재질이 필요합니다.</text></svg></div>
+      <div class="three-notes"><article><b>Material ID</b><p>앞면·뒷면·심재·목재 단면·모르타르를 구분합니다. 최초 메시 복사의 슬롯과 새 메시의 면별 할당을 연결해야 합니다.</p></article><article><b>실루엣과 시차</b><p>종이 들뜸과 가시처럼 옆에서 보이는 요소는 입체 형상으로 만듭니다. 세부 균열 재질도 실제 구멍과 맞게 관리합니다.</p></article><article><b>법선과 탄젠트</b><p>노멀맵, 거친 단면, 표면의 조명 반응을 검증합니다. 평면 삼각분할선이 균열처럼 보이는 쉐이딩 오류를 막습니다.</p></article></div>
+    </section>
+
+    <section id="recut">
+      <div class="section-heading"><span class="section-number">07</span><div><p class="eyebrow">DECORATION LIFECYCLE</p><h2>두 번째 타격에서, 이전 장식도 바뀌어야 합니다.</h2></div></div>
+      <div class="control-bar"><div class="segmented" role="group" aria-label="장식 재타격 단계"><button type="button" data-recut="0" aria-pressed="false">초기 상태</button><button type="button" data-recut="1" aria-pressed="true">첫 타격</button><button type="button" data-recut="2" aria-pressed="false">겹치는 두 번째 타격</button></div><span class="control-note">두 번째 타격으로 사라진 경계와 균열을 확인하세요.</span></div>
+      <div class="lab-pair"><div class="lab-panel"><div class="panel-label"><span>장식을 계속 덧붙인 경우</span><b>없어진 경계에 조각과 균열이 남음</b></div><div id="recut-bad" class="scene"></div></div><div class="lab-panel target"><div class="panel-label"><span>표면 · 경계의 수명을 따르는 경우</span><b>표면 장식은 잘리고 경계 장식은 갱신</b></div><div id="recut-good" class="scene"></div></div></div>
+      <p class="caption">Cut Decoration은 표면에 붙어 함께 잘리는 균열·표면 흔적입니다. Feature-bound Decoration은 경계·꼭짓점에 붙는 입체 장식이며 그 경계가 없어지면 제거하거나 재구성합니다. 도식은 SVG 마스크와 경계 샘플의 포함 판정으로 이 차이를 보여 줍니다.</p>
+      <div class="note"><b>장식의 기준은 안정된 표면 좌표와 경계 정보입니다.</b> 재삼각분할 때 바뀌는 삼각형 번호만으로 장식을 식별하면 이전 장식과 새 경계를 연결하기 어렵습니다. 표면 상태가 소유하는 경계·조각 정보와 수명 규칙이 필요합니다.</div>
+    </section>
+
+    <section id="patterns">
+      <div class="section-heading"><span class="section-number">08</span><div><p class="eyebrow">TWO DIFFERENT LINES</p><h2>조각을 나누는 선과, 그릴 삼각형을 만드는 선.</h2></div></div>
+      <div class="pattern-grid"><div><h3>파괴 도안의 내부 분할선</h3><svg viewBox="0 0 380 245" role="img" aria-label="하나의 영향 영역 안에 여러 파괴 조각이 정의된 도식"><path d="M66 70L151 35L211 62L287 49L323 137L272 166L295 196L187 222L107 181L52 132Z" fill="#e3b396" stroke="#b15a38" stroke-width="2"/><path d="M151 35L184 118L287 49M184 118L107 181M184 118L272 166" stroke="#a74a2b" stroke-width="3"/><circle cx="184" cy="118" r="6" fill="#a74a2b"/><text x="28" y="22">어떤 조각으로 나뉠지 정의</text></svg><p>조각 윤곽·내구도·연결·탈락 판정에 사용합니다. 현재 커터 결과에는 이 내부 조각 목록이 없습니다.</p></div><div><h3>렌더링용 삼각분할선</h3><svg viewBox="0 0 380 245" role="img" aria-label="남는 벽을 여러 삼각형으로 채운 렌더링용 도식"><path d="M56 40H322V106L270 83L194 137L230 172L181 211H56Z" fill="#9fb6a5" stroke="#436d54" stroke-width="2"/><path d="M56 40L194 137M56 40L270 83M322 40L270 83M56 211L194 137M56 211L230 172" fill="none" stroke="#52785f" stroke-width="2"/><text x="28" y="22">남는 표면을 삼각형으로 채움</text></svg><p>GPU에 그릴 면을 만드는 단계입니다. 삼각형 하나하나가 떨어지는 파편이라는 뜻은 아닙니다.</p></div></div>
+      <details><summary>대화에서 확인한 GDC 원본 도식 3장</summary><div class="slide-grid"><figure><img src="assets/slide-pattern.png" alt="GDC 슬라이드: 로컬 타격 위치와 입력·재료 설정으로 절단 패턴을 생성" loading="lazy"><figcaption>PDF 37쪽 · 절단 패턴 생성</figcaption></figure><figure><img src="assets/slide-clipping.png" alt="GDC 슬라이드: 표면과 커터의 클리핑 후 남는 표면과 잘린 부분" loading="lazy"><figcaption>PDF 38쪽 · 다각형 클리핑</figcaption></figure><figure><img src="assets/slide-triangulation.png" alt="GDC 슬라이드: 남는 표면을 Ear Clipping으로 삼각분할" loading="lazy"><figcaption>PDF 39쪽 · 삼각분할</figcaption></figure></div><p>슬라이드 제목의 Intersection은 표면과 커터의 경계를 처리하는 문맥입니다. 벽에 구멍을 내고 남는 표면을 구하려면 차집합을 사용합니다. Ear Clipping과 Delaunay의 선택만으로 구현의 옳고 그름이 결정되지는 않습니다.</p></details>
+    </section>
+
+    <section id="roadmap">
+      <div class="section-heading"><span class="section-number">09</span><div><p class="eyebrow">BUILD ORDER</p><h2>석고벽 한 장을, 처음부터 재타격까지 완성합니다.</h2></div></div>
+      <p class="section-intro">아래는 개발 순서입니다. 뒤 단계의 비주얼을 선택 사항으로 미루는 목록이 아닙니다. 각 재료는 같은 완료 기준을 통과해야 합니다.</p>
+      <ol class="roadmap"><li><span>01</span><div><h3>입력 · 파괴 결과 · 누적 판정</h3><p>공격과 재료 규칙을 연결하고 남는 표면·제거 조각·새 경계를 구성합니다. 지지 연결과 실패 시 상태 보존을 함께 검증합니다.</p></div></li><li><span>02</span><div><h3>단면 · 재질 · UV</h3><p>표면과 내부의 재질을 구분하고 측면 UV, 거친 절단 형상, 법선·탄젠트를 바로잡습니다. 근접·측면 화면을 먼저 확인합니다.</p></div></li><li><span>03</span><div><h3>균열 · 박리 · 돌출 조각</h3><p>표면 장식과 경계 장식을 추가하고, 재절단 때 잘림·제거·재구성이 동작하도록 만듭니다.</p></div></li><li><span>04</span><div><h3>탈락 조각 · 파편 · 분진 · 그을음</h3><p>제거된 영역과 맞는 큰 조각, 작은 파편, 공격별 효과를 같은 파괴 이벤트의 위치와 타이밍에 연결합니다.</p></div></li><li><span>05</span><div><h3>연속 타격 · 관찰 방향 · 실패 조건 검증</h3><p>기존 구멍 겹침, 외곽 절단, 큰 탈락, 장식 수명, 반대편과 조명 반응을 검증합니다. 실제 Unreal 결과를 증거로 남깁니다.</p></div></li><li><span>06</span><div><h3>바리케이드와 벽돌에 같은 기준 적용</h3><p>목재 판재·결·고정점과 벽돌·줄눈·모서리 깨짐을 구현합니다. 공통 파괴 결과와 수명 관리를 재사용하되 재료별 형상은 유지합니다.</p></div></li></ol>
+      <aside class="note"><b>하나의 기준 상태, 같은 결과를 사용하는 표현.</b> 표면 상태가 확정한 결과를 메시·충돌·장식·잔해가 공유합니다. 멀티플레이에서는 서버가 제거 결과를 확정하고 작은 잔해 연출과 구분하는 방향을 검토합니다. 이 문서가 실제 복제 구현이나 성능 측정을 완료했다는 뜻은 아닙니다.</aside>
+    </section>
+
+    <section id="acceptance">
+      <div class="section-heading"><span class="section-number">10</span><div><p class="eyebrow">ACCEPTANCE GATES</p><h2>비주얼 완료는, 이 장면들을 통과한 뒤입니다.</h2></div></div>
+      <div class="check-progress"><div><strong id="check-count">0 / 14</strong><span>문서 내 개인 점검 기록</span></div><progress id="check-progress" max="14" value="0" aria-label="개인 점검 항목 수"></progress><button type="button" class="text-button" id="clear-checks">점검 기록 초기화</button></div>
+      <p class="caption" id="storage-note">체크는 이 브라우저에 저장됩니다. 실제 Editor/PIE 결과를 자동으로 판정하지 않습니다. 체크할 때 대응하는 캡처·로그·영상 증거를 별도로 남기세요.</p>
+      <div class="checks">
+        <label><input type="checkbox" data-check="close"><span><b>근접 관찰</b> 늘어진 단면 텍스처, 비정상적으로 긴 면, 떠 있는 장식이 없다.</span></label>
+        <label><input type="checkbox" data-check="side"><span><b>측면 관찰</b> 종이 박리·가시·돌출 조각이 실제 두께와 시차를 가진다.</span></label>
+        <label><input type="checkbox" data-check="back"><span><b>반대편 관찰</b> 관통 윤곽이 맞고 앞뒤 재질·법선·박리 표현이 자연스럽다.</span></label>
+        <label><input type="checkbox" data-check="uv"><span><b>재질과 UV</b> 내부 재질이 구분되며 반복·회전·스케일 변화에도 보이는 무늬와 커터가 맞는다.</span></label>
+        <label><input type="checkbox" data-check="light"><span><b>조명 반응</b> 돌출 형상의 그림자, 노멀맵, 거칠기, 단면 명암이 자연스럽다.</span></label>
+        <label><input type="checkbox" data-check="overlap"><span><b>겹치는 연속 타격</b> 구멍이 합쳐지고 이전 표면 장식이 새 구멍을 덮지 않는다.</span></label>
+        <label><input type="checkbox" data-check="feature"><span><b>경계의 수명</b> 사라진 경계의 조각이 허공에 남지 않고 새 경계에 필요한 장식이 생성된다.</span></label>
+        <label><input type="checkbox" data-check="damage"><span><b>누적 손상</b> 작은 탄흔에서 큰 탈락으로 진행하며 위치와 시점이 납득된다.</span></label>
+        <label><input type="checkbox" data-check="support"><span><b>지지 연결</b> 끊어진 영역과 붙어 있어야 할 판재를 재료 규칙에 따라 구분한다.</span></label>
+        <label><input type="checkbox" data-check="edge"><span><b>외곽 · 기존 구멍</b> 가장자리와 내부 hole을 함께 잘라도 잘못 막힌 구멍이나 유령 면이 없다.</span></label>
+        <label><input type="checkbox" data-check="mortar"><span><b>벽돌 · 줄눈</b> 제거된 벽돌 사이에 줄눈만 그물처럼 남지 않으며 모르타르의 깨짐을 표현한다.</span></label>
+        <label><input type="checkbox" data-check="debris"><span><b>잔해와 타이밍</b> 큰 조각의 형상·두께·재질과 작은 파편·분진의 방향 및 발생 시점이 맞는다.</span></label>
+        <label><input type="checkbox" data-check="failure"><span><b>실패 시 일관성</b> 계산 실패로 일부 영역만 사라지거나 메시·충돌·장식의 상태가 달라지지 않는다.</span></label>
+        <label><input type="checkbox" data-check="identity"><span><b>재료의 정체성</b> 색을 가려도 형상과 파편으로 석고·목재·벽돌을 구분할 수 있다.</span></label>
+      </div>
+    </section>
+
+    <section id="sources" class="sources">
+      <div class="section-heading"><span class="section-number">11</span><div><p class="eyebrow">EVIDENCE & LIMITS</p><h2>관찰, 코드 확인, 구현 목표를 구분합니다.</h2></div></div>
+      <p class="caption">코드와 기존 문서는 프로젝트 상대경로로 연결했습니다. 저장된 HTML을 직접 열면 해당 파일로 이동합니다. 이 문서 폴더만 제공하는 HTTP 미리보기에서는 폴더 밖의 프로젝트 링크를 제공하지 않습니다.</p>
+      <div class="evidence-grid"><article><span class="status keep">코드 확인</span><h3>현재 기반과 수정 지점</h3><p><a href="../../../../Plugins/BreachSystem/Source/BreachSystem/Private/Components/BreachableSurfaceComponent.cpp">BreachableSurfaceComponent.cpp</a>: 차집합·외곽 접촉 필터·삼각분할·돌출·UV·충돌 갱신. 측면 UV는 XZ를 사용하고 새 메시의 면별 내부 재질 구성은 추가가 필요합니다.</p><p><a href="../../../../Plugins/BreachSystem/Source/BreachSystem/Private/Components/BreachSourceComponent.cpp">BreachSourceComponent.cpp</a> / <a href="../../../../Plugins/BreachSystem/Source/BreachSystem/Public/Shape/BreachShape.h">BreachShape.h</a>: 현재 생성 결과는 외곽 다각형 하나이며 재료별 내부 조각 목록은 없습니다.</p><p><a href="../../../../Plugins/BreachSystem/Source/BreachSystem/Public/Surface/BreachSurfaceTypes.h">BreachSurfaceTypes.h</a>: 현재 표면 상태는 치수와 RemainingRegions를 중심으로 구성돼 있습니다.</p></article><article><span class="status modify">공개 자료</span><h3>2016년 발표의 설명</h3><p><a href="https://media.gdcvault.com/gdc2016/Presentations/LHeureux_Julien_Art_Of_Destruction.pdf" target="_blank" rel="noreferrer">Julien L’Heureux · The Art of Destruction in Rainbow Six: Siege</a>: 2D 절단, 커터 유형, 장식의 구분과 대체 잔해 등. 현재 게임 버전의 모든 내부 규칙을 확정하는 자료는 아닙니다.</p><p><a href="../../surface-destruction-guide/explanation.html">기존 한국어 해설 문서</a> / <a href="../../surface-destruction-guide/visualization.html">기존 기하 실험실</a></p><p><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/fracturing-geometry-collections-user-guide" target="_blank" rel="noreferrer">Epic · Fracturing Geometry Collections</a>: 사각형·원형의 결과만으로 2D와 사전 파쇄를 판별할 수 없다는 비교의 참고.</p></article><article><span class="status new">우리 구현 목표</span><h3>아직 구현·런타임 검증되지 않은 범위</h3><p>재료별 도안·줄눈 배정·누적 손상·연결 강도·단면 개선·장식·잔해·실패 시 일관성은 이 문서의 계획입니다. 이 HTML의 상호작용이 Unreal 구현 완료를 뜻하지 않습니다.</p><p>큰 조각과 실루엣의 품질을 유지하면서 아트 자산을 제작·선별합니다. 기존 자산 활용 여부는 목표 화면과의 시각적 일치로 판단합니다.</p><p>게임 참고 화면은 사용자가 제공했습니다. GDC 슬라이드와 게임 화면의 권리는 각 권리자에게 있습니다.</p></article></div>
+      <footer><span>BREACHSYSTEM / VISUAL DEVELOPMENT PLAN</span><a href="#top">맨 위로 ↑</a><span>2026.10.21 · 인터넷 없이 읽기와 상호작용 가능</span></footer>
+    </section>
+  </div>
+</main>
+<dialog id="image-dialog" aria-labelledby="dialog-caption"><form method="dialog"><button class="dialog-close" aria-label="이미지 확대 닫기">닫기 ×</button></form><img id="dialog-image" alt=""><p id="dialog-caption"></p></dialog>
+</body>
+</html>

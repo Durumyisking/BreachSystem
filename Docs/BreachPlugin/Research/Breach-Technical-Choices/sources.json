@@ -1,0 +1,50 @@
+{
+  "dbscan": [
+    "DBSCAN 원 논문 · Ester et al., 1996",
+    "https://cdn.aaai.org/KDD/1996/KDD96-037.pdf"
+  ],
+  "skdb": [
+    "scikit-learn · DBSCAN 파라미터와 메모리 주의",
+    "https://scikit-learn.org/stable/modules/generated/sklearn.cluster.DBSCAN.html"
+  ],
+  "alpha": [
+    "CGAL · 2D Alpha Shapes",
+    "https://doc.cgal.org/latest/Alpha_shapes_2/index.html"
+  ],
+  "watershed": [
+    "OpenCV · Marker-based Watershed",
+    "https://docs.opencv.org/4.x/d3/db4/tutorial_py_watershed.html"
+  ],
+  "tensor": [
+    "OpenCV · Structure Tensor 방향·일관성 추정",
+    "https://docs.opencv.org/5.0/tutorials/imgproc/anisotropic_image_segmentation/anisotropic_image_segmentation.html"
+  ],
+  "marching": [
+    "scikit-image · find_contours / Marching Squares",
+    "https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.find_contours"
+  ],
+  "poisson": [
+    "Bridson · Fast Poisson Disk Sampling, 2007",
+    "https://www.cs.ubc.ca/~rbridson/docs/bridson-siggraph07-poissondisk.pdf"
+  ],
+  "clipper": [
+    "Clipper2 · 폴리곤 연산과 정밀도",
+    "https://www.angusj.com/clipper2/Docs/Overview.htm"
+  ],
+  "shapely": [
+    "Shapely · 도형 연산·단순화·예제 계산",
+    "https://shapely.readthedocs.io/en/stable/manual.html"
+  ],
+  "geometry": [
+    "Epic · Geometry Scripting Reference",
+    "https://dev.epicgames.com/documentation/unreal-engine/geometry-scripting-reference-in-unreal-engine"
+  ],
+  "bake": [
+    "Epic · Merging Actors / 재질 베이크",
+    "https://dev.epicgames.com/documentation/unreal-engine/merging-actors-in-unreal-engine"
+  ],
+  "uevor": [
+    "Epic · FDelaunay2::GetVoronoiCells",
+    "https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/GeometryCore/FDelaunay2/GetVoronoiCells"
+  ]
+}

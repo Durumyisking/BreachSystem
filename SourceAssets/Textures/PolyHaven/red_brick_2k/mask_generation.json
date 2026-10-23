@@ -1,20 +1,39 @@
 {
-  "tool": "image_gen.imagegen",
+  "tool": "Python / NumPy / OpenCV / SciPy",
   "input": "red_brick_diff_2k.png",
   "output": "red_brick_brick_mask_draft.png",
-  "status": "draft",
-  "width": 1254,
-  "height": 1254,
+  "status": "pixel_refined",
+  "width": 2048,
+  "height": 2048,
   "meaning": {
     "white": "brick",
     "black": "mortar"
   },
+  "method": {
+    "draft_role": "interior prior only; boundaries refined from albedo color",
+    "blur_sigma": 0.8,
+    "red_minus_green_threshold": 20,
+    "red_minus_blue_threshold": 32,
+    "interior_prior_distance_px": 7,
+    "exterior_limit_distance_px": 10,
+    "closing_kernel": 3,
+    "median_kernel": 5,
+    "tile_padding_px": 40,
+    "seam_correction": "matching opposing boundary samples, isolated edge sliver removal"
+  },
+  "checks": {
+    "binary_values": [
+      0,
+      255
+    ],
+    "visible_regions": 140,
+    "periodic_bricks": 120,
+    "left_right_boundary_mismatch_pixels": 0,
+    "top_bottom_boundary_mismatch_pixels": 0,
+    "interior_hole_pixels": 0
+  },
   "limitations": [
-    "AI generated draft; not exact vector segmentation.",
-    "Output has grayscale edge pixels; use a threshold for binary interpretation.",
-    "Source PBR maps are 2048x2048; generated mask is 1254x1254.",
-    "Horizontal tile seam has 2.39% thresholded pixel disagreement; boundary correction is required for production cutting.",
-    "No Unreal import, material setup, or runtime cutting validation performed."
-  ],
-  "prompt": "Use case: precise-object-edit, technical segmentation mask.\nInput image 1 is the exact edit target: a square 2048x2048 seamless red brick base-color texture. Produce a pixel-aligned segmentation of THIS exact image, not another brick pattern.\nPrimary request: replace all brick faces with perfectly solid white (#FFFFFF), and all mortar / joints between bricks with perfectly solid black (#000000). Preserve the exact position, row count, brick count, irregular outlines, proportions, orientation, crop, image boundary, and full image extent of every brick. Trace the interface between each brick and surrounding grey mortar faithfully. Ignore dirt, chips, color variation, highlights, and roughness inside each brick face: fill each brick face completely white. Mortar must remain a connected black network and must separate every neighboring brick including staggered vertical joints. Preserve partial bricks cut by the image borders and seamless tiling topology.\nOutput: one square 2048x2048 two-color raster mask, no alpha, no labels, no text, no borders, no perspective, no shadows, no gradients, no material texture, no invented or moved bricks. Full-bleed exact alignment with the input is the most important requirement. White = brick material. Black = mortar."
+    "Color-based segmentation with an existing draft interior prior; not a hand-traced ground truth.",
+    "Runtime destruction and material appearance are not validated by PNG checks."
+  ]
 }

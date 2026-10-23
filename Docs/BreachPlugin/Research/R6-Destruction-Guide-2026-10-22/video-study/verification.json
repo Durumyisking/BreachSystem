@@ -1,0 +1,25 @@
+{
+  "checked_on": "2026-10-22",
+  "scope": "Video screenshots and Korean transcript companion only",
+  "video_duration_seconds": 2873,
+  "scene_groups": 110,
+  "full_video_frames": 288,
+  "resolution": [1280, 720],
+  "subtitle_segments": 178,
+  "all_image_hashes_verified": true,
+  "all_subtitle_segments_linked": true,
+  "subtitle_source_copy_sha256_matches": true,
+  "scene_intervals_contiguous": true,
+  "javascript_syntax": "node --check passed",
+  "visual_inspection": "Full-lecture contact sheets 01-10 inspected; original-resolution frame samples and final browser layout inspected",
+  "browser_checks": {
+    "subtitle_click_changes_capture_and_youtube_timestamp": "passed",
+    "image_zoom_dialog_open_and_close": "passed",
+    "next_scene_changes_title_frame_and_position": "passed",
+    "korean_transcript_search": "passed; 삼각분할 found two relevant scene groups",
+    "selected_frame_loaded_at_original_resolution": "passed",
+    "browser_console_errors": 0
+  },
+  "timing_limits": "Scene boundaries approximately five seconds; provided Korean transcript approximately fifteen-second segments",
+  "unreal_changes_build_tests": "No Unreal code or assets changed; build and runtime checks not applicable"
+}

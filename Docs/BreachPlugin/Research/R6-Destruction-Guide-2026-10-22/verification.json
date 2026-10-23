@@ -1,0 +1,23 @@
+{
+  "checked_on": "2026-10-22",
+  "scope": "HTML research document only; no Unreal code or asset changes",
+  "static_validation": {
+    "sections": 15,
+    "embedded_images": 25,
+    "user_photos": 11,
+    "cached_original_slides": 14,
+    "subtitle_segments": 178,
+    "ids": 226,
+    "links_checked": 267,
+    "missing_internal_anchors": 0,
+    "missing_local_targets": 0,
+    "image_hashes_match_sources": true,
+    "subtitle_copy_matches_source": true,
+    "javascript_syntax_check": "passed: node --check"
+  },
+  "visual_validation": {
+    "source_slide_images": "14 original slide images inspected",
+    "final_browser_render": "not performed: browser URL policy blocked file protocol; no workaround attempted"
+  },
+  "unreal_build_tests_runtime": "not run; document-only task"
+}

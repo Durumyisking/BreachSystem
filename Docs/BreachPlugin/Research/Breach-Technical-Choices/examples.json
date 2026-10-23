@@ -1,0 +1,115 @@
+{
+  "notice": "Synthetic deterministic 2D examples; not R6 or Unreal runtime results",
+  "seed": 4829,
+  "shapely_version": "2.2.0",
+  "metrics": {
+    "repeat_1_area": 0.0,
+    "repeat_3_area": 1163.8853678290106,
+    "repeat_6_area": 2686.8160398443483,
+    "field_h2": {
+      "nodes_evaluated": 14946,
+      "area": 8123.1388021972825,
+      "boundary_vertices": 330
+    },
+    "field_h6": {
+      "nodes_evaluated": 1692,
+      "area": 8068.870379912269,
+      "boundary_vertices": 110
+    },
+    "field_h12": {
+      "nodes_evaluated": 432,
+      "area": 7867.368411010049,
+      "boundary_vertices": 54
+    },
+    "clustering": {
+      "eps": 25,
+      "minPts": 4,
+      "dbscan_clusters": 2,
+      "noise_points": 1,
+      "radius_graph_clusters": 1,
+      "points": [
+        [
+          40,
+          60
+        ],
+        [
+          45,
+          65
+        ],
+        [
+          40,
+          70
+        ],
+        [
+          50,
+          60
+        ],
+        [
+          50,
+          70
+        ],
+        [
+          185,
+          60
+        ],
+        [
+          190,
+          65
+        ],
+        [
+          185,
+          70
+        ],
+        [
+          195,
+          60
+        ],
+        [
+          195,
+          70
+        ],
+        [
+          73,
+          65
+        ],
+        [
+          97,
+          65
+        ],
+        [
+          121,
+          65
+        ],
+        [
+          145,
+          65
+        ],
+        [
+          165,
+          65
+        ]
+      ]
+    },
+    "일반 2D · 18 sites": {
+      "sites": 18,
+      "polygon_pieces": 18,
+      "area_error": 4.9249370996220125e-12,
+      "overlap_area": 1.0913936421275139e-11,
+      "holes_in_removed_region": 1
+    },
+    "방향성 · 세로 축 2.5": {
+      "sites": 18,
+      "polygon_pieces": 18,
+      "area_error": 0.0,
+      "overlap_area": -3.637978807091713e-12,
+      "holes_in_removed_region": 1
+    },
+    "가중 · 일부 seed 우대": {
+      "sites": 18,
+      "polygon_pieces": 18,
+      "area_error": 0.0,
+      "overlap_area": 3.637978807091713e-12,
+      "holes_in_removed_region": 1
+    }
+  }
+}

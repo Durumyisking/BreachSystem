@@ -1,0 +1,103 @@
+{
+  "id": "SjkQxowsL0I",
+  "title": "The Art of Destruction in Rainbow Six: Siege",
+  "duration": 2873,
+  "chapters": [
+    {
+      "start_time": 0,
+      "title": "Intro",
+      "end_time": 64
+    },
+    {
+      "start_time": 64,
+      "title": "What is Procedural Destruction?",
+      "end_time": 516
+    },
+    {
+      "start_time": 516,
+      "title": "Reality Check",
+      "end_time": 608
+    },
+    {
+      "start_time": 608,
+      "title": "Destruction Event System",
+      "end_time": 697
+    },
+    {
+      "start_time": 697,
+      "title": "Gameplay Elements",
+      "end_time": 879
+    },
+    {
+      "start_time": 879,
+      "title": "Surface Procedural Destruction overview",
+      "end_time": 887
+    },
+    {
+      "start_time": 887,
+      "title": "Surface Procedural Destruction .Developed exclusively for Rainbow 6: Siege",
+      "end_time": 1054
+    },
+    {
+      "start_time": 1054,
+      "title": "Texture Cutter",
+      "end_time": 1186
+    },
+    {
+      "start_time": 1186,
+      "title": "Cut Decorations",
+      "end_time": 1371
+    },
+    {
+      "start_time": 1371,
+      "title": "Debris in R6:S",
+      "end_time": 1436
+    },
+    {
+      "start_time": 1436,
+      "title": "Destruction Performance",
+      "end_time": 1471
+    },
+    {
+      "start_time": 1471,
+      "title": "Destruction Budgets",
+      "end_time": 1919
+    },
+    {
+      "start_time": 1919,
+      "title": "Measure Performance & Optimize",
+      "end_time": 1960
+    },
+    {
+      "start_time": 1960,
+      "title": "Limit Degenerate Cases",
+      "end_time": 2021
+    },
+    {
+      "start_time": 2021,
+      "title": "Limit Runtime Allocations",
+      "end_time": 2078
+    },
+    {
+      "start_time": 2078,
+      "title": "Benchmarks PC",
+      "end_time": 2246
+    },
+    {
+      "start_time": 2246,
+      "title": "Determinism Requirements",
+      "end_time": 2321
+    },
+    {
+      "start_time": 2321,
+      "title": "Randomness vs. Determinism",
+      "end_time": 2668
+    },
+    {
+      "start_time": 2668,
+      "title": "Takeaways",
+      "end_time": 2873
+    }
+  ],
+  "description": "In this 2016 GDC session, Ubisoft's Julien L'Heureux discusses the process of developing and integrating Realblast, a destruction engine, as a core gameplay feature to Rainbow Six: Siege, a multiplayer first person shooter, and all the technical hurdles encountered along the way.\n\nRegister for GDC: http://ubm.io/2gk5KTU\n\nJoin the GDC mailing list: http://www.gdconf.com/subscribe\n\nFollow GDC on Twitter: https://twitter.com/Official_GDC \n\nGDC talks cover a range of developmental topics including game design, programming, audio, visual arts, business management, production, online games, and much more. We post a fresh GDC video every day.  Subscribe to the channel to stay on top of regular updates, and check out GDC Vault  for thousands of more in-depth talks from our archives."
+}
