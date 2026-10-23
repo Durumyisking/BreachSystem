@@ -32,7 +32,7 @@ bool FBreachSourceBindingTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Rough circle binding"), Source->ResolveCutterPolygon(FTransform::Identity, FVector::ZeroVector, Polygon));
 	Source->BindCircle(0);
 	TestFalse(TEXT("Invalid rebind discards previous cache"), Source->ResolveCutterPolygon(Wall, Hit, Polygon));
-	Source->BindBox(FVector2D(40, 20), 5, 16, 5, 0, 0);
+	Source->BindBox(FVector2D(40, 20), 5, 16, 0, 0);
 	TestTrue(TEXT("Rounded rectangle binding"), Source->ResolveCutterPolygon(FTransform::Identity, FVector::ZeroVector, Polygon));
 	TestTrue(TEXT("Rounded binding keeps shape options"), FMath::IsNearlyEqual(Polygon.SignedArea(), 778.54, 0.2));
 	FTransform ZeroScale = Wall;
@@ -67,15 +67,15 @@ bool FBreachSourceSeedPolicyTest::RunTest(const FString& Parameters)
 	for (bool bCircle : { true, false })
 	{
 		const FString Name = bCircle ? TEXT("Circle") : TEXT("Box");
-		auto Bind = [Source, bCircle](float Roughness, int32 Seed)
+		auto Bind = [Source, bCircle](float MicroDepth, int32 Seed)
 		{
 			if (bCircle)
 			{
-				Source->BindCircle(10, 32, Roughness, Seed);
+				Source->BindCircle(10, 32, MicroDepth, Seed);
 			}
 			else
 			{
-				Source->BindBox(FVector2D(40, 20), 0, 8, 5, Roughness, Seed);
+				Source->BindBox(FVector2D(40, 20), 0, 8, MicroDepth, Seed);
 			}
 		};
 		Bind(2, 123);
@@ -92,15 +92,21 @@ bool FBreachSourceSeedPolicyTest::RunTest(const FString& Parameters)
 		if (bCircle)
 		{
 			Option.ShapeClass = UBreachCircleShape::StaticClass();
-			auto& Shape = Option.ShapeOption.InitializeAs<FBreachCircleShapeOption>();
-			Shape.Roughness = 2;
+			Option.ShapeOption.InitializeAs<FBreachCircleShapeOption>();
 		}
 		else
 		{
 			Option.ShapeClass = UBreachBoxShape::StaticClass();
-			auto& Shape = Option.ShapeOption.InitializeAs<FBreachBoxShapeOption>();
-			Shape.Roughness = 2;
+			Option.ShapeOption.InitializeAs<FBreachBoxShapeOption>();
 		}
+		Option.Contour.bEnabled = true;
+		Option.Contour.MacroDepth = 0;
+		Option.Contour.MediumDepth = 0;
+		Option.Contour.MicroDepth = 2;
+		Option.Contour.Seed = 77;
+		Source->UpdateBreachSourceOption(Option);
+		CheckRepeated(Name + TEXT(" direct fixed contour seed"), true);
+		Option.Contour.Seed = 0;
 		Source->UpdateBreachSourceOption(Option);
 		CheckRepeated(Name + TEXT(" direct zero-seed options"), false);
 	}

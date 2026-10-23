@@ -28,6 +28,9 @@ public:
 
 	void HandleBreachDamage(UPrimitiveComponent* HitComponent, const FDamageEvent& DamageEvent, AActor* DamageCauser);
 
+	/** Cut a simple polygon in surface-local XZ. Failure preserves the current surface. */
+	bool ApplyCutterPolygon(const UE::Geometry::FPolygon2d& Cutter);
+
 	UPROPERTY(BlueprintAssignable)
 	FOnBreachedDelegate OnBreachedDelegate;
 protected:

@@ -871,6 +871,8 @@
   },
   "active": "f2f81bb63014c252",
   "lastOpenFiles": [
+    "20E06D~1.jpg",
+    "Pasted image 20261023182817.png",
     "개발노트/2026-10-23 9. 공간적 피해 누적.md",
     "개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md",
     "개발노트/2026-10-18 7. 고립 폴리곤 제거.md",
@@ -886,7 +888,6 @@
     "06_six_two_rows.png",
     "05_frost_3x2.png",
     "04_rifle_compact_3x2.png",
-    "03_rifle_2x3.png",
     "개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md",
     "2026-10-22 8. 물리 형상 변형 기준 반영하기.md",
     "Research/R6-Destruction-Guide-2026-10-22/video-study/R6-Destruction-Video-Study.pdf",
@@ -916,7 +917,6 @@
     "언리얼에 이미 있는 요소.md",
     "무제.canvas",
     "클래스 구조.md",
-    "이슈/이슈 - 메시 절반 분할시 문제생김.md",
-    "이슈/DynamicMeshComponent로 변환하면서 라이팅 변화.md"
+    "이슈/이슈 - 메시 절반 분할시 문제생김.md"
   ]
 }

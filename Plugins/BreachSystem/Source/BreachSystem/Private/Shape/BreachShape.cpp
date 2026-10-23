@@ -4,27 +4,14 @@ namespace
 {
 	using namespace UE::Geometry;
 
-	void ApplyRoughness(FPolygon2d& Polygon, double Roughness, int32 Seed)
-	{
-		FRandomStream Random(Seed == 0 ? FMath::Rand() : Seed);
-		for (int32 Index = 0; Index < Polygon.VertexCount(); ++Index)
-		{
-			const double Radius = Polygon[Index].Length();
-			// Positive radial distances preserve angular order, avoiding self-intersections.
-			const double Amplitude = FMath::Min(FMath::Max(0.0, Roughness), Radius * 0.9);
-			Polygon[Index] *= (Radius + Random.FRandRange(-Amplitude, Amplitude)) / Radius;
-		}
-	}
-
-	bool MakeCircle(double Radius, int32 Segments, double Roughness, int32 Seed, FPolygon2d& OutPolygon)
+	bool MakeCircle(double Radius, int32 Segments, FPolygon2d& OutPolygon)
 	{
 		OutPolygon = FPolygon2d();
-		if (!FMath::IsFinite(Radius) || Radius <= UE_SMALL_NUMBER || !FMath::IsFinite(Roughness))
+		if (!FMath::IsFinite(Radius) || Radius <= UE_SMALL_NUMBER)
 		{
 			return false;
 		}
 		OutPolygon = FPolygon2d::MakeCircle(Radius, FMath::Clamp(Segments, 3, 512));
-		ApplyRoughness(OutPolygon, Roughness, Seed);
 		if (OutPolygon.IsClockwise())
 		{
 			OutPolygon.Reverse();
@@ -41,7 +28,7 @@ bool UBreachCircleShape::GeneratePolygon(const FBreachSourceOption& Option, UE::
 	{
 		return false;
 	}
-	return MakeCircle(Shape->Radius, Shape->Segments, Shape->Roughness, Shape->Seed, OutPolygon);
+	return MakeCircle(Shape->Radius, Shape->Segments, OutPolygon);
 }
 
 bool UBreachBoxShape::GeneratePolygon(const FBreachSourceOption& Option, UE::Geometry::FPolygon2d& OutPolygon) const
@@ -55,7 +42,7 @@ bool UBreachBoxShape::GeneratePolygon(const FBreachSourceOption& Option, UE::Geo
 	}
 	if (!FMath::IsFinite(Shape->Size.X) || !FMath::IsFinite(Shape->Size.Y)
 		|| Shape->Size.X <= UE_SMALL_NUMBER || Shape->Size.Y <= UE_SMALL_NUMBER
-		|| !FMath::IsFinite(Shape->CornerRadius) || !FMath::IsFinite(Shape->EdgeSpacing) || !FMath::IsFinite(Shape->Roughness))
+		|| !FMath::IsFinite(Shape->CornerRadius))
 	{
 		return false;
 	}
@@ -96,17 +83,9 @@ bool UBreachBoxShape::GeneratePolygon(const FBreachSourceOption& Option, UE::Geo
 			}
 		}
 	}
-	for (int32 Index = 0; Index < Boundary.Num(); ++Index)
+	for (const FVector2d& Point : Boundary)
 	{
-		const FVector2d A = Boundary[Index];
-		const FVector2d B = Boundary[(Index + 1) % Boundary.Num()];
-		const double Steps = FMath::CeilToDouble((B - A).Length() / FMath::Max(0.1, double(Shape->EdgeSpacing)));
-		const int32 Segments = int32(FMath::Clamp(Steps, 1.0, 512.0));
-		for (int32 Step = 0; Step < Segments; ++Step)
-		{
-			OutPolygon.AppendVertex(FMath::Lerp(A, B, double(Step) / Segments));
-		}
+		OutPolygon.AppendVertex(Point);
 	}
-	ApplyRoughness(OutPolygon, Shape->Roughness, Shape->Seed);
 	return true;
 }

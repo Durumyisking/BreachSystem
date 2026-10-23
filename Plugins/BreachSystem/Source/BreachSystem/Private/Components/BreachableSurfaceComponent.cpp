@@ -4,6 +4,7 @@
 #include "Components/BreachableSurfaceComponent.h"
 #include "Components/BreachSurfaceProxy.h"
 #include "Components/BreachSourceComponent.h"
+#include "Shape/BreachContour.h"
 #include "GameFramework/Actor.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
@@ -265,128 +266,207 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 			UE_LOG(LogBreachableSurface, Warning, TEXT("%s has no BreachSourceComponent."), *DamageCauser->GetName());
 			return;
 		}
-		if (!IsValid(DynamicMeshProxy))
-		{
-			const bool bInitialized = InitializeSurface();
-			if (!bInitialized)
-			{
-				return;
-			}
-		}
 
-		//DebugDrawSurface();
-		
+		// Cutter 가져오기
 		const FPointDamageEvent& PointDamage = static_cast<const FPointDamageEvent&>(DamageEvent);
-
-		const FTransform& ComponentTransform = GetComponentTransform();
 		FGeneralPolygon2d Cutter;
-		const bool bResolvedCutter = Source->ResolveCutterPolygon(ComponentTransform, PointDamage.HitInfo.ImpactPoint, Cutter);
+		const bool bResolvedCutter = Source->ResolveCutterPolygon(GetComponentTransform(), PointDamage.HitInfo.ImpactPoint, Cutter);
 		if (!bResolvedCutter)
 		{
 			return;
 		}
-		TArray<FGeneralPolygon2d> Cutters;
-		Cutters.Add(Cutter);
-		PolygonsDifference(SurfaceState.RemainingRegions, Cutters, SurfaceState.RemainingRegions);
-
-		SurfaceState.RemainingRegions.RemoveAll([&](const FGeneralPolygon2d& Region)
+		const bool bCut = ApplyCutterPolygon(Cutter.GetOuter());
+		if (!bCut)
 		{
-			return !TouchesOriginalBorder(Region.GetOuter(), OriginBounds);
-		});
-
-		// SurfaceState기반으로 메시를 갱신한다.
-		FDelaunay2 Delaunay;
-		FDynamicMesh3 RenewedMesh;
-		for (auto& RemainingRegion : SurfaceState.RemainingRegions)
-		{
-			TArray<FVector2d> Vertices;
-			TArray<FIndex3i> Triangles; // 삼각분할 결과로 만들어진 삼각형들의 정점 인덱스를 저장하는 배열 (그냥 int 3개임)
-
-			// 삼각분할
-			if (!Delaunay.Triangulate(RemainingRegion, &Triangles, &Vertices, false))
-			{
-				continue;
-			}
-			TArray<int32> FrontIDs;
-			TArray<int32> BackIDs;
-
-			for (const FVector2d& Vertex : Vertices)
-			{
-				FrontIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, OriginalDepthRange.X, Vertex.Y)));
-				BackIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, OriginalDepthRange.Y, Vertex.Y)));
-			}
-			for (const FIndex3i& Triangle : Triangles)
-			{
-				RenewedMesh.AppendTriangle(FrontIDs[Triangle.A], FrontIDs[Triangle.C], FrontIDs[Triangle.B]);
-				RenewedMesh.AppendTriangle(BackIDs[Triangle.A], BackIDs[Triangle.B], BackIDs[Triangle.C]);
-			}
-
-			// 사이드 면 채우기
-			auto AppendSideFaces = [&](const FPolygon2d& Boundary, bool bIsHole, int32 VertexOffset)
-			{
-				const int32 Count = Boundary.VertexCount();
-				const bool bReverse = Boundary.IsClockwise() != bIsHole;
-				for (int32 Index = 0; Index < Count; ++Index)
-				{
-					int32 A = VertexOffset + Index;
-					int32 B = VertexOffset + (Index + 1) % Count;
-					if (bReverse)
-					{
-						Swap(A, B);
-					}
-					RenewedMesh.AppendTriangle(FrontIDs[A], FrontIDs[B], BackIDs[B]);
-					RenewedMesh.AppendTriangle(FrontIDs[A], BackIDs[B], BackIDs[A]);
-				}
-			};
-			AppendSideFaces(RemainingRegion.GetOuter(), false, 0);
-			int32 HoleVertexOffset = RemainingRegion.GetOuter().VertexCount();
-			for (const FPolygon2d& Hole : RemainingRegion.GetHoles())
-			{
-				AppendSideFaces(Hole, true, HoleVertexOffset);
-				HoleVertexOffset += Hole.VertexCount();
-			}
+			return;
 		}
-
-		UE::Geometry::FMeshNormals::InitializeMeshToPerTriangleNormals(&RenewedMesh);
-
-		// 새 메시의 각 삼각형에 UV 좌표를 만들어 연결
-		// Attribute : 노멀, UV 등의 부가 데이터에 접근
-		RenewedMesh.Attributes()->SetNumUVLayers(1); // UV 채널을 1개로 설정
-		auto* UVOverlay = RenewedMesh.Attributes()->PrimaryUV();  // 첫 번째 UV 채널에 접근 (기존 UV 포인터)
-
-		const FVector2d Min = OriginBounds.Min;
-		const FVector2d Size = OriginBounds.Max - Min;
-
-		for (int32 TriangleID : RenewedMesh.TriangleIndicesItr())
-		{
-			const FIndex3i Triangle = RenewedMesh.GetTriangle(TriangleID);
-			const FVector3d Normal = RenewedMesh.GetTriNormal(TriangleID);
-			FIndex3i UVElementIDs;
-
-			for (int32 Corner = 0; Corner < 3; ++Corner)
-			{
-				const FVector3d Position = RenewedMesh.GetVertex(Triangle[Corner]);
-
-				// 벽의 좌표를 0~1 범위로 바꾼다.
-				FVector2f UV(static_cast<float>((Position.X - Min.X) / Size.X),
-					static_cast<float>((Position.Z - Min.Y) / Size.Y));
-				if (FMath::Abs(Normal.Y) > 0.99)
-				{
-					const FPlanarUVMapping& Mapping = SurfaceUVs[Normal.Y > 0 ? 1 : 0];
-					UV = FVector2f(Mapping.Offset + Mapping.PerX * Position.X + Mapping.PerZ * Position.Z);
-				}
-
-				UVElementIDs[Corner] = UVOverlay->AppendElement(UV);
-			}
-
-			UVOverlay->SetTriangle(TriangleID, UVElementIDs);
-		}
-
-		DynamicMeshProxy->SetMesh(MoveTemp(RenewedMesh));
-		DynamicMeshProxy->UpdateCollision();
-
 		OnBreachedDelegate.Broadcast(PointDamage.HitInfo, DynamicMeshProxy);
 	}
+}
+
+bool UBreachableSurfaceComponent::ApplyCutterPolygon(const FPolygon2d& InCutter)
+{
+	FString Error;
+	if (!BreachContour::Validate(InCutter, Error))
+	{
+		UE_LOG(LogBreachableSurface, Warning, TEXT("%s rejected cutter: %s"), *GetName(), *Error);
+		return false;
+	}
+	FPolygon2d Cutter = InCutter;
+	if (Cutter.IsClockwise()) 
+	{
+		Cutter.Reverse(); 
+	}
+	const bool bHadProxy = IsValid(DynamicMeshProxy);
+	if (!bHadProxy)
+	{
+		const bool bInitialized = InitializeSurface();
+		if (!bInitialized) 
+		{ 
+			return false; 
+		}
+	}
+	auto Reject = [&](const TCHAR* Reason)
+	{
+		UE_LOG(LogBreachableSurface, Warning, TEXT("%s kept its previous surface: %s"), *GetName(), Reason);
+		if (!bHadProxy) 
+		{
+			ResetSurface(); 
+		}
+		return false;
+	};
+	TArray<FGeneralPolygon2d> Cutters;
+	Cutters.Add(FGeneralPolygon2d(Cutter));
+	TArray<FGeneralPolygon2d> CandidateRegions;
+	const bool bDifference = PolygonsDifference(SurfaceState.RemainingRegions, Cutters, CandidateRegions);
+	if (!bDifference)
+	{
+		return Reject(TEXT("Polygon difference failed."));
+	}
+
+	CandidateRegions.RemoveAll([&](const FGeneralPolygon2d& Region)
+	{
+		return !TouchesOriginalBorder(Region.GetOuter(), OriginBounds);
+	});
+
+	// SurfaceState기반으로 메시를 갱신한다.
+	FDelaunay2 Delaunay;
+	FDynamicMesh3 RenewedMesh;
+	bool bMeshValid = true;
+	auto AppendTriangle = [&](int32 A, int32 B, int32 C)
+	{
+		const int32 TriangleID = RenewedMesh.AppendTriangle(A, B, C);
+		if (TriangleID < 0) 
+		{
+			bMeshValid = false; 
+		}
+	};
+	for (const auto& RemainingRegion : CandidateRegions)
+	{
+		TArray<FVector2d> Vertices;
+		TArray<FIndex3i> Triangles; // 삼각분할 결과로 만들어진 삼각형들의 정점 인덱스를 저장하는 배열 (그냥 int 3개임)
+
+		// 삼각분할
+		if (!Delaunay.Triangulate(RemainingRegion, &Triangles, &Vertices, false))
+		{
+			return Reject(TEXT("Region triangulation failed."));
+		}
+		if (Triangles.IsEmpty())
+		{
+			return Reject(TEXT("Triangulation produced no faces for a remaining region."));
+		}
+		double TriangulatedArea = 0;
+		for (const FIndex3i& Triangle : Triangles)
+		{
+			if (!Vertices.IsValidIndex(Triangle.A) || !Vertices.IsValidIndex(Triangle.B) || !Vertices.IsValidIndex(Triangle.C))
+			{
+				return Reject(TEXT("Triangulation returned an invalid vertex index."));
+			}
+			const FVector2d AB = Vertices[Triangle.B] - Vertices[Triangle.A];
+			const FVector2d AC = Vertices[Triangle.C] - Vertices[Triangle.A];
+			const double Area = FMath::Abs(AB.X * AC.Y - AB.Y * AC.X) * 0.5;
+			if (!FMath::IsFinite(Area) || Area <= 1.e-12)
+			{
+				return Reject(TEXT("Triangulation produced a degenerate face."));
+			}
+			TriangulatedArea += Area;
+		}
+		const double RegionArea = FMath::Abs(RemainingRegion.SignedArea());
+		if (FMath::Abs(TriangulatedArea - RegionArea) > FMath::Max(1.e-6, RegionArea * 1.e-6))
+		{
+			return Reject(TEXT("Triangulation does not cover the remaining region."));
+		}
+		TArray<int32> FrontIDs;
+		TArray<int32> BackIDs;
+
+		for (const FVector2d& Vertex : Vertices)
+		{
+			FrontIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, OriginalDepthRange.X, Vertex.Y)));
+			BackIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, OriginalDepthRange.Y, Vertex.Y)));
+		}
+		for (const FIndex3i& Triangle : Triangles)
+		{
+			AppendTriangle(FrontIDs[Triangle.A], FrontIDs[Triangle.C], FrontIDs[Triangle.B]);
+			AppendTriangle(BackIDs[Triangle.A], BackIDs[Triangle.B], BackIDs[Triangle.C]);
+		}
+
+		// 사이드 면 채우기
+		auto AppendSideFaces = [&](const FPolygon2d& Boundary, bool bIsHole, int32 VertexOffset)
+		{
+			const int32 Count = Boundary.VertexCount();
+			const bool bReverse = Boundary.IsClockwise() != bIsHole;
+			for (int32 Index = 0; Index < Count; ++Index)
+			{
+				int32 A = VertexOffset + Index;
+				int32 B = VertexOffset + (Index + 1) % Count;
+				if (bReverse)
+				{
+					Swap(A, B);
+				}
+				AppendTriangle(FrontIDs[A], FrontIDs[B], BackIDs[B]);
+				AppendTriangle(FrontIDs[A], BackIDs[B], BackIDs[A]);
+			}
+		};
+		AppendSideFaces(RemainingRegion.GetOuter(), false, 0);
+		int32 HoleVertexOffset = RemainingRegion.GetOuter().VertexCount();
+		for (const FPolygon2d& Hole : RemainingRegion.GetHoles())
+		{
+			AppendSideFaces(Hole, true, HoleVertexOffset);
+			HoleVertexOffset += Hole.VertexCount();
+		}
+	}
+
+	if (!bMeshValid)
+	{
+		return Reject(TEXT("Mesh reconstruction rejected a triangle."));
+	}
+	if (RenewedMesh.TriangleCount() > 0)
+	{
+		if (!RenewedMesh.IsClosed())
+		{
+			return Reject(TEXT("Reconstructed surface is not closed."));
+		}
+	}
+	UE::Geometry::FMeshNormals::InitializeMeshToPerTriangleNormals(&RenewedMesh);
+
+	// 새 메시의 각 삼각형에 UV 좌표를 만들어 연결
+	// Attribute : 노멀, UV 등의 부가 데이터에 접근
+	RenewedMesh.Attributes()->SetNumUVLayers(1); // UV 채널을 1개로 설정
+	auto* UVOverlay = RenewedMesh.Attributes()->PrimaryUV();  // 첫 번째 UV 채널에 접근 (기존 UV 포인터)
+
+	const FVector2d Min = OriginBounds.Min;
+	const FVector2d Size = OriginBounds.Max - Min;
+
+	for (int32 TriangleID : RenewedMesh.TriangleIndicesItr())
+	{
+		const FIndex3i Triangle = RenewedMesh.GetTriangle(TriangleID);
+		const FVector3d Normal = RenewedMesh.GetTriNormal(TriangleID);
+		FIndex3i UVElementIDs;
+
+		for (int32 Corner = 0; Corner < 3; ++Corner)
+		{
+			const FVector3d Position = RenewedMesh.GetVertex(Triangle[Corner]);
+
+			// 벽의 좌표를 0~1 범위로 바꾼다.
+			FVector2f UV(static_cast<float>((Position.X - Min.X) / Size.X),
+				static_cast<float>((Position.Z - Min.Y) / Size.Y));
+			if (FMath::Abs(Normal.Y) > 0.99)
+			{
+				const FPlanarUVMapping& Mapping = SurfaceUVs[Normal.Y > 0 ? 1 : 0];
+				UV = FVector2f(Mapping.Offset + Mapping.PerX * Position.X + Mapping.PerZ * Position.Z);
+			}
+
+			UVElementIDs[Corner] = UVOverlay->AppendElement(UV);
+		}
+
+		UVOverlay->SetTriangle(TriangleID, UVElementIDs);
+	}
+
+	SurfaceState.RemainingRegions = MoveTemp(CandidateRegions);
+	DynamicMeshProxy->SetMesh(MoveTemp(RenewedMesh));
+	DynamicMeshProxy->UpdateCollision();
+
+	return true;
 }
 
 void UBreachableSurfaceComponent::DebugDrawSurface()

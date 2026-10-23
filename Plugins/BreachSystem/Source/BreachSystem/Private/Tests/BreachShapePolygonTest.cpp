@@ -21,16 +21,10 @@ bool FBreachShapePolygonTest::RunTest(const FString& Parameters)
 	{
 		TestTrue(TEXT("Zero roughness keeps radius"), FMath::IsNearlyEqual(Point.Length(), 10.0, 0.0001));
 	}
-	Circle.Roughness = 2;
-	Circle.Seed = 123;
-	TestTrue(TEXT("Rough circle generates"), CircleShape->GeneratePolygon(Option, Rough));
-	CircleShape->GeneratePolygon(Option, Repeated);
-	TestTrue(TEXT("Same seed gives same boundary"), Rough.GetVertices() == Repeated.GetVertices());
-	TestTrue(TEXT("Roughness changes boundary"), Smooth.GetVertices() != Rough.GetVertices());
-	for (const FVector2d& Point : Rough.GetVertices())
-	{
-		TestTrue(TEXT("Perturbation stays within requested roughness"), Point.Length() >= 8 && Point.Length() <= 12);
-	}
+	Option.Contour.bEnabled = true;
+	Option.Contour.MicroDepth = 2;
+	TestTrue(TEXT("Base circle stays smooth"), CircleShape->GeneratePolygon(Option, Rough));
+	TestTrue(TEXT("Contour options do not modify base shape"), Smooth.GetVertices() == Rough.GetVertices());
 	Circle.Radius = 0;
 	TestFalse(TEXT("Zero radius rejected"), CircleShape->GeneratePolygon(Option, Rough));
 
@@ -48,13 +42,11 @@ bool FBreachShapePolygonTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Oversized corner radius is limited to half short side"), BoxShape->GeneratePolygon(Option, Rough));
 	TestTrue(TEXT("Fully rounded box retains positive area"), Rough.Area() > 0);
 	Box.CornerRadius = 0;
-	Box.EdgeSpacing = 5;
-	Box.Roughness = 1;
-	Box.Seed = 42;
+	Option.Contour.Seed = 42;
 	TestTrue(TEXT("Rough rectangle generates"), BoxShape->GeneratePolygon(Option, Rough));
-	TestTrue(TEXT("Straight edges have interior samples for roughness"), Rough.VertexCount() > 4);
+	TestEqual(TEXT("Sharp box has only four corner vertices"), Rough.VertexCount(), 4);
 	BoxShape->GeneratePolygon(Option, Repeated);
-	TestTrue(TEXT("Box roughness is deterministic"), Rough.GetVertices() == Repeated.GetVertices());
+	TestTrue(TEXT("Base box is deterministic"), Rough.GetVertices() == Repeated.GetVertices());
 	Box.Size.X = -1;
 	TestFalse(TEXT("Negative size rejected"), BoxShape->GeneratePolygon(Option, Rough));
 	return !HasAnyErrors();

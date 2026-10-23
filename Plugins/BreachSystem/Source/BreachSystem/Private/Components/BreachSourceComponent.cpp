@@ -14,19 +14,22 @@ void UBreachSourceComponent::BeginPlay()
 	}
 }
 
-void UBreachSourceComponent::BindCircle(float Radius, int32 Segments, float Roughness, int32 Seed)
+void UBreachSourceComponent::BindCircle(float Radius, int32 Segments, float MicroDepth, int32 Seed)
 {
 	FBreachSourceOption Option;
 	Option.ShapeClass = UBreachCircleShape::StaticClass();
 	FBreachCircleShapeOption& ShapeOption = Option.ShapeOption.InitializeAs<FBreachCircleShapeOption>();
 	ShapeOption.Radius = Radius;
 	ShapeOption.Segments = Segments;
-	ShapeOption.Roughness = Roughness;
-	ShapeOption.Seed = Seed;
+	Option.Contour.MicroDepth = MicroDepth;
+	Option.Contour.MacroDepth = 0.f;
+	Option.Contour.MediumDepth = 0.f;
+	Option.Contour.bEnabled = MicroDepth > 0;
+	Option.Contour.Seed = Seed;
 	UpdateBreachSourceOption(Option);
 }
 
-void UBreachSourceComponent::BindBox(FVector2D Size, float CornerRadius, int32 CornerSegments, float EdgeSpacing, float Roughness, int32 Seed)
+void UBreachSourceComponent::BindBox(FVector2D Size, float CornerRadius, int32 CornerSegments, float MicroDepth, int32 Seed)
 {
 	FBreachSourceOption Option;
 	Option.ShapeClass = UBreachBoxShape::StaticClass();
@@ -34,9 +37,11 @@ void UBreachSourceComponent::BindBox(FVector2D Size, float CornerRadius, int32 C
 	ShapeOption.Size = Size;
 	ShapeOption.CornerRadius = CornerRadius;
 	ShapeOption.CornerSegments = CornerSegments;
-	ShapeOption.EdgeSpacing = EdgeSpacing;
-	ShapeOption.Roughness = Roughness;
-	ShapeOption.Seed = Seed;
+	Option.Contour.MicroDepth = MicroDepth;
+	Option.Contour.MacroDepth = 0.f;
+	Option.Contour.MediumDepth = 0.f;
+	Option.Contour.bEnabled = MicroDepth > 0;
+	Option.Contour.Seed = Seed;
 	UpdateBreachSourceOption(Option);
 }
 
@@ -59,20 +64,17 @@ bool UBreachSourceComponent::CacheCutterPolygon()
 
 bool UBreachSourceComponent::ShouldCacheCutterPolygon() const
 {
-	if (const auto* Circle = BreachSourceOption.ShapeOption.GetPtr<FBreachCircleShapeOption>())
-	{
-		return Circle->Roughness == 0.f || Circle->Seed != 0;
-	}
-	if (const auto* Box = BreachSourceOption.ShapeOption.GetPtr<FBreachBoxShapeOption>())
-	{
-		return Box->Roughness == 0.f || Box->Seed != 0;
-	}
-	return true;
+	const bool bContourRandom = BreachSourceOption.Contour.bEnabled
+		&& BreachSourceOption.Contour.MaxDisplacementFraction > 0
+		&& (BreachSourceOption.Contour.MacroDepth > 0 || BreachSourceOption.Contour.MediumDepth > 0 || BreachSourceOption.Contour.MicroDepth > 0);
+	return !bContourRandom || BreachSourceOption.Contour.Seed != 0;
 }
 
 bool UBreachSourceComponent::GenerateCutterPolygon(UE::Geometry::FPolygon2d& OutPolygon) const
 {
 	OutPolygon = UE::Geometry::FPolygon2d();
+
+	// 유효성 검사.
 	if (!BreachSourceOption.ShapeClass)
 	{
 		SWARN(TEXT("BreachSourceComponent '%s' has no ShapeClass."), *GetPathName());
@@ -92,6 +94,18 @@ bool UBreachSourceComponent::GenerateCutterPolygon(UE::Geometry::FPolygon2d& Out
 	{
 		SWARN(TEXT("BreachSourceComponent '%s' could not generate its cutter polygon. Check shape options."), *GetPathName());
 		return false;
+	}
+	if (BreachSourceOption.Contour.bEnabled)
+	{
+		UE::Geometry::FPolygon2d Modified;
+		FString Error;
+		const bool bGenerated = BreachContour::Generate(OutPolygon, BreachSourceOption.Contour, Modified, Error);
+		OutPolygon = MoveTemp(Modified);
+		if (!bGenerated)
+		{
+			SWARN(TEXT("BreachSourceComponent '%s' rejected its contour: %s"), *GetPathName(), *Error);
+			return false;
+		}
 	}
 	if (OutPolygon.VertexCount() < 3)
 	{

@@ -13,10 +13,10 @@ class BREACHSYSTEM_API UBreachSourceComponent : public UActorComponent
 
 public:
 	UFUNCTION(BlueprintCallable, Category="Breach|Binding")
-	void BindCircle(float Radius, int32 Segments = 32, float Roughness = 0.f, int32 Seed = 0);
+	void BindCircle(float Radius, int32 Segments = 32, float MicroDepth = 0.f, int32 Seed = 0);
 
 	UFUNCTION(BlueprintCallable, Category="Breach|Binding")
-	void BindBox(FVector2D Size, float CornerRadius = 0.f, int32 CornerSegments = 8, float EdgeSpacing = 10.f, float Roughness = 0.f, int32 Seed = 0);
+	void BindBox(FVector2D Size, float CornerRadius = 0.f, int32 CornerSegments = 8, float MicroDepth = 0.f, int32 Seed = 0);
 
 	UFUNCTION(BlueprintCallable, Category="Breach")
 	void UpdateBreachSourceOption(const FBreachSourceOption& InBreachSourceOption);
