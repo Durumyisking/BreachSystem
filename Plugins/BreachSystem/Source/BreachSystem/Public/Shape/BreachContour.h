@@ -67,6 +67,7 @@ struct BREACHSYSTEM_API FBreachContourOptions
 	int32 Seed = 0;
 
 #if WITH_EDITOR
+	/** 정점 간격 변형 주기를 max(1, ceil(VertexPositionJitter))로 캐시한다. 비유한값은 1, 정수 범위 초과는 최댓값을 사용한다. */
 	void CacheJitterInterval();
 #endif
 
@@ -96,20 +97,23 @@ namespace BreachContour
 		double CutterSize = 0;
 	};
 
-	/** Prepare once when source options change. No random contour is generated here. */
+	/** 기본 다각형과 설정을 검증하고 샘플·이동 한계를 준비한다. 무작위 윤곽 생성은 하지 않으며, 실패 이유는 OutError로 반환한다. */
 	BREACHSYSTEM_API bool Prepare(const UE::Geometry::FPolygon2d& Base, const FBreachContourOptions& Options,
 		FPreparedContour& OutPrepared, FString& OutError);
 
-	/** Generate only from successfully prepared state; performs no geometry validation or neighbor searches. */
+	/** Prepare에 성공한 상태에서 윤곽을 생성한다. 추가 기하 검증·이웃 탐색은 생략하며, Seed 0은 호출마다 새 난수를 사용한다. */
 	BREACHSYSTEM_API void Generate(const FPreparedContour& Prepared, UE::Geometry::FPolygon2d& OutPolygon);
 
-	/** Validate user-editable contour settings before accepting a source option. */
+	/** 정점 수 4~128, 깊이·변위 비율 0~0.45, 유한한 비음수 간격 변형값과 지원 패턴을 검사한다. 실패 이유는 OutError로 반환한다. */
 	BREACHSYSTEM_API bool ValidateOptions(const FBreachContourOptions& Options, FString& OutError);
 
-	/** Checks vertex count, finite coordinates, edge lengths and area. Does not test self-intersections. */
+	/** 정점 수·유한 좌표·변 길이·면적을 검사한다. 자기 교차는 검사하지 않으며, 실패 이유는 OutError로 반환한다. */
 	BREACHSYSTEM_API bool Validate(const UE::Geometry::FPolygon2d& Polygon, FString& OutError);
 
-	/** Depth ratios are relative to the base cutter's shorter dimension. */
+	/**
+	 * 준비와 윤곽 생성을 한 번에 수행한다. 깊이 비율은 기본 커터의 짧은 변 기준이다.
+	 * 변형 비활성 시 검증 없이 Base를 복사한다. 준비 실패 시 결과를 비우고 OutError와 false를 반환한다.
+	 */
 	BREACHSYSTEM_API bool Generate(const UE::Geometry::FPolygon2d& Base, const FBreachContourOptions& Options,
 		UE::Geometry::FPolygon2d& OutPolygon, FString& OutError);
 }

@@ -600,6 +600,18 @@
                   "title": "2026-10-23 9. 공간적 피해 누적",
                   "icon": "lucide-file",
                   "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 9. 공간적 피해 누적\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":10,\"ch\":0},\"to\":{\"line\":10,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-23 8. 복잡한 다각형 브리칭",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 8. 복잡한 다각형 브리칭\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-23 9. 공간적 피해 누적",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 9. 공간적 피해 누적\"}",
                   "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
                 },
                 {
@@ -913,23 +925,22 @@
   },
   "active": "f2f81bb63014c252",
   "lastOpenFiles": [
+    "개발노트/2026-10-23 9. 공간적 피해 누적.md",
+    "Pasted image 20261024164836.png",
+    "Pasted image 20261024164826.png",
+    "개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md",
     "Pasted image 20261024015437.png",
     "Pasted image 20261024014849.png",
     "Pasted image 20261024014729.png",
-    "개발노트/2026-10-23 9. 공간적 피해 누적.md",
-    "개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md",
+    "Pasted image 20261023182817.png",
+    "20E06D~1.jpg",
     "개발노트/2026-10-18 7. 고립 폴리곤 제거.md",
     "개발노트/R6 분석.md",
-    "20E06D~1.jpg",
-    "Pasted image 20261023182817.png",
     "개발노트/StaticMesh vs DynamicMesh.md",
     "개발노트/메시에 구멍뚫기.md",
     "Pasted image 20261013155053.png",
     "09_six_horizontal_far.jpg",
     "11_repeat_uv_four_breaches.jpg",
-    "15_color_group_overlaid.png",
-    "12_sniper_two_hits.png",
-    "08_six_horizontal.png",
     "개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md",
     "2026-10-22 8. 물리 형상 변형 기준 반영하기.md",
     "Research/R6-Destruction-Guide-2026-10-22/video-study/R6-Destruction-Video-Study.pdf",

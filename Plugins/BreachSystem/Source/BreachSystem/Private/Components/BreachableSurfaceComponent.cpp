@@ -54,7 +54,7 @@ void UBreachableSurfaceComponent::OnComponentDestroyed(bool bDestroyingHierarchy
 void UBreachableSurfaceComponent::ReceiveComponentDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	Super::ReceiveComponentDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-	HandleBreachDamage(this, DamageEvent, DamageCauser);
+	HandleBreachDamage(this, DamageEvent, DamageCauser, DamageAmount);
 }
 bool UBreachableSurfaceComponent::InitializeSurface()
 {
@@ -236,6 +236,8 @@ bool UBreachableSurfaceComponent::InitializeSurface()
 
 bool UBreachableSurfaceComponent::ResetSurface()
 {
+	DamageAccumulator.Reset();
+	AccumulationScale = FVector2d::ZeroVector;
 	if (IsValid(DynamicMeshProxy))
 	{
 		DynamicMeshProxy->SetSurface(nullptr);
@@ -251,7 +253,7 @@ bool UBreachableSurfaceComponent::ResetSurface()
 	return true;
 }
 
-void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitComponent, const FDamageEvent& DamageEvent, AActor* DamageCauser)
+void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitComponent, const FDamageEvent& DamageEvent, AActor* DamageCauser, float DamageAmount)
 {
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
@@ -261,7 +263,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 			return;
 		}
 		UBreachSourceComponent* Source = DamageCauser->FindComponentByClass<UBreachSourceComponent>();
-		if (!Source)
+		if (!IsValid(Source))
 		{
 			UE_LOG(LogBreachableSurface, Warning, TEXT("%s has no BreachSourceComponent."), *DamageCauser->GetName());
 			return;
@@ -274,6 +276,72 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		if (!bResolvedCutter)
 		{
 			return;
+		}
+		const bool bAccumulate = Accumulation.bEnabled && Source->AccumulationContribution != 0;
+		FVector2d MetricPoint = FVector2d::ZeroVector;
+		if (bAccumulate)
+		{
+			if (!IsValid(HitComponent) || (HitComponent != this && HitComponent != DynamicMeshProxy))
+			{
+				UE_LOG(LogBreachableSurface, Warning, TEXT("%s ignored accumulation damage for an unrelated component."), *GetName());
+				return;
+			}
+			if (!FMath::IsFinite(DamageAmount) || DamageAmount <= 0)
+			{
+				return;
+			}
+			if (!FMath::IsFinite(Source->AccumulationContribution) || Source->AccumulationContribution <= 0)
+			{
+				UE_LOG(LogBreachableSurface, Warning, TEXT("%s rejected non-positive/non-finite accumulation contribution."), *GetName());
+				return;
+			}
+			FString Error;
+			const bool bConfigured = DamageAccumulator.Configure(Accumulation.WindowSize, Accumulation.DamageThreshold, Error);
+			if (!bConfigured)
+			{
+				UE_LOG(LogBreachableSurface, Warning, TEXT("%s kept its previous accumulation state: %s"), *GetName(), *Error);
+				return;
+			}
+			const FVector Scale = GetComponentScale();
+			const FVector2d MetricScale(FMath::Abs(Scale.X), FMath::Abs(Scale.Z));
+			if (AccumulationScale != MetricScale)
+			{
+				if (DamageAccumulator.Num() > 0)
+				{
+					UE_LOG(LogBreachableSurface, Warning, TEXT("%s cleared accumulated impacts after its surface scale changed."), *GetName());
+				}
+				DamageAccumulator.Reset();
+				AccumulationScale = MetricScale;
+			}
+			const bool bHadProxy = IsValid(DynamicMeshProxy);
+			if (!bHadProxy)
+			{
+				const bool bInitialized = InitializeSurface();
+				if (!bInitialized)
+				{
+					return;
+				}
+			}
+			const FVector LocalHit = GetComponentTransform().InverseTransformPosition(PointDamage.HitInfo.ImpactPoint);
+			const FVector2d LocalPoint(LocalHit.X, LocalHit.Z);
+			bool bHitsMaterial = false;
+			for (const FGeneralPolygon2d& Region : SurfaceState.RemainingRegions)
+			{
+				if (Region.Contains(LocalPoint))
+				{
+					bHitsMaterial = true;
+					break;
+				}
+			}
+			if (!bHitsMaterial)
+			{
+				if (!bHadProxy)
+				{
+					ResetSurface();
+				}
+				return;
+			}
+			MetricPoint = LocalPoint * AccumulationScale;
 		}
 		bool bCut = ApplyCutterPolygon(Cutter.GetOuter());
 		if (!bCut)
@@ -291,9 +359,92 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 				UE_LOG(LogBreachableSurface, Error, TEXT("%s could not apply even the base cutter."), *GetName());
 				return;
 			}
+			Cutter = MoveTemp(BaseCutter);
+		}
+		if (bAccumulate)
+		{
+			ApplyAccumulatedDamage(MetricPoint, Source->AccumulationContribution, Source->GetContourOptions());
+		}
+		else
+		{
+			RetireAccumulationInside(Cutter.GetOuter());
 		}
 		OnBreachedDelegate.Broadcast(PointDamage.HitInfo, DynamicMeshProxy);
 	}
+}
+
+void UBreachableSurfaceComponent::ApplyAccumulatedDamage(const FVector2d& MetricPoint, double Contribution, const FBreachContourOptions& ContourOptions)
+{
+	FString Error;
+	const int32 RecordID = DamageAccumulator.AddHit(MetricPoint, Contribution, Error);
+	if (RecordID == INDEX_NONE)
+	{
+		UE_LOG(LogBreachableSurface, Warning, TEXT("%s could not record accumulation impact: %s"), *GetName(), *Error);
+		return;
+	}
+	TArray<FBreachAccumulationCandidate> Candidates;
+	FBreachAccumulationQueryStats Stats;
+	DamageAccumulator.FindCandidates(RecordID, Candidates, Stats);
+	// All candidates use the same pre-cut records, including shared impacts.
+	for (const FBreachAccumulationCandidate& Candidate : Candidates)
+	{
+		FPolygon2d BaseMetric;
+		BaseMetric.AppendVertex(Candidate.Bounds.Min);
+		BaseMetric.AppendVertex(FVector2d(Candidate.Bounds.Max.X, Candidate.Bounds.Min.Y));
+		BaseMetric.AppendVertex(Candidate.Bounds.Max);
+		BaseMetric.AppendVertex(FVector2d(Candidate.Bounds.Min.X, Candidate.Bounds.Max.Y));
+		FPolygon2d MetricCutter = BaseMetric;
+		if (ContourOptions.bEnabled)
+		{
+			FPolygon2d Modified;
+			const bool bGenerated = BreachContour::Generate(BaseMetric, ContourOptions, Modified, Error);
+			if (bGenerated)
+			{
+				MetricCutter = MoveTemp(Modified);
+			}
+			else
+			{
+				UE_LOG(LogBreachableSurface, Warning, TEXT("%s is using its base accumulation cutter: %s"), *GetName(), *Error);
+			}
+		}
+		auto ToLocal = [this](const FPolygon2d& Polygon)
+		{
+			FPolygon2d Local;
+			for (const FVector2d& Point : Polygon.GetVertices())
+			{
+				Local.AppendVertex(Point / AccumulationScale);
+			}
+			return Local;
+		};
+		bool bApplied = ApplyCutterPolygon(ToLocal(MetricCutter));
+		if (!bApplied && ContourOptions.bEnabled)
+		{
+			MetricCutter = BaseMetric;
+			bApplied = ApplyCutterPolygon(ToLocal(BaseMetric));
+		}
+		if (bApplied)
+		{
+			DamageAccumulator.RemoveInside(MetricCutter);
+		}
+		else
+		{
+			UE_LOG(LogBreachableSurface, Warning, TEXT("%s retained damage records after its accumulation cutter failed."), *GetName());
+		}
+	}
+}
+
+void UBreachableSurfaceComponent::RetireAccumulationInside(const FPolygon2d& LocalPolygon)
+{
+	if (DamageAccumulator.Num() == 0)
+	{
+		return;
+	}
+	FPolygon2d MetricPolygon;
+	for (const FVector2d& Point : LocalPolygon.GetVertices())
+	{
+		MetricPolygon.AppendVertex(Point * AccumulationScale);
+	}
+	DamageAccumulator.RemoveInside(MetricPolygon);
 }
 
 bool UBreachableSurfaceComponent::ApplyCutterPolygon(const FPolygon2d& InCutter)
@@ -336,9 +487,15 @@ bool UBreachableSurfaceComponent::ApplyCutterPolygon(const FPolygon2d& InCutter)
 		return Reject(TEXT("Polygon difference failed."));
 	}
 
+	TArray<FPolygon2d> DetachedRegions;
 	CandidateRegions.RemoveAll([&](const FGeneralPolygon2d& Region)
 	{
-		return !TouchesOriginalBorder(Region.GetOuter(), OriginBounds);
+		if (!TouchesOriginalBorder(Region.GetOuter(), OriginBounds))
+		{
+			DetachedRegions.Add(Region.GetOuter());
+			return true;
+		}
+		return false;
 	});
 
 	// SurfaceState기반으로 메시를 갱신한다.
@@ -477,6 +634,10 @@ bool UBreachableSurfaceComponent::ApplyCutterPolygon(const FPolygon2d& InCutter)
 	SurfaceState.RemainingRegions = MoveTemp(CandidateRegions);
 	DynamicMeshProxy->SetMesh(MoveTemp(RenewedMesh));
 	DynamicMeshProxy->UpdateCollision();
+	for (const FPolygon2d& Detached : DetachedRegions)
+	{
+		RetireAccumulationInside(Detached);
+	}
 
 	return true;
 }

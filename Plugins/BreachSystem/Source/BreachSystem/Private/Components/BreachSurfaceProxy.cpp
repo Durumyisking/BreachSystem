@@ -22,5 +22,5 @@ void UBreachSurfaceProxy::ReceiveComponentDamage(float DamageAmount, const FDama
 	{
 		return;
 	}
-	Surface->HandleBreachDamage(this, DamageEvent, DamageCauser);
+	Surface->HandleBreachDamage(this, DamageEvent, DamageCauser, DamageAmount);
 }
