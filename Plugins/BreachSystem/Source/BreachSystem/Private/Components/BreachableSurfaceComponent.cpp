@@ -275,10 +275,22 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		{
 			return;
 		}
-		const bool bCut = ApplyCutterPolygon(Cutter.GetOuter());
+		bool bCut = ApplyCutterPolygon(Cutter.GetOuter());
 		if (!bCut)
 		{
-			return;
+			UE_LOG(LogBreachableSurface, Warning, TEXT("%s is retrying the breach with its base cutter."), *GetName());
+			FGeneralPolygon2d BaseCutter;
+			const bool bResolvedBase = Source->ResolveCutterPolygon(GetComponentTransform(), PointDamage.HitInfo.ImpactPoint, BaseCutter, false);
+			if (!bResolvedBase)
+			{
+				return;
+			}
+			bCut = ApplyCutterPolygon(BaseCutter.GetOuter());
+			if (!bCut)
+			{
+				UE_LOG(LogBreachableSurface, Error, TEXT("%s could not apply even the base cutter."), *GetName());
+				return;
+			}
 		}
 		OnBreachedDelegate.Broadcast(PointDamage.HitInfo, DynamicMeshProxy);
 	}

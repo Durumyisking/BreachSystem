@@ -21,10 +21,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Breach")
 	void UpdateBreachSourceOption(const FBreachSourceOption& InBreachSourceOption);
 
-	bool ResolveCutterPolygon(const FTransform& SurfaceTransform, const FVector& HitPosition, UE::Geometry::FGeneralPolygon2d& OutPolygon);
+	bool ResolveCutterPolygon(const FTransform& SurfaceTransform, const FVector& HitPosition, UE::Geometry::FGeneralPolygon2d& OutPolygon, bool bApplyContour = true);
 
 protected:
 	virtual void BeginPlay() override;
+
+#if WITH_EDITOR
+	virtual void PostLoad() override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
 	UFUNCTION(BlueprintCallable, Category="Breach")
 	bool CacheCutterPolygon();
@@ -35,6 +40,9 @@ protected:
 	UE::Geometry::FPolygon2d CachedCutterPolygon;
 
 private:
-	bool ShouldCacheCutterPolygon() const;
-	bool GenerateCutterPolygon(UE::Geometry::FPolygon2d& OutPolygon) const;
+	bool PrepareCutterPolygon(const FBreachSourceOption& InOption);
+
+	BreachContour::FPreparedContour PreparedContour;
+	bool bCutterPrepared = false;
+	bool bRandomizeCutter = false;
 };

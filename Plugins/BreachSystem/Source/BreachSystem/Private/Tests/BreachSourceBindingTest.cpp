@@ -1,8 +1,44 @@
 #include "Components/BreachSourceComponent.h"
 #include "Shape/BreachShape.h"
 #include "Misc/AutomationTest.h"
+#include "UObject/UnrealType.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
+
+#if WITH_EDITOR
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachSourceJitterCacheTest, "BreachSystem.Source.EditorJitterCache",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FBreachSourceJitterCacheTest::RunTest(const FString& Parameters)
+{
+	const FIntProperty* Interval = FindFProperty<FIntProperty>(FBreachContourOptions::StaticStruct(), TEXT("JitterInterval"));
+	if (!TestNotNull(TEXT("Jitter interval is a serialized editor property"), Interval))
+	{
+		return false;
+	}
+	TestTrue(TEXT("Jitter interval is visible and read-only"), Interval->HasAllPropertyFlags(CPF_Edit | CPF_EditConst));
+	TestFalse(TEXT("Jitter interval is retained in cooked data"), Interval->HasAnyPropertyFlags(CPF_Transient | CPF_EditorOnly));
+	UBreachSourceComponent* Source = NewObject<UBreachSourceComponent>();
+	FStructProperty* SourceProperty = FindFProperty<FStructProperty>(Source->GetClass(), TEXT("BreachSourceOption"));
+	check(SourceProperty);
+	FBreachSourceOption& Option = *SourceProperty->ContainerPtrToValuePtr<FBreachSourceOption>(Source);
+	Option.ShapeClass = UBreachCircleShape::StaticClass();
+	Option.ShapeOption.InitializeAs<FBreachCircleShapeOption>();
+	Option.Contour.bEnabled = true;
+	FProperty* RatioProperty = FindFProperty<FProperty>(FBreachContourOptions::StaticStruct(), TEXT("VertexPositionJitter"));
+	check(RatioProperty);
+	for (const float Ratio : {1.2f, 2.1f, 0.f})
+	{
+		Option.Contour.VertexPositionJitter = Ratio;
+		FPropertyChangedEvent Event(RatioProperty, EPropertyChangeType::ValueSet);
+		Event.MemberProperty = SourceProperty;
+		static_cast<UObject*>(Source)->PostEditChangeProperty(Event);
+		const int32 Expected = Ratio == 1.2f ? 2 : (Ratio == 2.1f ? 3 : 1);
+		TestEqual(TEXT("Editor ratio change updates the saved interval"), Interval->GetPropertyValue_InContainer(&Option.Contour), Expected);
+	}
+	return !HasAnyErrors();
+}
+#endif
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachSourceBindingTest, "BreachSystem.Source.Binding",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
@@ -14,6 +50,7 @@ bool FBreachSourceBindingTest::RunTest(const FString& Parameters)
 	FGeneralPolygon2d Polygon;
 	const FTransform Wall(FRotator(15, 45, 5), FVector(100, 200, 300), FVector(2, 0.1, 4));
 	const FVector Hit = Wall.TransformPosition(FVector(10, -50, 20));
+	TestTrue(TEXT("Unconfigured source has a default cutter"), Source->ResolveCutterPolygon(FTransform::Identity, FVector::ZeroVector, Polygon));
 	Source->BindBox(FVector2D(40, 80));
 	TestTrue(TEXT("Resolve rotated and scaled wall"), Source->ResolveCutterPolygon(Wall, Hit, Polygon));
 	const FAxisAlignedBox2d Bounds = Polygon.GetOuter().Bounds();
@@ -31,7 +68,7 @@ bool FBreachSourceBindingTest::RunTest(const FString& Parameters)
 	Source->BindCircle(10, 32, 2, 7);
 	TestTrue(TEXT("Rough circle binding"), Source->ResolveCutterPolygon(FTransform::Identity, FVector::ZeroVector, Polygon));
 	Source->BindCircle(0);
-	TestFalse(TEXT("Invalid rebind discards previous cache"), Source->ResolveCutterPolygon(Wall, Hit, Polygon));
+	TestTrue(TEXT("Invalid rebind preserves a usable cutter"), Source->ResolveCutterPolygon(Wall, Hit, Polygon));
 	Source->BindBox(FVector2D(40, 20), 5, 16, 0, 0);
 	TestTrue(TEXT("Rounded rectangle binding"), Source->ResolveCutterPolygon(FTransform::Identity, FVector::ZeroVector, Polygon));
 	TestTrue(TEXT("Rounded binding keeps shape options"), FMath::IsNearlyEqual(Polygon.SignedArea(), 778.54, 0.2));
@@ -100,9 +137,9 @@ bool FBreachSourceSeedPolicyTest::RunTest(const FString& Parameters)
 			Option.ShapeOption.InitializeAs<FBreachBoxShapeOption>();
 		}
 		Option.Contour.bEnabled = true;
-		Option.Contour.MacroDepth = 0;
-		Option.Contour.MediumDepth = 0;
-		Option.Contour.MicroDepth = 2;
+		Option.Contour.MacroDepthRatio = 0;
+		Option.Contour.MediumDepthRatio = 0;
+		Option.Contour.MicroDepthRatio = 0.1f;
 		Option.Contour.Seed = 77;
 		Source->UpdateBreachSourceOption(Option);
 		CheckRepeated(Name + TEXT(" direct fixed contour seed"), true);

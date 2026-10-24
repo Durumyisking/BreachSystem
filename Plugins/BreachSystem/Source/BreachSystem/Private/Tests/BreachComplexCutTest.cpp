@@ -113,10 +113,9 @@ bool FBreachComplexCutTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Sawtooth interior is open"), Hits(0,0));
 	FBreachContourOptions Options;
 	Options.bEnabled = true;
-	Options.MacroDepth = 8;
-	Options.MacroWidth = 20;
-	Options.MediumDepth = 2;
-	Options.MicroDepth = 0.5f;
+	Options.MacroDepthRatio = 0.16f;
+	Options.MediumDepthRatio = 0.04f;
+	Options.MicroDepthRatio = 0.01f;
 	for (int32 Seed = 1; Seed <= 8; ++Seed)
 	{
 		Reset();

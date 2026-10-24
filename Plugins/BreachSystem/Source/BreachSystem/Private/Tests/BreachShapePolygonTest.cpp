@@ -22,7 +22,7 @@ bool FBreachShapePolygonTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Zero roughness keeps radius"), FMath::IsNearlyEqual(Point.Length(), 10.0, 0.0001));
 	}
 	Option.Contour.bEnabled = true;
-	Option.Contour.MicroDepth = 2;
+	Option.Contour.MicroDepthRatio = 0.1f;
 	TestTrue(TEXT("Base circle stays smooth"), CircleShape->GeneratePolygon(Option, Rough));
 	TestTrue(TEXT("Contour options do not modify base shape"), Smooth.GetVertices() == Rough.GetVertices());
 	Circle.Radius = 0;

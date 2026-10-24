@@ -37,7 +37,7 @@ struct BREACHSYSTEM_API FBreachBoxShapeOption : public FBreachShapeOption
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="0", Units="cm"))
 	float CornerRadius = 0.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="1", ClampMax="128"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="1", ClampMax="128", EditCondition="CornerRadius > 0", EditConditionHides))
 	int32 CornerSegments = 8;
 
 };
