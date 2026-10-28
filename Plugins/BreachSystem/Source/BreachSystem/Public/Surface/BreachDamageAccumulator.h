@@ -31,6 +31,8 @@ struct FBreachAccumulationCandidate
 {
 	UE::Geometry::FAxisAlignedBox2d Bounds;
 	TArray<int32> RecordIDs;
+	/** 절삭 전에 고정한 cm 좌표. 다른 후보가 공유 기록을 제거해도 유효하다. */
+	TArray<FVector2d> ImpactPoints;
 	double Contribution = 0;
 };
 

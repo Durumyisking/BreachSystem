@@ -35,6 +35,20 @@ UBreachableSurfaceComponent::UBreachableSurfaceComponent()
 	SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 }
 
+#if WITH_EDITOR
+void UBreachableSurfaceComponent::PostLoad()
+{
+	Super::PostLoad();
+	AccumulationShape.Contour.CacheJitterInterval();
+}
+
+void UBreachableSurfaceComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	AccumulationShape.Contour.CacheJitterInterval();
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif
+
 void UBreachableSurfaceComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 	if (IsValid(DynamicMeshProxy))
@@ -363,7 +377,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		}
 		if (bAccumulate)
 		{
-			ApplyAccumulatedDamage(MetricPoint, Source->AccumulationContribution, Source->GetContourOptions());
+			ApplyAccumulatedDamage(MetricPoint, Source->AccumulationContribution);
 		}
 		else
 		{
@@ -373,7 +387,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 	}
 }
 
-void UBreachableSurfaceComponent::ApplyAccumulatedDamage(const FVector2d& MetricPoint, double Contribution, const FBreachContourOptions& ContourOptions)
+void UBreachableSurfaceComponent::ApplyAccumulatedDamage(const FVector2d& MetricPoint, double Contribution)
 {
 	FString Error;
 	const int32 RecordID = DamageAccumulator.AddHit(MetricPoint, Contribution, Error);
@@ -389,10 +403,13 @@ void UBreachableSurfaceComponent::ApplyAccumulatedDamage(const FVector2d& Metric
 	for (const FBreachAccumulationCandidate& Candidate : Candidates)
 	{
 		FPolygon2d BaseMetric;
-		BaseMetric.AppendVertex(Candidate.Bounds.Min);
-		BaseMetric.AppendVertex(FVector2d(Candidate.Bounds.Max.X, Candidate.Bounds.Min.Y));
-		BaseMetric.AppendVertex(Candidate.Bounds.Max);
-		BaseMetric.AppendVertex(FVector2d(Candidate.Bounds.Min.X, Candidate.Bounds.Max.Y));
+		const bool bGeneratedBase = BreachAccumulationShape::GenerateBase(Candidate.ImpactPoints, AccumulationShape.Padding, BaseMetric, Error);
+		if (!bGeneratedBase)
+		{
+			UE_LOG(LogBreachableSurface, Warning, TEXT("%s retained damage after its accumulation footprint failed: %s"), *GetName(), *Error);
+			continue;
+		}
+		const FBreachContourOptions& ContourOptions = AccumulationShape.Contour;
 		FPolygon2d MetricCutter = BaseMetric;
 		if (ContourOptions.bEnabled)
 		{

@@ -41,6 +41,7 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 	Surface->SetWorldTransform(FTransform(FRotator(0, 35, 0), FVector(100, 200, 300), Scale));
 	Surface->RegisterComponent();
 	Surface->Accumulation.WindowSize = FVector2D(44, 30);
+	Surface->AccumulationShape.Contour.bEnabled = false;
 	AActor* WeaponA = World->SpawnActor<AActor>();
 	AActor* WeaponB = World->SpawnActor<AActor>();
 	UBreachSourceComponent* SourceA = NewObject<UBreachSourceComponent>(WeaponA);
@@ -97,11 +98,14 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Five light impacts do not open a large breach"), IsSolid(0, 8));
 	Shoot(20, WeaponB);
 	TestFalse(TEXT("Sixth impact from another source opens a large breach"), IsSolid(0, 8));
+	TestTrue(TEXT("Damage window height does not become the cutter height"), IsSolid(0, 12));
 	TestEqual(TEXT("Successful large breach retires records"), Surface->GetAccumulatedHitCount(), 0);
 	TArray<UDynamicMeshComponent*> Proxies;
 	Wall->GetComponents(Proxies);
+	int32 BaseTriangleCount = 0;
 	if (TestEqual(TEXT("Accumulated breach keeps one proxy"), Proxies.Num(), 1))
 	{
+		BaseTriangleCount = Proxies[0]->GetDynamicMesh()->GetTriangleCount();
 		FHitResult StaleHit;
 		StaleHit.Component = Proxies[0];
 		StaleHit.ImpactPoint = Surface->GetComponentTransform().TransformPosition(FVector(0, -50, 0));
@@ -109,6 +113,41 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 		Surface->HandleBreachDamage(Proxies[0], StaleDamage, WeaponA, 1);
 		TestEqual(TEXT("Queued impact inside a now-empty breach adds no record"), Surface->GetAccumulatedHitCount(), 0);
 	}
+	Reset();
+	Surface->Accumulation.WindowSize = FVector2D(80, 80);
+	SourceB->BindCircle(0.7f, 16, 0.1f, 15);
+	for (double X : {-20.0, -12.0, -4.0, 4.0, 12.0})
+	{
+		Shoot(X, WeaponA);
+	}
+	Shoot(20, WeaponB);
+	TestFalse(TEXT("Wider damage window still opens the same footprint"), IsSolid(0, 8));
+	TestTrue(TEXT("Wider damage window does not enlarge the footprint"), IsSolid(0, 12));
+	Proxies.Reset();
+	Wall->GetComponents(Proxies);
+	if (TestEqual(TEXT("Wider-window fixture keeps one proxy"), Proxies.Num(), 1))
+	{
+		TestEqual(TEXT("Large footprint is independent of window size and source contour"), Proxies[0]->GetDynamicMesh()->GetTriangleCount(), BaseTriangleCount);
+	}
+	Reset();
+	Surface->AccumulationShape.Contour.bEnabled = true;
+	Surface->AccumulationShape.Contour.Seed = 37;
+	Surface->AccumulationShape.Contour.VertexCount = 48;
+	Surface->AccumulationShape.Contour.bRandomizeVertexSpacing = false;
+	for (double X : {-20.0, -12.0, -4.0, 4.0, 12.0})
+	{
+		Shoot(X, WeaponA);
+	}
+	Shoot(20, WeaponB);
+	Proxies.Reset();
+	Wall->GetComponents(Proxies);
+	if (TestEqual(TEXT("Surface-contour fixture keeps one proxy"), Proxies.Num(), 1))
+	{
+		TestTrue(TEXT("Surface-owned contour changes the large breach geometry"), Proxies[0]->GetDynamicMesh()->GetTriangleCount() != BaseTriangleCount);
+	}
+	Surface->AccumulationShape.Contour.bEnabled = false;
+	Surface->Accumulation.WindowSize = FVector2D(44, 30);
+	SourceB->BindCircle(0.7f, 16);
 	Reset();
 	for (double X : {-40.0, -32.0, -24.0, -16.0, -8.0, 8.0, 16.0, 24.0, 32.0, 40.0})
 	{
@@ -120,6 +159,7 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 	Shoot(0, WeaponB);
 	TestFalse(TEXT("One central shot opens left region"), IsSolid(-20, 8));
 	TestFalse(TEXT("Same central shot opens right region"), IsSolid(20, 8));
+	TestFalse(TEXT("Right footprint retains central positions retired by the left cut"), IsSolid(10, 9));
 	TestEqual(TEXT("Both regions clean up one shared set of records"), Surface->GetAccumulatedHitCount(), 0);
 	Reset();
 	Shoot(-20, WeaponA);
@@ -135,24 +175,14 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 	SourceB->BindBox(FVector2D(50, 30));
 	Shoot(0, WeaponB);
 	TestEqual(TEXT("Non-accumulating direct cutter retires removed damage"), Surface->GetAccumulatedHitCount(), 0);
-	// The failure fixture requires exact point contact; transformed copies can become valid separate holes.
-	if (Parameters == TEXT("UnitScale"))
-	{
-		Reset();
-		SourceB->BindCircle(0.7f, 16);
-		SourceB->AccumulationContribution = 1.05f;
-		UE::Geometry::FPolygon2d TouchingHole;
-		for (const FVector2d& Point : TArray<FVector2d>{{22,15}, {32,15}, {32,25}, {22,25}})
-		{
-			TouchingHole.AppendVertex(FVector2d(Point.X / FMath::Abs(Scale.X), Point.Y / FMath::Abs(Scale.Z)));
-		}
-		TestTrue(TEXT("Prepare hole touching the future large cutter at one point"), Surface->ApplyCutterPolygon(TouchingHole));
-		Shoot(0, WeaponB);
-		TestEqual(TEXT("Late large-cut failure preserves impact for accumulation"), Surface->GetAccumulatedHitCount(), 1);
-		TestTrue(TEXT("Late large-cut failure preserves uncut collision"), IsSolid(0, 8));
-		TestFalse(TEXT("Failed large cut still keeps the successful small bullet hole"), IsSolid(0, 0));
-		TestFalse(TEXT("Failed large cut preserves the existing neighboring hole"), IsSolid(27, 20));
-	}
+	Reset();
+	SourceB->BindCircle(0.7f, 16);
+	SourceB->AccumulationContribution = 1.05f;
+	Surface->AccumulationShape.Padding = 0;
+	Shoot(0, WeaponB);
+	TestEqual(TEXT("Invalid large footprint preserves impact for accumulation"), Surface->GetAccumulatedHitCount(), 1);
+	TestTrue(TEXT("Invalid large footprint preserves uncut collision"), IsSolid(0, 8));
+	TestFalse(TEXT("Invalid large footprint keeps the successful small bullet hole"), IsSolid(0, 0));
 
 	World->DestroyWorld(false);
 	return !HasAnyErrors();

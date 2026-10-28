@@ -243,6 +243,7 @@ void FBreachDamageAccumulator::FindCandidates(int32 NewRecordID, TArray<FBreachA
 			if (BestBounds.Contains(Record.Point))
 			{
 				Candidate.RecordIDs.Add(Record.ID);
+				Candidate.ImpactPoints.Add(Record.Point);
 				Candidate.Contribution += Record.Contribution;
 				Covered.Add(Record.ID);
 			}

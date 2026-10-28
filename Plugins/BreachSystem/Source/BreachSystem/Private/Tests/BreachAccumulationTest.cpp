@@ -81,9 +81,12 @@ bool FBreachAccumulationWindowTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Right window can use the same central record"), Candidates[1].RecordIDs.Contains(CenterID));
 		TestEqual(TEXT("Left candidate contains six hits"), Candidates[0].RecordIDs.Num(), 6);
 		TestEqual(TEXT("Right candidate contains six hits"), Candidates[1].RecordIDs.Num(), 6);
+		TestEqual(TEXT("Left candidate freezes six impact positions"), Candidates[0].ImpactPoints.Num(), 6);
+		TestEqual(TEXT("Right candidate freezes six impact positions"), Candidates[1].ImpactPoints.Num(), 6);
 		TestTrue(TEXT("Candidates meet weighted threshold"), Candidates[0].Contribution >= 1 && Candidates[1].Contribution >= 1);
 		Accumulator.RemoveInside(AccumulationBox(Candidates[0].Bounds));
 		TestTrue(TEXT("Frozen right candidate survives retirement of shared input"), Candidates[1].RecordIDs.Contains(CenterID));
+		TestTrue(TEXT("Shared central coordinate survives the first cut"), Candidates[1].ImpactPoints.Contains(FVector2d::ZeroVector));
 		Accumulator.RemoveInside(AccumulationBox(Candidates[1].Bounds));
 		TestEqual(TEXT("Both successful regions retire their inputs"), Accumulator.Num(), 0);
 	}

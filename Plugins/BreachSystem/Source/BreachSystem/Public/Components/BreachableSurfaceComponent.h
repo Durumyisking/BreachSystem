@@ -6,11 +6,11 @@
 #include "Components/StaticMeshComponent.h"
 #include "Surface/BreachSurfaceTypes.h"
 #include "Surface/BreachDamageAccumulator.h"
+#include "Surface/BreachAccumulationShape.h"
 #include "BreachableSurfaceComponent.generated.h"
 
 
 class UBreachSurfaceProxy;
-struct FBreachContourOptions;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBreachedDelegate, const FHitResult&, HitInfo, UPrimitiveComponent*, BreachedMesh);
 
@@ -24,8 +24,17 @@ public:
 	/** Tick을 끄고 기본 충돌 프로필을 BlockAll로 설정한다. */
 	UBreachableSurfaceComponent();
 
+#if WITH_EDITOR
+	/** 표면 파손 설정의 정점 간격 캐시를 갱신한다. */
+	virtual void PostLoad() override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Breach|Accumulation")
 	FBreachAccumulationOptions Accumulation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Breach|Accumulation")
+	FBreachAccumulationShapeOptions AccumulationShape;
 
 	/** 아직 제거되지 않은 누적 피해 기록 수를 반환한다. 총 피격 횟수와는 다르다. */
 	int32 GetAccumulatedHitCount() const
@@ -80,8 +89,8 @@ protected:
 	TObjectPtr<UTexture2D> MaskTexture;
 
 private:
-	/** 스케일을 반영한 cm 좌표의 피격을 기록하고 임계값을 채운 후보 창을 절단한다. 성공한 절단 내부의 기록만 제거한다. */
-	void ApplyAccumulatedDamage(const FVector2d& MetricPoint, double Contribution, const FBreachContourOptions& ContourOptions);
+	/** cm 탄착을 기록하고 후보의 좌표로 표면 소유 파손 윤곽을 생성한다. 성공한 절단 내부의 기록만 제거한다. */
+	void ApplyAccumulatedDamage(const FVector2d& MetricPoint, double Contribution);
 	/** 표면 로컬 XZ 다각형을 누적 기록의 cm 좌표로 바꾸고 내부·경계 기록을 제거한다. */
 	void RetireAccumulationInside(const UE::Geometry::FPolygon2d& LocalPolygon);
 
