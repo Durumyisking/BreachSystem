@@ -4,6 +4,7 @@
 #include "Components/BreachableSurfaceComponent.h"
 #include "Components/BreachSurfaceProxy.h"
 #include "Components/BreachSourceComponent.h"
+#include "Surface/BreachSurfaceMaterial.h"
 #include "Shape/BreachContour.h"
 #include "GameFramework/Actor.h"
 #include "Engine/CollisionProfile.h"
@@ -291,7 +292,18 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		{
 			return;
 		}
-		const bool bAccumulate = Accumulation.bEnabled && Source->AccumulationContribution != 0;
+		const FBreachAccumulationOptions* AccumulationOptions = &Accumulation;
+		const FBreachAccumulationShapeOptions* ShapeOptions = &AccumulationShape;
+		if (IsValid(SurfaceMaterial))
+		{
+			AccumulationOptions = &SurfaceMaterial->Accumulation;
+			ShapeOptions = &SurfaceMaterial->AccumulationShape;
+		}
+		else
+		{
+			UE_LOG(LogBreachableSurface, Verbose, TEXT("%s has no SurfaceMaterial; using its legacy accumulation settings. Assign a SurfaceMaterial asset to share settings."), *GetName());
+		}
+		const bool bAccumulate = AccumulationOptions->bEnabled && Source->AccumulationContribution != 0;
 		FVector2d MetricPoint = FVector2d::ZeroVector;
 		if (bAccumulate)
 		{
@@ -310,7 +322,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 				return;
 			}
 			FString Error;
-			const bool bConfigured = DamageAccumulator.Configure(Accumulation.WindowSize, Accumulation.DamageThreshold, Error);
+			const bool bConfigured = DamageAccumulator.Configure(AccumulationOptions->WindowSize, AccumulationOptions->DamageThreshold, Error);
 			if (!bConfigured)
 			{
 				UE_LOG(LogBreachableSurface, Warning, TEXT("%s kept its previous accumulation state: %s"), *GetName(), *Error);
@@ -377,7 +389,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		}
 		if (bAccumulate)
 		{
-			ApplyAccumulatedDamage(MetricPoint, Source->AccumulationContribution);
+			ApplyAccumulatedDamage(MetricPoint, Source->AccumulationContribution, *ShapeOptions);
 		}
 		else
 		{
@@ -387,7 +399,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 	}
 }
 
-void UBreachableSurfaceComponent::ApplyAccumulatedDamage(const FVector2d& MetricPoint, double Contribution)
+void UBreachableSurfaceComponent::ApplyAccumulatedDamage(const FVector2d& MetricPoint, double Contribution, const FBreachAccumulationShapeOptions& ShapeOptions)
 {
 	FString Error;
 	const int32 RecordID = DamageAccumulator.AddHit(MetricPoint, Contribution, Error);
@@ -403,13 +415,13 @@ void UBreachableSurfaceComponent::ApplyAccumulatedDamage(const FVector2d& Metric
 	for (const FBreachAccumulationCandidate& Candidate : Candidates)
 	{
 		FPolygon2d BaseMetric;
-		const bool bGeneratedBase = BreachAccumulationShape::GenerateBase(Candidate.ImpactPoints, AccumulationShape.Padding, BaseMetric, Error);
+		const bool bGeneratedBase = BreachAccumulationShape::GenerateBase(Candidate.ImpactPoints, ShapeOptions.Padding, BaseMetric, Error);
 		if (!bGeneratedBase)
 		{
 			UE_LOG(LogBreachableSurface, Warning, TEXT("%s retained damage after its accumulation footprint failed: %s"), *GetName(), *Error);
 			continue;
 		}
-		const FBreachContourOptions& ContourOptions = AccumulationShape.Contour;
+		const FBreachContourOptions& ContourOptions = ShapeOptions.Contour;
 		FPolygon2d MetricCutter = BaseMetric;
 		if (ContourOptions.bEnabled)
 		{

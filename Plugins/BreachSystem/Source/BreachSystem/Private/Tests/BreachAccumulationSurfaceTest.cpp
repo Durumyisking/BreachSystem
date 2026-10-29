@@ -1,6 +1,7 @@
 #include "Components/BreachableSurfaceComponent.h"
 #include "Components/BreachSourceComponent.h"
 #include "Components/DynamicMeshComponent.h"
+#include "Surface/BreachSurfaceMaterial.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -18,6 +19,8 @@ void FBreachAccumulationSurfaceTest::GetTests(TArray<FString>& OutNames, TArray<
 	OutCommands.Add(TEXT("UnitScale"));
 	OutNames.Add(TEXT("MirroredScale"));
 	OutCommands.Add(TEXT("MirroredScale"));
+	OutNames.Add(TEXT("LegacySettings"));
+	OutCommands.Add(TEXT("LegacySettings"));
 }
 
 bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
@@ -40,8 +43,20 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 	const FVector Scale = Parameters == TEXT("MirroredScale") ? FVector(-2, 0.1, 3) : FVector::OneVector;
 	Surface->SetWorldTransform(FTransform(FRotator(0, 35, 0), FVector(100, 200, 300), Scale));
 	Surface->RegisterComponent();
-	Surface->Accumulation.WindowSize = FVector2D(44, 30);
-	Surface->AccumulationShape.Contour.bEnabled = false;
+	UBreachSurfaceMaterial* Material = NewObject<UBreachSurfaceMaterial>(World);
+	FBreachAccumulationOptions* Options = &Material->Accumulation;
+	FBreachAccumulationShapeOptions* ShapeOptions = &Material->AccumulationShape;
+	if (Parameters == TEXT("LegacySettings"))
+	{
+		Options = &Surface->Accumulation;
+		ShapeOptions = &Surface->AccumulationShape;
+	}
+	else
+	{
+		Surface->SurfaceMaterial = Material;
+	}
+	Options->WindowSize = FVector2D(44, 30);
+	ShapeOptions->Contour.bEnabled = false;
 	AActor* WeaponA = World->SpawnActor<AActor>();
 	AActor* WeaponB = World->SpawnActor<AActor>();
 	UBreachSourceComponent* SourceA = NewObject<UBreachSourceComponent>(WeaponA);
@@ -89,7 +104,7 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Disabled accumulation preserves direct-only behavior"), Surface->GetAccumulatedHitCount(), 0);
 	TestTrue(TEXT("Disabled accumulation leaves material between small holes"), IsSolid(0, 8));
 	Reset();
-	Surface->Accumulation.bEnabled = true;
+	Options->bEnabled = true;
 	for (double X : {-20.0, -12.0, -4.0, 4.0, 12.0})
 	{
 		Shoot(X, WeaponA);
@@ -114,7 +129,7 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Queued impact inside a now-empty breach adds no record"), Surface->GetAccumulatedHitCount(), 0);
 	}
 	Reset();
-	Surface->Accumulation.WindowSize = FVector2D(80, 80);
+	Options->WindowSize = FVector2D(80, 80);
 	SourceB->BindCircle(0.7f, 16, 0.1f, 15);
 	for (double X : {-20.0, -12.0, -4.0, 4.0, 12.0})
 	{
@@ -130,10 +145,10 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Large footprint is independent of window size and source contour"), Proxies[0]->GetDynamicMesh()->GetTriangleCount(), BaseTriangleCount);
 	}
 	Reset();
-	Surface->AccumulationShape.Contour.bEnabled = true;
-	Surface->AccumulationShape.Contour.Seed = 37;
-	Surface->AccumulationShape.Contour.VertexCount = 48;
-	Surface->AccumulationShape.Contour.bRandomizeVertexSpacing = false;
+	ShapeOptions->Contour.bEnabled = true;
+	ShapeOptions->Contour.Seed = 37;
+	ShapeOptions->Contour.VertexCount = 48;
+	ShapeOptions->Contour.bRandomizeVertexSpacing = false;
 	for (double X : {-20.0, -12.0, -4.0, 4.0, 12.0})
 	{
 		Shoot(X, WeaponA);
@@ -145,8 +160,8 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 	{
 		TestTrue(TEXT("Surface-owned contour changes the large breach geometry"), Proxies[0]->GetDynamicMesh()->GetTriangleCount() != BaseTriangleCount);
 	}
-	Surface->AccumulationShape.Contour.bEnabled = false;
-	Surface->Accumulation.WindowSize = FVector2D(44, 30);
+	ShapeOptions->Contour.bEnabled = false;
+	Options->WindowSize = FVector2D(44, 30);
 	SourceB->BindCircle(0.7f, 16);
 	Reset();
 	for (double X : {-40.0, -32.0, -24.0, -16.0, -8.0, 8.0, 16.0, 24.0, 32.0, 40.0})
@@ -178,7 +193,7 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 	Reset();
 	SourceB->BindCircle(0.7f, 16);
 	SourceB->AccumulationContribution = 1.05f;
-	Surface->AccumulationShape.Padding = 0;
+	ShapeOptions->Padding = 0;
 	Shoot(0, WeaponB);
 	TestEqual(TEXT("Invalid large footprint preserves impact for accumulation"), Surface->GetAccumulatedHitCount(), 1);
 	TestTrue(TEXT("Invalid large footprint preserves uncut collision"), IsSolid(0, 8));

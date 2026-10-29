@@ -11,6 +11,7 @@
 
 
 class UBreachSurfaceProxy;
+class UBreachSurfaceMaterial;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBreachedDelegate, const FHitResult&, HitInfo, UPrimitiveComponent*, BreachedMesh);
 
@@ -30,10 +31,15 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Breach|Accumulation")
+	/** 미지정 시 기존 에셋에 저장된 누적 파괴 설정을 사용한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Breach")
+	TObjectPtr<UBreachSurfaceMaterial> SurfaceMaterial;
+
+	/** 기존 에셋과 Blueprint의 호환용. 새 설정은 SurfaceMaterial에서 편집한다. */
+	UPROPERTY(BlueprintReadWrite, Category="Breach|Accumulation", meta=(DeprecatedProperty, DeprecationMessage="Assign a SurfaceMaterial asset instead."))
 	FBreachAccumulationOptions Accumulation;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Breach|Accumulation")
+	UPROPERTY(BlueprintReadWrite, Category="Breach|Accumulation", meta=(DeprecatedProperty, DeprecationMessage="Assign a SurfaceMaterial asset instead."))
 	FBreachAccumulationShapeOptions AccumulationShape;
 
 	/** 아직 제거되지 않은 누적 피해 기록 수를 반환한다. 총 피격 횟수와는 다르다. */
@@ -90,7 +96,7 @@ protected:
 
 private:
 	/** cm 탄착을 기록하고 후보의 좌표로 표면 소유 파손 윤곽을 생성한다. 성공한 절단 내부의 기록만 제거한다. */
-	void ApplyAccumulatedDamage(const FVector2d& MetricPoint, double Contribution);
+	void ApplyAccumulatedDamage(const FVector2d& MetricPoint, double Contribution, const FBreachAccumulationShapeOptions& ShapeOptions);
 	/** 표면 로컬 XZ 다각형을 누적 기록의 cm 좌표로 바꾸고 내부·경계 기록을 제거한다. */
 	void RetireAccumulationInside(const UE::Geometry::FPolygon2d& LocalPolygon);
 
