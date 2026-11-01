@@ -8,171 +8,6 @@
         "type": "tabs",
         "children": [
           {
-            "id": "476a6819e0d3b8c3",
-            "type": "leaf",
-            "pane-relief:history-v1": {
-              "pos": 0,
-              "stack": [
-                {
-                  "state": "{}",
-                  "eState": "{}"
-                },
-                {
-                  "title": "이슈 - 메시 절반 분할시 이슈",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"video\",\"state\":{\"file\":\"영상/이슈 - 메시 절반 분할시 이슈.mkv\"},\"icon\":\"lucide-file\",\"title\":\"이슈 - 메시 절반 분할시 이슈\"}",
-                  "eState": "{}"
-                },
-                {
-                  "title": "이슈 - 메시 컷 프레임 드랍",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"video\",\"state\":{\"file\":\"영상/이슈 - 메시 컷 프레임 드랍.mkv\"},\"icon\":\"lucide-file\",\"title\":\"이슈 - 메시 컷 프레임 드랍\"}",
-                  "eState": "{}"
-                },
-                {
-                  "title": "2026-10-14 6. 2D 폴리곤 to 3D 메시",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-14 6. 2D 폴리곤 to 3D 메시.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-14 6. 2D 폴리곤 to 3D 메시\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":46,\"ch\":0},\"to\":{\"line\":46,\"ch\":0}},\"scroll\":33.765267265290774}"
-                },
-                {
-                  "title": "이슈 - 메시 절반 분할시 문제생김",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"이슈/이슈 - 메시 절반 분할시 문제생김.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"이슈 - 메시 절반 분할시 문제생김\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":4,\"ch\":0},\"to\":{\"line\":4,\"ch\":0}},\"scroll\":1.137741046831956}"
-                },
-                {
-                  "title": "DynamicMeshComponent로 변환하면서 라이팅 변화",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"이슈/DynamicMeshComponent로 변환하면서 라이팅 변화.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"DynamicMeshComponent로 변환하면서 라이팅 변화\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":2,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":0}"
-                },
-                {
-                  "title": "이슈 - 메시 절반 분할시 문제생김",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"이슈/이슈 - 메시 절반 분할시 문제생김.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"이슈 - 메시 절반 분할시 문제생김\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":3,\"ch\":0},\"to\":{\"line\":3,\"ch\":0}},\"scroll\":1.1333333333333333}"
-                },
-                {
-                  "title": "이슈 - 메시 컷 프레임 드랍",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"video\",\"state\":{\"file\":\"영상/이슈 - 메시 컷 프레임 드랍.mkv\"},\"icon\":\"lucide-file\",\"title\":\"이슈 - 메시 컷 프레임 드랍\"}",
-                  "eState": "{}"
-                },
-                {
-                  "title": "이슈 - MeshCut실패",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"video\",\"state\":{\"file\":\"영상/이슈 - MeshCut실패.mkv\"},\"icon\":\"lucide-file\",\"title\":\"이슈 - MeshCut실패\"}",
-                  "eState": "{}"
-                },
-                {
-                  "title": "이슈 - 메시 컷 프레임 드랍",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"video\",\"state\":{\"file\":\"영상/이슈 - 메시 컷 프레임 드랍.mkv\"},\"icon\":\"lucide-file\",\"title\":\"이슈 - 메시 컷 프레임 드랍\"}",
-                  "eState": "{}"
-                },
-                {
-                  "title": "이슈 - 메시 절반 분할시 이슈",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"video\",\"state\":{\"file\":\"영상/이슈 - 메시 절반 분할시 이슈.mkv\"},\"icon\":\"lucide-file\",\"title\":\"이슈 - 메시 절반 분할시 이슈\"}",
-                  "eState": "{}"
-                },
-                {
-                  "title": "2026-10-14 6. 2D 폴리곤 to 3D 메시",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-14 6. 2D 폴리곤 to 3D 메시.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-14 6. 2D 폴리곤 to 3D 메시\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":30,\"ch\":19},\"to\":{\"line\":30,\"ch\":19}},\"scroll\":23.40354938271605}"
-                },
-                {
-                  "title": "2026-10-11 브리칭 방식 변경",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-11 브리칭 방식 변경.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-11 브리칭 방식 변경\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":16,\"ch\":92},\"to\":{\"line\":16,\"ch\":92}},\"scroll\":4.20703125}"
-                },
-                {
-                  "title": "2026-10-14 6. 2D 폴리곤 to 3D 메시",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-14 6. 2D 폴리곤 to 3D 메시.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-14 6. 2D 폴리곤 to 3D 메시\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":3,\"ch\":0},\"to\":{\"line\":3,\"ch\":0}},\"scroll\":0}"
-                },
-                {
-                  "title": "2026-10-14 5. 2D 폴리곤 삼각분할",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-14 5. 2D 폴리곤 삼각분할.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-14 5. 2D 폴리곤 삼각분할\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":1}"
-                },
-                {
-                  "title": "2026-10-14 6. 2D 폴리곤 to 3D 메시",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-14 6. 2D 폴리곤 to 3D 메시.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-14 6. 2D 폴리곤 to 3D 메시\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":0}"
-                },
-                {
-                  "title": "2026-10-14 5. 2D 폴리곤 삼각분할",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-14 5. 2D 폴리곤 삼각분할.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-14 5. 2D 폴리곤 삼각분할\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":19.548828125}"
-                },
-                {
-                  "title": "2026-10-14 6. 2D 폴리곤 to 3D 메시",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-14 6. 2D 폴리곤 to 3D 메시.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-14 5. 2D 폴리곤 to 3D 메시\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":1,\"ch\":17},\"to\":{\"line\":1,\"ch\":17}},\"scroll\":0}"
-                },
-                {
-                  "title": "2026-10-14 5. 2D 폴리곤 삼각분할",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-14 5. 2D 폴리곤 삼각분할.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-14 5. 2D 폴리곤 삼각분할\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":26,\"ch\":0},\"to\":{\"line\":26,\"ch\":0}},\"scroll\":0}"
-                },
-                {
-                  "title": "2026-10-13 4. 2D 폴리곤 절단",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-13 4. 2D 폴리곤 절단.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-13 4. 2D 폴리곤 절단\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":0}"
-                },
-                {
-                  "title": "2026-10-12 R6 표면 파괴 구현 계획 초안",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 R6 표면 파괴 구현 계획 초안\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":93,\"ch\":0},\"to\":{\"line\":93,\"ch\":0}},\"scroll\":73.41145833333333}"
-                },
-                {
-                  "title": "이슈 - 메시 컷 프레임 드랍",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"video\",\"state\":{\"file\":\"영상/이슈 - 메시 컷 프레임 드랍.mkv\"},\"icon\":\"lucide-file\",\"title\":\"이슈 - 메시 컷 프레임 드랍\"}",
-                  "eState": "{}"
-                },
-                {
-                  "title": "2026-10-11 브리칭 방식 변경",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-11 브리칭 방식 변경.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-11 브리칭 방식 변경\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":16,\"ch\":81},\"to\":{\"line\":16,\"ch\":81}}}"
-                },
-                {
-                  "title": "StaticMesh에서 DynamicMesh변환",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/StaticMesh에서 DynamicMesh변환.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"StaticMesh에서 DynamicMesh변환\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
-                },
-                {
-                  "title": "2026-10-12 R6 표면 파괴 구현 계획 초안",
-                  "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"기획/2026-10-12 R6 표면 파괴 구현 계획 초안.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-12 R6 표면 파괴 구현 계획 초안\"}",
-                  "eState": "{\"cursor\":{\"from\":{\"line\":35,\"ch\":99},\"to\":{\"line\":35,\"ch\":99}},\"scroll\":21.444010416666668}"
-                }
-              ]
-            },
-            "state": {
-              "type": "video",
-              "state": {
-                "file": "영상/이슈 - 메시 컷 프레임 드랍.mkv"
-              },
-              "icon": "lucide-file",
-              "title": "이슈 - 메시 컷 프레임 드랍"
-            }
-          },
-          {
             "id": "95aaec89038ea2eb",
             "type": "leaf",
             "pane-relief:history-v1": {
@@ -451,7 +286,7 @@
                 {
                   "title": "Dedicated Server 환경으로 변경",
                   "icon": "lucide-file",
-                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/Dedicated Server 환경으로 변경.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"Dedicated Server 환경으로 변경\"}",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/FPS Dedicated Server 환경으로 변경.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"Dedicated Server 환경으로 변경\"}",
                   "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":33.466277689873415}"
                 },
                 {
@@ -597,6 +432,84 @@
                   "eState": "{}"
                 },
                 {
+                  "title": "2026-10-14 6. 2D 폴리곤 to 3D 메시",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-14 6. 2D 폴리곤 to 3D 메시.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-14 6. 2D 폴리곤 to 3D 메시\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-18 7. 고립 폴리곤 제거",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-18 7. 고립 폴리곤 제거.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-18 7. 고립 폴리곤 제거\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-23 9. 공간적 피해 누적",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 9. 공간적 피해 누적\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-23 8. 복잡한 다각형 브리칭",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 8. 복잡한 다각형 브리칭\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-10-23 9. 공간적 피해 누적",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 9. 공간적 피해 누적\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":23,\"ch\":80},\"to\":{\"line\":23,\"ch\":80}},\"scroll\":10.20964141705069}"
+                },
+                {
+                  "title": "2026-10-23 8. 복잡한 다각형 브리칭",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 8. 복잡한 다각형 브리칭\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-10-23 9. 공간적 피해 누적",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 9. 공간적 피해 누적\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":15.220202429149797}"
+                },
+                {
+                  "title": "2026-10-23 8. 복잡한 다각형 브리칭",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 8. 복잡한 다각형 브리칭\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":10.223958333333334}"
+                },
+                {
+                  "title": "2026-10-18 7. 고립 폴리곤 제거",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-18 7. 고립 폴리곤 제거.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-18 7. 고립 폴리곤 제거\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-23 9. 공간적 피해 누적",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 9. 공간적 피해 누적\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":23,\"ch\":0},\"to\":{\"line\":23,\"ch\":0}},\"scroll\":10.956185195852534}"
+                },
+                {
+                  "title": "2026-10-23 8. 복잡한 다각형 브리칭",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 8. 복잡한 다각형 브리칭\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":27,\"ch\":0},\"to\":{\"line\":27,\"ch\":0}},\"scroll\":23.151674034474485}"
+                },
+                {
+                  "title": "2026-10-23 9. 공간적 피해 누적",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 9. 공간적 피해 누적\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":10,\"ch\":0},\"to\":{\"line\":10,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-23 8. 복잡한 다각형 브리칭",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 8. 복잡한 다각형 브리칭\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
                   "title": "2026-10-23 9. 공간적 피해 누적",
                   "icon": "lucide-file",
                   "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 9. 공간적 피해 누적\"}",
@@ -661,12 +574,191 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md",
+                "file": "개발노트/2026-10-23 9. 공간적 피해 누적.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "2026-10-23 8. 복잡한 다각형 브리칭"
+              "title": "2026-10-23 9. 공간적 피해 누적"
+            }
+          },
+          {
+            "id": "9cd7fce626909e9b",
+            "type": "leaf",
+            "pane-relief:history-v1": {
+              "pos": 1,
+              "stack": [
+                {
+                  "title": "2026-10-29 10. 결정적 브리칭 구조",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-29 10. 결정적 브리칭 구조.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-29 10. 결정적 브리칭 구조\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":109,\"ch\":28},\"to\":{\"line\":109,\"ch\":0}},\"scroll\":108.6875}"
+                },
+                {
+                  "state": "{}",
+                  "eState": "{}"
+                },
+                {
+                  "title": "2026-10-29 10. 결정적 브리칭 구조",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-29 10. 결정적 브리칭 구조.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-29 10. 결정적 브리칭 구조\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-23 9. 공간적 피해 누적",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 9. 공간적 피해 누적\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-29 10. 결정적 브리칭 구조",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-29 10. 결정적 브리칭 구조.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-29 10. 결정적 브리칭 구조\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-23 9. 공간적 피해 누적",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 9. 공간적 피해 누적\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-29 10. 결정적 브리칭 구조",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-29 10. 결정적 브리칭 구조.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-29 10. 결정적 브리칭 구조\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-23 9. 공간적 피해 누적",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 9. 공간적 피해 누적\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-29 10. 결정적 브리칭 구조",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-29 10. 결정적 브리칭 구조.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-29 10. 결정적 브리칭 구조\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "멀티스레드, ComputeShader방식 폴리곤 절단 고찰",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"멀티스레드, ComputeShader방식 폴리곤 절단 고찰\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "삼각분할 함수 분석",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/삼각분할 함수 분석.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"삼각분할 함수 분석\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "FPS Dedicated Server 환경으로 변경",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/FPS Dedicated Server 환경으로 변경.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"FPS Dedicated Server 환경으로 변경\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "Convex vs Concave",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/Convex vs Concave.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"Convex vs Concave\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":76,\"ch\":20},\"to\":{\"line\":76,\"ch\":20}},\"scroll\":39.136067708333336}"
+                },
+                {
+                  "title": "충돌 계산 최적화",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/충돌 계산 최적화.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"충돌 계산 최적화\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":4,\"ch\":0},\"to\":{\"line\":4,\"ch\":0}},\"scroll\":3.674626865671642}"
+                },
+                {
+                  "title": "Convex vs Concave",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/Convex vs Concave.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"Convex vs Concave\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":66,\"ch\":0},\"to\":{\"line\":66,\"ch\":0}},\"scroll\":33.597005208333336}"
+                },
+                {
+                  "title": "2026-10-29 10. 결정적 브리칭 구조",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-29 10. 결정적 브리칭 구조.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-29 10. 결정적 브리칭 구조\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":11,\"ch\":40},\"to\":{\"line\":11,\"ch\":40}},\"scroll\":0}"
+                },
+                {
+                  "title": "Convex vs Concave",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/Convex vs Concave.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"Convex vs Concave\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":64,\"ch\":0},\"to\":{\"line\":64,\"ch\":0}},\"scroll\":45.78262061403509}"
+                },
+                {
+                  "title": "메시에 구멍뚫기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/메시에 구멍뚫기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"메시에 구멍뚫기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-10-29 10. 결정적 브리칭 구조",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-29 10. 결정적 브리칭 구조.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-29 10. 결정적 브리칭 구조\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":19,\"ch\":0},\"to\":{\"line\":19,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "R6 분석",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/R6 분석.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"R6 분석\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "FPS Dedicated Server 환경으로 변경",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/FPS Dedicated Server 환경으로 변경.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"Dedicated Server 환경으로 변경\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "메시에 구멍뚫기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/메시에 구멍뚫기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"메시에 구멍뚫기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-29 10. 결정적 브리칭 구조",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-29 10. 결정적 브리칭 구조.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-29 10. 결정적 브리칭 구조\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-23 8. 복잡한 다각형 브리칭",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 8. 복잡한 다각형 브리칭\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-29 10. 결정적 브리칭 구조",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-29 10. 결정적 브리칭 구조.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-29 10. 결정적 브리칭 구조\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":3,\"ch\":0},\"to\":{\"line\":3,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-23 9. 공간적 피해 누적",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 9. 공간적 피해 누적\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-29 10. 결정적 브리칭 구조",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-29 10. 결정적 브리칭 구조.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"무제\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                }
+              ]
+            },
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "멀티스레드, ComputeShader방식 폴리곤 절단 고찰"
             }
           }
         ],
@@ -911,26 +1003,34 @@
       "vscode-editor:Create Code File": false
     }
   },
-  "active": "f2f81bb63014c252",
+  "active": "9cd7fce626909e9b",
   "lastOpenFiles": [
-    "Pasted image 20261024015437.png",
-    "Pasted image 20261024014849.png",
-    "Pasted image 20261024014729.png",
-    "개발노트/2026-10-23 9. 공간적 피해 누적.md",
-    "개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md",
-    "개발노트/2026-10-18 7. 고립 폴리곤 제거.md",
-    "개발노트/R6 분석.md",
-    "20E06D~1.jpg",
-    "Pasted image 20261023182817.png",
-    "개발노트/StaticMesh vs DynamicMesh.md",
-    "개발노트/메시에 구멍뚫기.md",
-    "Pasted image 20261013155053.png",
-    "09_six_horizontal_far.jpg",
-    "11_repeat_uv_four_breaches.jpg",
-    "15_color_group_overlaid.png",
-    "12_sniper_two_hits.png",
-    "08_six_horizontal.png",
+    "개발노트/2026-10-29 10. 결정적 브리칭 구조.md",
+    "개발노트/Dedicated Server 환경으로 변경.md",
+    "2026-11-01 19-25-46.mkv",
+    "Pasted image 20261101192316.png",
+    "Pasted image 20261101192251.png",
+    "Pasted image 20261101182717.png",
+    "Pasted image 20261101182712.png",
+    "Pasted image 20261101182707.png",
+    "Pasted image 20261101182623.png",
+    "Pasted image 20261101182611.png",
+    "Pasted image 20261101182550.png",
+    "Pasted image 20261101182537.png",
+    "Pasted image 20261101182521.png",
     "개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md",
+    "개발노트/2026-10-23 9. 공간적 피해 누적.md",
+    "개발노트/삼각분할 함수 분석.md",
+    "개발노트/FPS Dedicated Server 환경으로 변경.md",
+    "개발노트/Convex vs Concave.md",
+    "개발노트/충돌 계산 최적화.md",
+    "영상/이슈 - 메시 컷 프레임 드랍.mkv",
+    "개발노트/메시에 구멍뚫기.md",
+    "개발노트/R6 분석.md",
+    "개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md",
+    "개발노트/2026-10-14 6. 2D 폴리곤 to 3D 메시.md",
+    "개발노트/2026-10-18 7. 고립 폴리곤 제거.md",
+    "개발노트/StaticMesh vs DynamicMesh.md",
     "2026-10-22 8. 물리 형상 변형 기준 반영하기.md",
     "Research/R6-Destruction-Guide-2026-10-22/video-study/R6-Destruction-Video-Study.pdf",
     "Research/R6-Destruction-Guide-2026-10-22/video-study/print-study.html",
@@ -940,8 +1040,6 @@
     "Research/R6-Destruction-Guide-2026-10-22/video-study/qa/viewer-check.js",
     "Research/R6-Destruction-Guide-2026-10-22/video-study/qa/server-error.log",
     "Research/R6-Destruction-Guide-2026-10-22/video-study/qa/server.log",
-    "Research/R6-Destruction-Guide-2026-10-22/video-study/capture-manifest.json",
-    "Research/R6-Destruction-Guide-2026-10-22/video-study/index.html",
     "개발노트/2026-10-10 Chaos Destruction 브리칭.md",
     "개발노트/2026-10-11 브리칭 방식 변경.md",
     "개발노트/2026-09-29 브리칭 1차 완성.md",
@@ -950,15 +1048,9 @@
     "개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md",
     "개발노트/2026-10-13 4. 2D 폴리곤 절단.md",
     "개발노트/2026-10-14 5. 2D 폴리곤 삼각분할.md",
-    "개발노트/2026-10-14 6. 2D 폴리곤 to 3D 메시.md",
-    "개발노트/삼각분할 함수 분석.md",
     "개발노트/Convex Hull이란.md",
     "개발노트/메시의 Hit 지점 알아내기.md",
-    "개발노트/Dedicated Server 환경으로 변경.md",
     "개발노트/StaticMesh에서 DynamicMesh변환.md",
-    "언리얼에 이미 있는 요소.md",
-    "무제.canvas",
-    "클래스 구조.md",
-    "이슈/이슈 - 메시 절반 분할시 문제생김.md"
+    "무제.canvas"
   ]
 }
