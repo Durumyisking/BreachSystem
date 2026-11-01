@@ -14,7 +14,7 @@ class BREACHSYSTEM_API UBreachSourceComponent : public UActorComponent
 public:
 	/** Wall-damage weight per valid impact; zero keeps direct cutting only. Independent of HP damage. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Breach|Accumulation", meta=(ClampMin="0"))
-	float AccumulationContribution = 0.f;
+	float BreachDamage = 0.f;
 
 	/** 현재 채택된 커터의 윤곽 변형 설정을 반환한다. 누적 피해 커터도 이 설정을 사용한다. */
 	const FBreachContourOptions& GetContourOptions() const

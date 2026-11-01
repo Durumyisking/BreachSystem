@@ -8,6 +8,7 @@ using namespace UE::Geometry;
 bool FBreachDamageAccumulator::Configure(const FVector2d& InWindowSize, double InThreshold, FString& OutError)
 {
 	OutError.Reset();
+
 	if (!FMath::IsFinite(InWindowSize.X) || !FMath::IsFinite(InWindowSize.Y)
 		|| InWindowSize.X < 0.1 || InWindowSize.Y < 0.1 || !FMath::IsFinite(InThreshold) || InThreshold <= 0)
 	{
@@ -20,10 +21,11 @@ bool FBreachDamageAccumulator::Configure(const FVector2d& InWindowSize, double I
 		WindowSize = InWindowSize;
 		Threshold = InThreshold;
 	}
+
 	return true;
 }
 
-int32 FBreachDamageAccumulator::AddHit(const FVector2d& Point, double Contribution, FString& OutError)
+int32 FBreachDamageAccumulator::AddHit(const FVector2d& Point, double BreachDamage, FString& OutError)
 {
 	OutError.Reset();
 	if (WindowSize.X <= 0 || WindowSize.Y <= 0)
@@ -33,18 +35,18 @@ int32 FBreachDamageAccumulator::AddHit(const FVector2d& Point, double Contributi
 	}
 	const FVector2d CellPoint = Point / WindowSize;
 	if (!FMath::IsFinite(Point.X) || !FMath::IsFinite(Point.Y)
-		|| !FMath::IsFinite(Contribution) || Contribution <= 0
+		|| !FMath::IsFinite(BreachDamage) || BreachDamage <= 0
 		|| !FMath::IsFinite(Point.X + WindowSize.X) || !FMath::IsFinite(Point.Y + WindowSize.Y)
 		|| !FMath::IsFinite(Point.X - WindowSize.X) || !FMath::IsFinite(Point.Y - WindowSize.Y)
 		|| !FMath::IsFinite(CellPoint.X) || !FMath::IsFinite(CellPoint.Y)
 		|| FMath::Abs(CellPoint.X) > MAX_int32 - 4.0 || FMath::Abs(CellPoint.Y) > MAX_int32 - 4.0
 		|| NextRecordID == MAX_int32)
 	{
-		OutError = TEXT("Accumulation impact has invalid coordinates/contribution or exceeds spatial index limits.");
+		OutError = TEXT("Accumulation impact has invalid coordinates/BreachDamage or exceeds spatial index limits.");
 		return INDEX_NONE;
 	}
 	const int32 ID = NextRecordID++;
-	Records.Add(ID, {ID, Point, Contribution});
+	Records.Add(ID, {ID, Point, BreachDamage });
 	const FIntPoint Cell = CellFor(Point);
 	FColumn* Column = Columns.Find(Cell.X);
 	if (!Column)
@@ -68,12 +70,21 @@ FIntPoint FBreachDamageAccumulator::CellFor(const FVector2d& Point) const
 		FMath::FloorToInt(FMath::Clamp(Point.Y / WindowSize.Y, -double(MAX_int32), double(MAX_int32 - 1))));
 }
 
-void FBreachDamageAccumulator::Query(const FAxisAlignedBox2d& Bounds, TArray<FBreachDamageRecord>& OutRecords,
-	FBreachAccumulationQueryStats& OutStats) const
+void FBreachDamageAccumulator::Query(const FAxisAlignedBox2d& Bounds, TArray<FBreachDamageRecord>& OutRecords
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+	, FBreachAccumulationQueryStats* OutStats
+#endif
+	) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("Breach Accumulation | Spatial query");
 	OutRecords.Reset();
-	OutStats = {};
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+	// 테스트 전용: 요청된 조회 통계만 초기화하고 수집한다.
+	if (OutStats)
+	{
+		*OutStats = {};
+	}
+#endif
 	const FIntPoint Min = CellFor(Bounds.Min);
 	const FIntPoint Max = CellFor(Bounds.Max);
 	for (int32 XIndex = Algo::LowerBound(OccupiedColumns, Min.X);
@@ -83,10 +94,20 @@ void FBreachDamageAccumulator::Query(const FAxisAlignedBox2d& Bounds, TArray<FBr
 		for (int32 YIndex = Algo::LowerBound(Column.Rows, Min.Y);
 			YIndex < Column.Rows.Num() && Column.Rows[YIndex] <= Max.Y; ++YIndex)
 		{
-			++OutStats.VisitedCells;
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+			if (OutStats)
+			{
+				++OutStats->VisitedCells;
+			}
+#endif
 			for (int32 ID : Column.Cells.FindChecked(Column.Rows[YIndex]))
 			{
-				++OutStats.ExaminedRecords;
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+				if (OutStats)
+				{
+					++OutStats->ExaminedRecords;
+				}
+#endif
 				const FBreachDamageRecord& Record = Records.FindChecked(ID);
 				if (Bounds.Contains(Record.Point))
 				{
@@ -97,11 +118,20 @@ void FBreachDamageAccumulator::Query(const FAxisAlignedBox2d& Bounds, TArray<FBr
 	}
 }
 
-void FBreachDamageAccumulator::FindCandidates(int32 NewRecordID, TArray<FBreachAccumulationCandidate>& OutCandidates,
-	FBreachAccumulationQueryStats& OutStats) const
+void FBreachDamageAccumulator::FindCandidates(int32 NewRecordID, TArray<FBreachAccumulationCandidate>& OutCandidates
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+	, FBreachAccumulationQueryStats* OutStats
+#endif
+	) const
 {
 	OutCandidates.Reset();
-	OutStats = {};
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+	// 테스트 전용: 유효하지 않은 ID에서도 이전 통계가 남지 않게 한다.
+	if (OutStats)
+	{
+		*OutStats = {};
+	}
+#endif
 	const FBreachDamageRecord* NewRecord = Records.Find(NewRecordID);
 	if (!NewRecord)
 	{
@@ -110,20 +140,27 @@ void FBreachDamageAccumulator::FindCandidates(int32 NewRecordID, TArray<FBreachA
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("Breach Accumulation | Local windows");
 	const FVector2d Point = NewRecord->Point;
 	TArray<FBreachDamageRecord> Nearby;
-	Query(FAxisAlignedBox2d(Point - WindowSize, Point + WindowSize), Nearby, OutStats);
+	Query(FAxisAlignedBox2d(Point - WindowSize, Point + WindowSize), Nearby
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+		, OutStats
+#endif
+		);
+	// Floating-point sums and candidate geometry must not depend on insertion IDs.
+	Nearby.Sort([](const FBreachDamageRecord& A, const FBreachDamageRecord& B)
+	{
+		if (A.Point.Y != B.Point.Y) return A.Point.Y < B.Point.Y;
+		if (A.Point.X != B.Point.X) return A.Point.X < B.Point.X;
+		return A.Damaged < B.Damaged;
+	});
 	double Total = 0;
 	for (const FBreachDamageRecord& Record : Nearby)
 	{
-		Total += Record.Contribution;
+		Total += Record.Damaged;
 	}
 	if (Total < Threshold)
 	{
 		return;
 	}
-	Nearby.Sort([](const FBreachDamageRecord& A, const FBreachDamageRecord& B)
-	{
-		return A.Point.Y < B.Point.Y || (A.Point.Y == B.Point.Y && A.ID < B.ID);
-	});
 	TArray<double> StartsX, StartsY;
 	for (const FBreachDamageRecord& Record : Nearby)
 	{
@@ -158,7 +195,13 @@ void FBreachDamageAccumulator::FindCandidates(int32 NewRecordID, TArray<FBreachA
 			TArray<FBreachDamageRecord> Active;
 			for (const FBreachDamageRecord& Record : Nearby)
 			{
-				++OutStats.MembershipEvaluations;
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+				// 테스트 전용: 후보 범위 검사 횟수를 측정한다.
+				if (OutStats)
+				{
+					++OutStats->MembershipEvaluations;
+				}
+#endif
 				if (Record.Point.X >= X && Record.Point.X <= X + WindowSize.X)
 				{
 					Active.Add(Record);
@@ -174,10 +217,10 @@ void FBreachDamageAccumulator::FindCandidates(int32 NewRecordID, TArray<FBreachA
 				while (Last < Active.Num() && Active[Last].Point.Y <= Y + WindowSize.Y)
 				{
 					const FBreachDamageRecord& Record = Active[Last];
-					Sum += Record.Contribution;
+					Sum += Record.Damaged;
 					if (!Covered.Contains(Record.ID))
 					{
-						Fresh += Record.Contribution;
+						Fresh += Record.Damaged;
 						++FreshCount;
 					}
 					while (MinX.Num() > MinHead && Active[MinX.Last()].Point.X >= Record.Point.X)
@@ -193,10 +236,10 @@ void FBreachDamageAccumulator::FindCandidates(int32 NewRecordID, TArray<FBreachA
 				}
 				while (First < Last && Active[First].Point.Y < Y)
 				{
-					Sum -= Active[First].Contribution;
+					Sum -= Active[First].Damaged;
 					if (!Covered.Contains(Active[First].ID))
 					{
-						Fresh -= Active[First].Contribution;
+						Fresh -= Active[First].Damaged;
 						--FreshCount;
 					}
 					++First;
@@ -235,16 +278,27 @@ void FBreachDamageAccumulator::FindCandidates(int32 NewRecordID, TArray<FBreachA
 			break;
 		}
 		FBreachAccumulationCandidate Candidate;
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+		// 테스트 전용: 선택된 창의 범위를 검증할 수 있도록 보관한다.
 		Candidate.Bounds = BestBounds;
+#endif
 		// Only the selected window materializes its member list, including recentering additions.
 		for (const FBreachDamageRecord& Record : Nearby)
 		{
-			++OutStats.MembershipEvaluations;
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+			if (OutStats)
+			{
+				++OutStats->MembershipEvaluations;
+			}
+#endif
 			if (BestBounds.Contains(Record.Point))
 			{
-				Candidate.RecordIDs.Add(Record.ID);
 				Candidate.ImpactPoints.Add(Record.Point);
-				Candidate.Contribution += Record.Contribution;
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+				// 테스트 전용: 후보 간 공유 기록과 누적 피해 합계를 검증한다.
+				Candidate.RecordIDs.Add(Record.ID);
+				Candidate.Contribution += Record.Damaged;
+#endif
 				Covered.Add(Record.ID);
 			}
 		}
@@ -252,23 +306,29 @@ void FBreachDamageAccumulator::FindCandidates(int32 NewRecordID, TArray<FBreachA
 	}
 }
 
-void FBreachDamageAccumulator::RemoveInside(const UE::Geometry::FPolygon2d& Polygon, FBreachAccumulationQueryStats* OutStats)
+void FBreachDamageAccumulator::RemoveInside(const UE::Geometry::FPolygon2d& Polygon
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+	, FBreachAccumulationQueryStats* OutStats
+#endif
+	)
 {
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+	// 테스트 전용: 삭제할 기록이 없어도 조회 통계는 초기화한다.
 	if (OutStats)
 	{
 		*OutStats = {};
 	}
+#endif
 	if (Records.IsEmpty() || Polygon.VertexCount() < 3)
 	{
 		return;
 	}
 	TArray<FBreachDamageRecord> Nearby;
-	FBreachAccumulationQueryStats Stats;
-	Query(Polygon.Bounds(), Nearby, Stats);
-	if (OutStats)
-	{
-		*OutStats = Stats;
-	}
+	Query(Polygon.Bounds(), Nearby
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+		, OutStats
+#endif
+		);
 	for (const FBreachDamageRecord& Record : Nearby)
 	{
 		if (Polygon.Contains(Record.Point) || Polygon.DistanceSquared(Record.Point) <= UE_DOUBLE_SMALL_NUMBER)

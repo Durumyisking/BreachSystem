@@ -8,8 +8,10 @@
 #include "Misc/AutomationTest.h"
 #include "Surface/BreachSurfaceMaterial.h"
 #include "UObject/UnrealType.h"
+#include "Settings/BreachSystemSettings.h"
 
-#if WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR
+// 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachSurfaceMaterialTest, "BreachSystem.Surface.Material",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -38,6 +40,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachSurfaceMaterialSharedTest, "BreachSystem
 
 bool FBreachSurfaceMaterialSharedTest::RunTest(const FString& Parameters)
 {
+	UBreachSystemSettings* Settings = GetMutableDefault<UBreachSystemSettings>();
+	if (!TestNotNull(TEXT("Global cell settings"), Settings)) return false;
+	TGuardValue<float> CellSizeGuard(Settings->CellSizeCm, 0.1f);
 	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
 	if (!TestNotNull(TEXT("Shared-material world fixture"), World))
 	{
@@ -60,10 +65,14 @@ bool FBreachSurfaceMaterialSharedTest::RunTest(const FString& Parameters)
 		Wall->SetRootComponent(Surface);
 		Surface->SetStaticMesh(Cube);
 		Surface->SetWorldLocation(FVector(Offset, 0, 0));
-		Surface->SurfaceMaterial = Material;
+		Surface->SetSurfaceMaterial(Material);
 		// An assigned asset must override both legacy rule and shape settings.
-		Surface->Accumulation.bEnabled = false;
-		Surface->AccumulationShape.Padding = 0;
+		FBreachAccumulationOptions LegacyOptions = Surface->GetLegacyAccumulation();
+		LegacyOptions.bEnabled = false;
+		Surface->SetLegacyAccumulation(LegacyOptions);
+		FBreachAccumulationShapeOptions LegacyShapeOptions = Surface->GetLegacyAccumulationShape();
+		LegacyShapeOptions.Padding = 0;
+		Surface->SetLegacyAccumulationShape(LegacyShapeOptions);
 		Surface->RegisterComponent();
 		return Surface;
 	};
@@ -73,7 +82,7 @@ bool FBreachSurfaceMaterialSharedTest::RunTest(const FString& Parameters)
 	UBreachSourceComponent* Source = NewObject<UBreachSourceComponent>(Weapon);
 	Source->RegisterComponent();
 	Source->BindCircle(0.7f, 16);
-	Source->AccumulationContribution = 0.6f;
+	Source->BreachDamage = 0.6f;
 	auto Trace = [World](UBreachableSurfaceComponent* Surface, double X, double Z, FHitResult& Hit)
 	{
 		if (!IsValid(Surface))
@@ -111,12 +120,12 @@ bool FBreachSurfaceMaterialSharedTest::RunTest(const FString& Parameters)
 	struct { bool ReturnValue = false; } ResetParameters;
 	SurfaceA->ProcessEvent(SurfaceA->FindFunctionChecked(TEXT("ResetSurface")), &ResetParameters);
 	TestTrue(TEXT("First wall resets"), ResetParameters.ReturnValue);
-	TestEqual(TEXT("Reset retains the shared material reference"), SurfaceA->SurfaceMaterial.Get(), Material);
+	TestEqual(TEXT("Reset retains the shared material reference"), SurfaceA->GetSurfaceMaterial(), Material);
 	TestEqual(TEXT("Reset leaves other wall's records intact"), SurfaceB->GetAccumulatedHitCount(), 1);
 	Shoot(SurfaceB, 8);
 	TestFalse(TEXT("Second wall can finish its own breach after first wall resets"), Trace(SurfaceB, 0, 8, Hit));
 	TestTrue(TEXT("Reset wall's collision stays intact"), Trace(SurfaceA, 0, 8, Hit));
-	TestEqual(TEXT("Gameplay preserves asset threshold"), Material->Accumulation.DamageThreshold, 1.f);
+	TestEqual(TEXT("Gameplay preserves asset threshold"), Material->Accumulation.BreachHP, 1.f);
 	TestEqual(TEXT("Gameplay preserves asset shape padding"), Material->AccumulationShape.Padding, 10.f);
 	World->DestroyWorld(false);
 	return !HasAnyErrors();

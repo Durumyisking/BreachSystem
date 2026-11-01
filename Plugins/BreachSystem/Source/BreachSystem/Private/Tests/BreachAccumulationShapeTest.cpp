@@ -2,7 +2,8 @@
 #include "Misc/AutomationTest.h"
 #include <limits>
 
-#if WITH_DEV_AUTOMATION_TESTS
+// 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachAccumulationShapeTest, "BreachSystem.Accumulation.Footprint",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
@@ -47,6 +48,19 @@ bool FBreachAccumulationShapeTest::RunTest(const FString& Parameters)
 	const TArray<FVector2d> Duplicate = {{5,7}, {5,7}, {5,7}};
 	TestTrue(TEXT("Coincident points still have area"), BreachAccumulationShape::GenerateBase(Duplicate, 10, Polygon, Error));
 	const TArray<FVector2d> Empty;
+	const TArray<FVector2d> Unordered = {{17, 3}, {-11, 9}, {4, -13}, {17, 3}, {-7, -2}};
+	FPolygon2d Canonical;
+	TestTrue(TEXT("Unordered footprint"), BreachAccumulationShape::GenerateBase(Unordered, 10, Canonical, Error));
+	for (int32 Offset = 1; Offset < Unordered.Num(); ++Offset)
+	{
+		TArray<FVector2d> Permuted;
+		for (int32 Index = 0; Index < Unordered.Num(); ++Index)
+		{
+			Permuted.Add(Unordered[(Offset + Unordered.Num() - Index) % Unordered.Num()]);
+		}
+		TestTrue(TEXT("Permuted footprint"), BreachAccumulationShape::GenerateBase(Permuted, 10, Polygon, Error));
+		TestTrue(TEXT("Same group has identical vertex order before contour noise"), Polygon.GetVertices() == Canonical.GetVertices());
+	}
 	TestFalse(TEXT("Empty cloud rejected"), BreachAccumulationShape::GenerateBase(Empty, 10, Polygon, Error));
 	TestEqual(TEXT("Failure clears previous output"), Polygon.VertexCount(), 0);
 	TestFalse(TEXT("Zero padding rejected"), BreachAccumulationShape::GenerateBase(Single, 0, Polygon, Error));

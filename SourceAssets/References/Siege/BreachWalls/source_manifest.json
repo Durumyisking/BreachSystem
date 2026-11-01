@@ -1,0 +1,149 @@
+{
+  "notice": "Local Siege reference extraction. Wall slab thickness and axis conversion are project-authored. Exact gameplay use, material semantics, cutter rules and decoration lifecycle are unverified. No destruction behavior is imported.",
+  "walls": [
+    {
+      "name": "SM_BreachableWall_ConcreteReference",
+      "obj": "SM_BreachableWall_ConcreteReference.obj",
+      "basecolor": "T_ConcreteReference_BaseColor.png",
+      "texture_index": 26,
+      "source_archive": "datapc64_pvp01_house_v3_mod.forge",
+      "owner_uid": "800020680F075952",
+      "owner_offset": 17236679,
+      "source_quad": [
+        [
+          0.0,
+          0.0,
+          -2.0999999046325684,
+          0.0
+        ],
+        [
+          -2.9802320611338473e-08,
+          -4.200000286102295,
+          2.0999999046325684,
+          -2.9802317058624794e-08
+        ],
+        [
+          2.999999523162842,
+          -4.200000286102295,
+          2.0999999046325684,
+          2.9999992847442627
+        ],
+        [
+          2.999999761581421,
+          0.0,
+          -2.0999999046325684,
+          2.999999523162842
+        ]
+      ],
+      "dimensions_cm": [
+        420.0000286102295,
+        2,
+        299.99997913837416
+      ],
+      "raw_owner": "Concrete_Owner_800020680F075952.bin",
+      "thickness_authored": true,
+      "identity": "material-linked planar surface candidate; not verified shootable wall"
+    },
+    {
+      "name": "SM_BreachableWall_WoodReference",
+      "obj": "SM_BreachableWall_WoodReference.obj",
+      "basecolor": "T_WoodReference_BaseColor.png",
+      "texture_index": 13,
+      "source_archive": "datapc64_pvp01_house_v3_mod.forge",
+      "owner_uid": "00000022E5E0C8B6",
+      "owner_offset": 12856925,
+      "source_quad": [
+        [
+          0.0,
+          -3.725290298461914e-09,
+          0.019823551177978516,
+          0.6942065358161926
+        ],
+        [
+          0.0,
+          1.4999998807907104,
+          1.5065851211547852,
+          0.6942066550254822
+        ],
+        [
+          -0.6803881525993347,
+          1.4999998807907104,
+          1.5065851211547852,
+          1.368589997291565
+        ],
+        [
+          -0.6803881525993347,
+          -3.725290298461914e-09,
+          0.019823551177978516,
+          1.3685898780822754
+        ]
+      ],
+      "dimensions_cm": [
+        149.99998845160007,
+        2,
+        68.03881525993347
+      ],
+      "raw_owner": "Wood_Owner_00000022E5E0C8B6.bin",
+      "thickness_authored": true,
+      "identity": "material-linked planar surface candidate; not verified shootable wall"
+    }
+  ],
+  "decoration_candidates": [],
+  "pattern_status": "No material-specific cutter vector data or damage thresholds have been decoded. Raw owner records are preserved as research data, not interpreted rules.",
+  "rejected_candidates": [
+    {
+      "texture_index": 92,
+      "binding_uid": "00000000B1F86E6E",
+      "name": "SM_DecoCandidate_00000005398520FA",
+      "obj": "SM_DecoCandidate_00000005398520FA.obj",
+      "basecolor": "T_DecoAtlasCandidate_92.png",
+      "geometry_uid": "00000005398520FA",
+      "archive": "datapc64_merged_set01_bnk_mesh.forge",
+      "vertices": 936,
+      "triangles": 492,
+      "role": "Unverified: no Cut/Feature-bound classification established",
+      "rejection_reason": "Source mesh preview identifies pool cue rack"
+    },
+    {
+      "texture_index": 85,
+      "binding_uid": "000000002A48E192",
+      "name": "SM_DecoCandidate_0000000539851563",
+      "obj": "SM_DecoCandidate_0000000539851563.obj",
+      "basecolor": "T_DecoAtlasCandidate_85.png",
+      "geometry_uid": "0000000539851563",
+      "archive": "datapc64_merged_set01_bnk_mesh.forge",
+      "vertices": 705,
+      "triangles": 682,
+      "role": "Unverified: no Cut/Feature-bound classification established",
+      "rejection_reason": "Source mesh preview identifies vegetation"
+    }
+  ],
+  "decoration_status": "No requested Cut or Feature-bound decoration assets identified. Material-linked false positives were removed after geometry preview.",
+  "project_asset_root": "/Game/BreachSystem/Reference/SiegeBreachWalls/Walls",
+  "files": {
+    "Concrete_Owner_800020680F075952.bin": {
+      "bytes": 2728,
+      "sha256": "fe1152a192413f9e5bd0bbcfc46b11c61bbd6949d59522033bc0412f9fd5a296"
+    },
+    "SM_BreachableWall_ConcreteReference.obj": {
+      "bytes": 967,
+      "sha256": "a7642abbcac314fddbbabd8c894b3497e57fea34cb2228c86b88d8573fd9b2e6"
+    },
+    "SM_BreachableWall_WoodReference.obj": {
+      "bytes": 997,
+      "sha256": "620ad73cfd338894578521e818fdabed810ddf6b490e0698217464b7ec06c04f"
+    },
+    "T_ConcreteReference_BaseColor.png": {
+      "bytes": 1859353,
+      "sha256": "8029ac3fce03eae84c965be454a1444b150bb2f5e13a9b8c1b6f2033bc40a080"
+    },
+    "T_WoodReference_BaseColor.png": {
+      "bytes": 31734,
+      "sha256": "6f5fe8c9a0f22f876bfeb355df17f23950d466f022673119c19a38faf371f08b"
+    },
+    "Wood_Owner_00000022E5E0C8B6.bin": {
+      "bytes": 153726,
+      "sha256": "925616ce936d416870da3cb421c407f4444ea487e4d3b619c8a4ac85818122ec"
+    }
+  }
+}

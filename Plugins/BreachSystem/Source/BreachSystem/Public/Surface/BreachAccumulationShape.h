@@ -20,6 +20,7 @@ struct BREACHSYSTEM_API FBreachAccumulationShapeOptions
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="0.1", Units="cm"))
 	float Padding = 10.f;
 
+	/** 누적 파손에서는 Seed 0도 재현 가능하도록 고정 기본 시드 1을 사용한다. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FBreachContourOptions Contour;
 };

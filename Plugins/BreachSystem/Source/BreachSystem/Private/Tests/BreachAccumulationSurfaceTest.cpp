@@ -8,8 +8,10 @@
 #include "GameFramework/Actor.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/AutomationTest.h"
+#include "Settings/BreachSystemSettings.h"
 
-#if WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR
+// 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 IMPLEMENT_COMPLEX_AUTOMATION_TEST(FBreachAccumulationSurfaceTest, "BreachSystem.Accumulation.Surface",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
@@ -25,6 +27,10 @@ void FBreachAccumulationSurfaceTest::GetTests(TArray<FString>& OutNames, TArray<
 
 bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 {
+	UBreachSystemSettings* Settings = GetMutableDefault<UBreachSystemSettings>();
+	if (!TestNotNull(TEXT("Global cell settings"), Settings)) return false;
+	// These legacy tests isolate window/padding rules; 10 cm quantization has separate coverage.
+	TGuardValue<float> CellSizeGuard(Settings->CellSizeCm, 0.1f);
 	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
 	if (!TestNotNull(TEXT("World fixture"), World))
 	{
@@ -44,16 +50,19 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 	Surface->SetWorldTransform(FTransform(FRotator(0, 35, 0), FVector(100, 200, 300), Scale));
 	Surface->RegisterComponent();
 	UBreachSurfaceMaterial* Material = NewObject<UBreachSurfaceMaterial>(World);
+	FBreachAccumulationOptions LegacyOptions = Surface->GetLegacyAccumulation();
+	FBreachAccumulationShapeOptions LegacyShapeOptions = Surface->GetLegacyAccumulationShape();
+	const bool bUseLegacySettings = Parameters == TEXT("LegacySettings");
 	FBreachAccumulationOptions* Options = &Material->Accumulation;
 	FBreachAccumulationShapeOptions* ShapeOptions = &Material->AccumulationShape;
-	if (Parameters == TEXT("LegacySettings"))
+	if (bUseLegacySettings)
 	{
-		Options = &Surface->Accumulation;
-		ShapeOptions = &Surface->AccumulationShape;
+		Options = &LegacyOptions;
+		ShapeOptions = &LegacyShapeOptions;
 	}
 	else
 	{
-		Surface->SurfaceMaterial = Material;
+		Surface->SetSurfaceMaterial(Material);
 	}
 	Options->WindowSize = FVector2D(44, 30);
 	ShapeOptions->Contour.bEnabled = false;
@@ -65,8 +74,8 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 	SourceB->RegisterComponent();
 	SourceA->BindCircle(0.7f, 16);
 	SourceB->BindCircle(0.7f, 16);
-	SourceA->AccumulationContribution = 0.17f;
-	SourceB->AccumulationContribution = 0.17f;
+	SourceA->BreachDamage = 0.17f;
+	SourceB->BreachDamage = 0.17f;
 
 	auto Trace = [World, Surface, Scale](double X, double Z, FHitResult& Hit)
 	{
@@ -75,8 +84,14 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 		return World->LineTraceSingleByChannel(Hit, Transform.TransformPosition(LocalPoint + FVector(0, -100, 0)),
 			Transform.TransformPosition(LocalPoint + FVector(0, 100, 0)), ECC_Visibility);
 	};
-	auto Shoot = [this, Wall, Trace](double X, AActor* Weapon)
+	auto Shoot = [this, Wall, Surface, Trace, bUseLegacySettings, Options, ShapeOptions](double X, AActor* Weapon)
 	{
+		if (bUseLegacySettings)
+		{
+			Surface->SetLegacyAccumulation(*Options);
+			Surface->SetLegacyAccumulationShape(*ShapeOptions);
+		}
+
 		FHitResult Hit;
 		if (TestTrue(TEXT("Shot strikes remaining wall material"), Trace(X, 0, Hit)))
 		{
@@ -181,18 +196,18 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("New series starts with one record"), Surface->GetAccumulatedHitCount(), 1);
 	Reset();
 	TestEqual(TEXT("Surface reset clears the spatial index"), Surface->GetAccumulatedHitCount(), 0);
-	SourceB->AccumulationContribution = 1.05f;
+	SourceB->BreachDamage = 1.05f;
 	Shoot(0, WeaponB);
 	TestFalse(TEXT("Single strong impact opens a large breach"), IsSolid(0, 8));
 	Reset();
 	Shoot(-20, WeaponA);
-	SourceB->AccumulationContribution = 0;
+	SourceB->BreachDamage = 0;
 	SourceB->BindBox(FVector2D(50, 30));
 	Shoot(0, WeaponB);
 	TestEqual(TEXT("Non-accumulating direct cutter retires removed damage"), Surface->GetAccumulatedHitCount(), 0);
 	Reset();
 	SourceB->BindCircle(0.7f, 16);
-	SourceB->AccumulationContribution = 1.05f;
+	SourceB->BreachDamage = 1.05f;
 	ShapeOptions->Padding = 0;
 	Shoot(0, WeaponB);
 	TestEqual(TEXT("Invalid large footprint preserves impact for accumulation"), Surface->GetAccumulatedHitCount(), 1);

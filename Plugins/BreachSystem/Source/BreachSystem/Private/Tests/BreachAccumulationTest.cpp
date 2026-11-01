@@ -1,7 +1,8 @@
 #include "Surface/BreachDamageAccumulator.h"
 #include "Misc/AutomationTest.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
+// 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 namespace
 {
 	UE::Geometry::FPolygon2d AccumulationBox(const UE::Geometry::FAxisAlignedBox2d& Bounds)
@@ -37,7 +38,7 @@ bool FBreachAccumulationSpatialTest::RunTest(const FString& Parameters)
 	}
 	TArray<FBreachAccumulationCandidate> Candidates;
 	FBreachAccumulationQueryStats Stats;
-	Accumulator.FindCandidates(LastID, Candidates, Stats);
+	Accumulator.FindCandidates(LastID, Candidates, &Stats);
 	TestEqual(TEXT("Six nearby records breach across negative bucket boundary"), Candidates.Num(), 1);
 	TestEqual(TEXT("Ten thousand distant records are never examined"), Stats.ExaminedRecords, 6);
 	TestTrue(TEXT("Full-window neighborhood visits at most nine cells"), Stats.VisitedCells <= 9);
@@ -48,7 +49,7 @@ bool FBreachAccumulationSpatialTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Non-positive contribution rejected"), Accumulator.AddHit(FVector2d::ZeroVector, 0, Error), INDEX_NONE);
 	Accumulator.Reset();
 	TestEqual(TEXT("Reset clears records and index"), Accumulator.Num(), 0);
-	Accumulator.FindCandidates(LastID, Candidates, Stats);
+	Accumulator.FindCandidates(LastID, Candidates, &Stats);
 	TestTrue(TEXT("Removed IDs cannot return stale candidates"), Candidates.IsEmpty());
 	return !HasAnyErrors();
 }
@@ -71,10 +72,10 @@ bool FBreachAccumulationWindowTest::RunTest(const FString& Parameters)
 	}
 	TArray<FBreachAccumulationCandidate> Candidates;
 	FBreachAccumulationQueryStats Stats;
-	Accumulator.FindCandidates(LastID, Candidates, Stats);
+	Accumulator.FindCandidates(LastID, Candidates, &Stats);
 	TestTrue(TEXT("Ten spread records are not one chain-connected breach"), Candidates.IsEmpty());
 	const int32 CenterID = Accumulator.AddHit(FVector2d::ZeroVector, 0.17, Error);
-	Accumulator.FindCandidates(CenterID, Candidates, Stats);
+	Accumulator.FindCandidates(CenterID, Candidates, &Stats);
 	if (TestEqual(TEXT("Central hit produces left and right candidates together"), Candidates.Num(), 2))
 	{
 		TestTrue(TEXT("Left window can use the central record"), Candidates[0].RecordIDs.Contains(CenterID));
@@ -93,18 +94,18 @@ bool FBreachAccumulationWindowTest::RunTest(const FString& Parameters)
 	Accumulator.Reset();
 	LastID = Accumulator.AddHit(FVector2d(0, 0), 0.6, Error);
 	LastID = Accumulator.AddHit(FVector2d(10, 0), 0.4, Error);
-	Accumulator.FindCandidates(LastID, Candidates, Stats);
+	Accumulator.FindCandidates(LastID, Candidates, &Stats);
 	TestEqual(TEXT("Different contribution weights add in one pool"), Candidates.Num(), 1);
 	Accumulator.Reset();
 	LastID = Accumulator.AddHit(FVector2d::ZeroVector, 1.05, Error);
-	Accumulator.FindCandidates(LastID, Candidates, Stats);
+	Accumulator.FindCandidates(LastID, Candidates, &Stats);
 	TestEqual(TEXT("Single strong impact breaches"), Candidates.Num(), 1);
 	Accumulator.Reset();
 	for (int32 Index = 0; Index < 6; ++Index)
 	{
 		LastID = Accumulator.AddHit(FVector2d(Index * 100, 0), 0.17, Error);
 	}
-	Accumulator.FindCandidates(LastID, Candidates, Stats);
+	Accumulator.FindCandidates(LastID, Candidates, &Stats);
 	TestTrue(TEXT("Far-apart impacts stay below local threshold"), Candidates.IsEmpty());
 	return !HasAnyErrors();
 }
@@ -125,7 +126,7 @@ bool FBreachAccumulationDenseTest::RunTest(const FString& Parameters)
 	}
 	TArray<FBreachAccumulationCandidate> Candidates;
 	FBreachAccumulationQueryStats Stats;
-	Accumulator.FindCandidates(LastID, Candidates, Stats);
+	Accumulator.FindCandidates(LastID, Candidates, &Stats);
 	TestEqual(TEXT("Dense group produces one complete window"), Candidates.Num(), 1);
 	TestTrue(TEXT("Window search does not rescan every record for every X/Y pair"),
 		Stats.MembershipEvaluations <= 8LL * Count * Count);
@@ -142,7 +143,7 @@ bool FBreachAccumulationDenseTest::RunTest(const FString& Parameters)
 	const double Right = Left + 0.1;
 	Accumulator.AddHit(FVector2d(Left, 0), 0.6, Error);
 	LastID = Accumulator.AddHit(FVector2d(Right, 0), 0.4, Error);
-	Accumulator.FindCandidates(LastID, Candidates, Stats);
+	Accumulator.FindCandidates(LastID, Candidates, &Stats);
 	if (TestEqual(TEXT("Recentering at a fractional boundary produces one candidate"), Candidates.Num(), 1))
 	{
 		TestEqual(TEXT("Boundary records stay in the qualifying window"), Candidates[0].RecordIDs.Num(), 2);
