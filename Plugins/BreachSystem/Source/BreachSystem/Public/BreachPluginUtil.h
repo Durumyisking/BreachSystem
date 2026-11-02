@@ -40,6 +40,7 @@ namespace BreachPluginUtil
 		0.633281491f, 0.654375232f, 0.678470093f, 0.706739411f, 0.741247950f, 0.786201995f, 0.852731103f, 1.000000000f,
 	};
 
+	/** 난수의 상위 8비트로 표를 조회해 [-1, 1]로 제한한 정규분포 표본을 반환한다. 전달된 난수 스트림을 진행시킨다. */
 	FORCEINLINE float SampleBoundedNormal(FRandomStream& Random)
 	{
 		// FRandomStream's low bits are poor; use the upper eight bits for the lookup.

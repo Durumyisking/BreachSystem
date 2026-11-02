@@ -36,6 +36,11 @@
 - Treat `UPROPERTY`, `UFUNCTION`, reflected enum/struct, class path, category, and metadata changes as asset-contract changes and inspect affected assets.
 - Use `BlueprintNativeEvent` only when authored override behavior is intended, not as a default extension mechanism.
 
+## Test-Only Code
+- 테스트 검증만을 위한 필드, 함수, 보조 코드, 통계 수집에는 `테스트 전용` 주석과 검증 목적을 명시한다. 런타임 동작에 필요한 코드와 구분한다.
+- 자동화 테스트와 그 전용 데이터·수집·호출 코드는 `#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS`로 감싸 Editor 자동화 테스트 빌드에서만 컴파일한다. 테스트의 `EditorContext` 플래그만으로 컴파일 범위를 제한했다고 간주하지 않는다.
+- 일반 Editor 코드에는 `WITH_EDITOR`, 리플렉션되는 Editor 전용 데이터에는 `WITH_EDITORONLY_DATA`를 용도에 맞게 사용한다. 테스트 검증을 위해 게임·클라이언트·서버 빌드에 저장 공간이나 실행 비용을 추가하지 않는다.
+
 ## Verification
 - Compile with the established project-owned command; never invent a direct Engine/UBT command.
 - Run the smallest relevant automation test after the build.

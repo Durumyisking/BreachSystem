@@ -2,7 +2,8 @@
 #include "Curve/GeneralPolygon2.h"
 #include "Misc/AutomationTest.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
+// 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachShapePolygonTest, "BreachSystem.Shape.PolygonOptions",
 	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)

@@ -9,7 +9,8 @@
 #include "HAL/FileManager.h"
 #include <limits>
 
-#if WITH_DEV_AUTOMATION_TESTS
+// 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 namespace
 {
 	using namespace UE::Geometry;

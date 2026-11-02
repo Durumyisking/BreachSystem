@@ -9,12 +9,14 @@ DECLARE_LOG_CATEGORY_EXTERN(LogBS, All, All);
 
 namespace BSLog
 {
+	/** 스레드 안전 카운터를 증가시키고 로그 순번을 반환한다. */
 	inline int32 NextIndex()
 	{
 		static FThreadSafeCounter Counter;
 		return Counter.Increment();
 	}
 
+	/** 새 순번·현재 로컬 시각·호출 함수명을 묶어 로그 접두사를 만든다. */
 	inline FString BuildPrefix(const TCHAR* InCallInfo)
 	{
 		const FDateTime Now = FDateTime::Now();

@@ -13,7 +13,8 @@
 #include "StaticMeshResources.h"
 #include "VectorUtil.h"
 
-#if WITH_DEV_AUTOMATION_TESTS && WITH_EDITOR
+// 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
