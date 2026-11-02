@@ -286,6 +286,7 @@ bool UBreachableSurfaceComponent::PrepareSurface(UE::Geometry::FDynamicMesh3& Ou
 		return false;
 	}
 
+	// 생성 및 메시 설정 가져오기
 	DynamicMeshProxy = NewObject<UBreachSurfaceProxy>(Owner);
 	DynamicMeshProxy->SetSurface(this);
 	DynamicMeshProxy->SetupAttachment(this);
@@ -296,7 +297,11 @@ bool UBreachableSurfaceComponent::PrepareSurface(UE::Geometry::FDynamicMesh3& Ou
 	DynamicMeshProxy->SetCollisionResponseToChannels(GetCollisionResponseToChannels());
 	DynamicMeshProxy->ConfigureMaterialSet(Materials);
 	DynamicMeshProxy->SetTangentsType(EDynamicMeshComponentTangentsMode::ExternallyProvided);
+
+	// 추가 설정
 	DynamicMeshProxy->SetComplexAsSimpleCollisionEnabled(true, false);
+	DynamicMeshProxy->CollisionType = CTF_UseSimpleAndComplex; // Simple, Complex둘 다 쓸거임!
+
 	SurfaceState = MoveTemp(InitialState);
 
 	// 한 표면의 수명 동안 같은 전역 규격과 -Y 면 UV 기준을 사용한다.
@@ -463,6 +468,8 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 				RemoveHitsInside(Cutter.GetOuter());
 			}
 		}
+
+		// Here
 
 		const bool bUpdated = UpdateMesh(MoveTemp(Mesh));
 		if (!bUpdated)

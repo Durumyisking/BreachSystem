@@ -593,6 +593,174 @@
                   "eState": "{}"
                 },
                 {
+                  "title": "00. 임시메모장",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/00. 임시메모장.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"00. 임시메모장\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":3,\"ch\":0},\"to\":{\"line\":3,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "FPS Dedicated Server 환경으로 변경",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/FPS Dedicated Server 환경으로 변경.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"FPS Dedicated Server 환경으로 변경\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "Convex vs Concave",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/Convex vs Concave.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"Convex vs Concave\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "FPS Dedicated Server 환경으로 변경",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/FPS Dedicated Server 환경으로 변경.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"FPS Dedicated Server 환경으로 변경\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "StaticMesh에서 DynamicMesh변환",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/StaticMesh에서 DynamicMesh변환.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"StaticMesh에서 DynamicMesh변환\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "StaticMesh vs DynamicMesh",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/StaticMesh vs DynamicMesh.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"StaticMesh vs DynamicMesh\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "R6 분석",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/R6 분석.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"R6 분석\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-11-02 11. 브리칭, 이동 충돌체 분리",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-11-02 11. 브리칭, 이동 충돌체 분리.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-11-02 11. 브리칭, 이동 충돌체 분리\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":45,\"ch\":13},\"to\":{\"line\":45,\"ch\":13}},\"scroll\":38.584635416666664}"
+                },
+                {
+                  "title": "충돌 계산 최적화",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/충돌 계산 최적화.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"충돌 계산 최적화\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":3.674626865671642}"
+                },
+                {
+                  "title": "2026-11-02 11. 브리칭, 이동 충돌체 분리",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-11-02 11. 브리칭, 이동 충돌체 분리.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-11-02 11. 브리칭, 이동 충돌체 분리\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":36,\"ch\":43},\"to\":{\"line\":36,\"ch\":43}},\"scroll\":29.088638761871263}"
+                },
+                {
+                  "title": "충돌 계산 최적화",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/충돌 계산 최적화.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"충돌 계산 최적화\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":3,\"ch\":0},\"to\":{\"line\":3,\"ch\":0}},\"scroll\":3.0776119402985076}"
+                },
+                {
+                  "title": "2026-11-02 11. 브리칭, 이동 충돌체 분리",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-11-02 11. 브리칭, 이동 충돌체 분리.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-11-02 11. 브리칭, 이동 충돌체 분리\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":35,\"ch\":27},\"to\":{\"line\":35,\"ch\":27}},\"scroll\":25.573074494949495}"
+                },
+                {
+                  "title": "충돌 계산 최적화",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/충돌 계산 최적화.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"충돌 계산 최적화\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":3.0776119402985076}"
+                },
+                {
+                  "title": "2026-11-02 11. 브리칭, 이동 충돌체 분리",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-11-02 11. 브리칭, 이동 충돌체 분리.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-11-02 11. 브리칭, 이동 충돌체 분리\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":35,\"ch\":17},\"to\":{\"line\":35,\"ch\":17}},\"scroll\":25.06802398989899}"
+                },
+                {
+                  "title": "충돌 계산 최적화",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/충돌 계산 최적화.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"충돌 계산 최적화\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":3,\"ch\":36},\"to\":{\"line\":3,\"ch\":36}},\"scroll\":0}"
+                },
+                {
+                  "title": "삼각분할 함수 분석",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/삼각분할 함수 분석.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"삼각분할 함수 분석\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "메시의 Hit 지점 알아내기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/메시의 Hit 지점 알아내기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"메시의 Hit 지점 알아내기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "메시에 구멍뚫기",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/메시에 구멍뚫기.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"메시에 구멍뚫기\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-11-02 11. 브리칭, 이동 충돌체 분리",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-11-02 11. 브리칭, 이동 충돌체 분리.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-11-02 11. 충돌체 분리\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-23 8. 복잡한 다각형 브리칭",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 8. 복잡한 다각형 브리칭\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-23 9. 공간적 피해 누적",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-23 9. 공간적 피해 누적.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-23 9. 공간적 피해 누적\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-10-29 10. 결정적 브리칭 구조",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-29 10. 결정적 브리칭 구조.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-29 10. 결정적 브리칭 구조\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}},\"scroll\":58.079819277108435}"
+                },
+                {
+                  "title": "2026-11-02 11. 브리칭, 이동 충돌체 분리",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-11-02 11. 브리칭, 이동 충돌체 분리.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-11-02 11. 충돌체 분리\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":32,\"ch\":0},\"to\":{\"line\":32,\"ch\":0}},\"scroll\":17.278227224762574}"
+                },
+                {
+                  "title": "2026-10-29 10. 결정적 브리칭 구조",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-29 10. 결정적 브리칭 구조.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-29 10. 결정적 브리칭 구조\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "멀티스레드, ComputeShader방식 폴리곤 절단 고찰",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"멀티스레드, ComputeShader방식 폴리곤 절단 고찰\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":9,\"ch\":8},\"to\":{\"line\":9,\"ch\":8}},\"scroll\":0}"
+                },
+                {
+                  "title": "Convex vs Concave",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/Convex vs Concave.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"Convex vs Concave\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "멀티스레드, ComputeShader방식 폴리곤 절단 고찰",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"멀티스레드, ComputeShader방식 폴리곤 절단 고찰\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "2026-10-29 10. 결정적 브리칭 구조",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-10-29 10. 결정적 브리칭 구조.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-10-29 10. 결정적 브리칭 구조\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
                   "title": "멀티스레드, ComputeShader방식 폴리곤 절단 고찰",
                   "icon": "lucide-file",
                   "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"멀티스레드, ComputeShader방식 폴리곤 절단 고찰\"}",
@@ -753,12 +921,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "개발노트/2026-10-29 10. 결정적 브리칭 구조.md",
+                "file": "개발노트/2026-11-02 11. 브리칭, 이동 충돌체 분리.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "2026-10-29 10. 결정적 브리칭 구조"
+              "title": "2026-11-02 11. 브리칭, 이동 충돌체 분리"
             }
           }
         ],
@@ -1005,31 +1173,37 @@
   },
   "active": "9cd7fce626909e9b",
   "lastOpenFiles": [
-    "2026-11-01 19-25-46.mkv",
-    "Pasted image 20261101192316.png",
-    "Pasted image 20261101192251.png",
-    "Pasted image 20261101182717.png",
-    "Pasted image 20261101182712.png",
-    "Pasted image 20261101182707.png",
-    "Pasted image 20261101182623.png",
-    "Pasted image 20261101182611.png",
-    "Pasted image 20261101182550.png",
-    "Pasted image 20261101182537.png",
-    "Pasted image 20261101182521.png",
-    "개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md",
-    "개발노트/2026-10-29 10. 결정적 브리칭 구조.md",
-    "개발노트/2026-10-23 9. 공간적 피해 누적.md",
-    "개발노트/삼각분할 함수 분석.md",
+    "Pasted image 20261102203246.png",
+    "개발노트/00. 임시메모장.md",
+    "Pasted image 20261102202327.png",
     "개발노트/FPS Dedicated Server 환경으로 변경.md",
     "개발노트/Convex vs Concave.md",
-    "개발노트/충돌 계산 최적화.md",
-    "영상/이슈 - 메시 컷 프레임 드랍.mkv",
-    "개발노트/메시에 구멍뚫기.md",
+    "개발노트/StaticMesh에서 DynamicMesh변환.md",
+    "개발노트/StaticMesh vs DynamicMesh.md",
     "개발노트/R6 분석.md",
+    "개발노트/2026-11-02 11. 브리칭, 이동 충돌체 분리.md",
+    "Pasted image 20261102202052.png",
+    "Pasted image 20261102201942.png",
+    "Pasted image 20261102201837.png",
+    "Pasted image 20261102201424.png",
+    "개발노트/충돌 계산 최적화.md",
+    "Pasted image 20261102201417.png",
+    "개발노트/삼각분할 함수 분석.md",
+    "개발노트/메시의 Hit 지점 알아내기.md",
+    "개발노트/메시에 구멍뚫기.md",
     "개발노트/2026-10-23 8. 복잡한 다각형 브리칭.md",
+    "개발노트/2026-10-23 9. 공간적 피해 누적.md",
+    "개발노트/2026-10-29 10. 결정적 브리칭 구조.md",
+    "Pasted image 20261102200856.png",
+    "Pasted image 20261102200636.png",
+    "Pasted image 20261102200326.png",
+    "개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md",
+    "개발노트/Dedicated Server 환경으로 변경.md",
+    "2026-11-01 19-25-46.mkv",
+    "Pasted image 20261101192316.png",
+    "영상/이슈 - 메시 컷 프레임 드랍.mkv",
     "개발노트/2026-10-14 6. 2D 폴리곤 to 3D 메시.md",
     "개발노트/2026-10-18 7. 고립 폴리곤 제거.md",
-    "개발노트/StaticMesh vs DynamicMesh.md",
     "2026-10-22 8. 물리 형상 변형 기준 반영하기.md",
     "Research/R6-Destruction-Guide-2026-10-22/video-study/R6-Destruction-Video-Study.pdf",
     "Research/R6-Destruction-Guide-2026-10-22/video-study/print-study.html",
@@ -1039,18 +1213,12 @@
     "Research/R6-Destruction-Guide-2026-10-22/video-study/qa/viewer-check.js",
     "Research/R6-Destruction-Guide-2026-10-22/video-study/qa/server-error.log",
     "Research/R6-Destruction-Guide-2026-10-22/video-study/qa/server.log",
-    "Research/R6-Destruction-Guide-2026-10-22/video-study/capture-manifest.json",
     "개발노트/2026-10-10 Chaos Destruction 브리칭.md",
     "개발노트/2026-10-11 브리칭 방식 변경.md",
     "개발노트/2026-09-29 브리칭 1차 완성.md",
     "개발노트/2026-10-12 1. 사각형 벽 데이터 캐시.md",
     "개발노트/2026-10-13 3. 맞은 곳 주변에 절단용 다각형 만들기.md",
     "개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md",
-    "개발노트/2026-10-13 4. 2D 폴리곤 절단.md",
-    "개발노트/2026-10-14 5. 2D 폴리곤 삼각분할.md",
-    "개발노트/Convex Hull이란.md",
-    "개발노트/메시의 Hit 지점 알아내기.md",
-    "개발노트/StaticMesh에서 DynamicMesh변환.md",
     "무제.canvas"
   ]
 }

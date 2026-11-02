@@ -9,16 +9,19 @@
 bool AHitScanWeapon::FireShot(FHitResult& OutHitResult, const FVector& InTraceStart, const FVector& InShotDirection)
 {
 	const FVector TraceEnd = InTraceStart + InShotDirection * TraceRange;
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(HitScanWeapon), true);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(HitScanWeapon), true); // true = Complex 사용하겠다.
 	QueryParams.AddIgnoredActor(this);
 	QueryParams.AddIgnoredActor(GetOwner());
 
 	// Projectile object channel defined in DefaultEngine.ini; use the target's response to it.
-	constexpr ECollisionChannel ShotChannel = ECC_GameTraceChannel1;
+	constexpr ECollisionChannel ShotChannel = ECC_Visibility;
+
+	// 총알크기에 따라서 LineTrace, Sweep결정한다.
 	const bool bBlockingHit = TraceRadius > 0.0f
 		? GetWorld()->SweepSingleByChannel(OutHitResult, InTraceStart, TraceEnd, FQuat::Identity,
 			ShotChannel, FCollisionShape::MakeSphere(TraceRadius), QueryParams)
 		: GetWorld()->LineTraceSingleByChannel(OutHitResult, InTraceStart, TraceEnd, ShotChannel, QueryParams);
+
 //#if ENABLE_DRAW_DEBUG
 //	if (TraceRadius > 0.0f)
 //	{
