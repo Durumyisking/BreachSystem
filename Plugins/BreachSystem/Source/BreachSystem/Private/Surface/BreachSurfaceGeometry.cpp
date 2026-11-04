@@ -48,6 +48,7 @@ UE::Geometry::FGeneralPolygon2d BreachSurfaceGeometry::MakeRoughCircleCutter(con
 
 
 
+#if WITH_EDITOR
 void BreachSurfaceGeometry::DebugDrawPolygon2ds(UObject* InWorldContext, const FTransform& InTransform, TArray<FGeneralPolygon2d> InGeneralPolygon2ds)
 {
     if (!InWorldContext)
@@ -92,6 +93,8 @@ void BreachSurfaceGeometry::DebugDrawPolygon2d(UObject* InWorldContext, const FT
     }
 }
 
+
+#endif
 
 FVector2D BreachSurfaceGeometry::WorldToSurface(const FTransform& InTransform, const FVector& InWorldPoint)
 {

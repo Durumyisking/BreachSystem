@@ -18,6 +18,15 @@ namespace UE::Geometry { class FDynamicMesh3; }
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBreachedDelegate, const FHitResult&, HitInfo, UPrimitiveComponent*, BreachedMesh);
 
+// 벽의 로컬 XZ 위치를 텍스처 UV로 바꾸는 규칙을 저장하는 구조체
+// UV = Offset + X * PerX + Z * PerZ;
+struct FPlanarUVMapping
+{
+	FVector2d Offset; // X=0, Z=0에서의 UV
+	FVector2d PerX;   // X가 1 증가할 때 UV 변화량
+	FVector2d PerZ;   // Z가 1 증가할 때 UV 변화량
+};
+
 /** 원본 StaticMesh 또는 입력한 치수로 초기화하는 사각형 파괴 표면. */
 UCLASS(ClassGroup=(Breach), meta=(BlueprintSpawnableComponent))
 class BREACHSYSTEM_API UBreachableSurfaceComponent : public UStaticMeshComponent
@@ -31,8 +40,7 @@ public:
 	UBreachableSurfaceComponent();
 
 #if WITH_EDITOR
-	/** 표면 파손 설정의 정점 간격 캐시를 갱신한다. */
-	virtual void PostLoad() override;
+	/** 원본 표시 캐시를 무효화한다. */
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
@@ -55,8 +63,10 @@ public:
 	 */
 	bool ApplyCutterPolygon(const UE::Geometry::FPolygon2d& Cutter);
 
+#if WITH_EDITOR
 	/** 실제 격자와 원본 경계를 조회한다. Proxy 생성이나 표면 변경은 하지 않는다. */
 	bool GetCellGridForDebug(FBreachCellGrid& OutGrid, UE::Geometry::FAxisAlignedBox2d& OutLocalBounds, FVector2d& OutDepthRange) const;
+#endif
 
 protected:
 	 /** 원본을 읽고 표면 상태와 미등록 Proxy를 준비한다. 메시와 충돌은 아직 반영하지 않는다. */
@@ -66,8 +76,10 @@ protected:
 	UFUNCTION(BlueprintCallable, Category="Breach")
 	bool ResetSurface();
 
+#if WITH_EDITOR
 	/** 남은 표면 영역의 외곽선은 녹색, 구멍 경계는 빨간색으로 월드에 표시한다. */
 	void DebugDrawSurface();
+#endif
 
 private:
 	/** 절단 결과를 계산한다. 성공한 표면 상태와 메시만 보관하고 실제 반영은 미룬다. */
@@ -76,7 +88,7 @@ private:
 	/** 최종 메시와 충돌을 반영하고, 첫 갱신이면 원본에서 Proxy로 표시와 충돌을 전환한다. */
 	bool UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh);
 
-	/** 총알 커터를 만들고 절단을 계산한다. 실패하면 기본 커터로 재시도한다. */
+	/** 총알 커터로 절단하고, 실패하면 모양이 다른 기본 커터로만 재시도한다. */
 	bool ApplyDirectCut(UBreachSourceComponent* Source, const FVector& ImpactPoint, UE::Geometry::FGeneralPolygon2d& InOutCutter,
 		UE::Geometry::FDynamicMesh3& OutMesh);
 
@@ -101,16 +113,9 @@ public:
 	FOnBreachedDelegate OnBreachedDelegate;
 
 private:
-	/** 미지정 시 기존 에셋에 저장된 누적 파괴 설정을 사용한다. */
+	/** 공유 누적 파괴 규칙. 미지정 시 직접 절단만 적용한다. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Breach", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UBreachSurfaceMaterial> SurfaceMaterial;
-
-	/** 기존 에셋과 Blueprint의 호환용. 새 설정은 SurfaceMaterial에서 편집한다. */
-	UPROPERTY(BlueprintReadWrite, Category="Breach|Accumulation", meta=(AllowPrivateAccess="true", DeprecatedProperty, DeprecationMessage="Assign a SurfaceMaterial asset instead."))
-	FBreachAccumulationOptions Accumulation;
-
-	UPROPERTY(BlueprintReadWrite, Category="Breach|Accumulation", meta=(AllowPrivateAccess="true", DeprecatedProperty, DeprecationMessage="Assign a SurfaceMaterial asset instead."))
-	FBreachAccumulationShapeOptions AccumulationShape;
 
 	// 표면별 누적 피해 상태
 	FBreachDamageAccumulator DamageAccumulator;
@@ -118,19 +123,12 @@ private:
 	FBreachCellGrid CellGrid;
 	double CapturedCellSize = 0;
 
-	// 벽의 로컬 XZ 위치를 텍스처 UV로 바꾸는 규칙을 저장하는 구조체
-	// UV = Offset + X * PerX + Z * PerZ;
-	struct FPlanarUVMapping
-	{
-		FVector2d Offset; // X=0, Z=0에서의 UV
-		FVector2d PerX;   // X가 1 증가할 때 UV 변화량
-		FVector2d PerZ;   // Z가 1 증가할 때 UV 변화량
-	};
 	FPlanarUVMapping SurfaceUVs[2]; // -Y 면, +Y 면 순서
 
 	/** 초기화와 표시 조회가 동일한 LOD0/UV 검증을 사용한다. 원본은 수정하지 않는다. */
 	bool ReadSourceSurface(UE::Geometry::FDynamicMesh3& Mesh, FPlanarUVMapping (&OutUVs)[2]) const;
 
+#if WITH_EDITOR
 	// 표시용 원본 캐시. 런타임 파손 상태를 생성하거나 변경하지 않는다.
 	mutable TWeakObjectPtr<UStaticMesh> DebugSourceMesh;
 	mutable const void* DebugRenderData = nullptr;
@@ -138,6 +136,7 @@ private:
 	mutable FPlanarUVMapping DebugUVs[2];
 	mutable UE::Geometry::FAxisAlignedBox2d DebugBounds;
 	mutable FVector2d DebugDepth = FVector2d::ZeroVector;
+#endif
 
 	// Proxy 수명과 원본 표시·충돌 복원 상태
 	UPROPERTY(Transient)
@@ -147,12 +146,13 @@ private:
 	bool bOriginalVisible = true;
 	bool bOriginalHiddenInGame = false;
 
-	// 원본 경계와 절단 후 남은 영역
+	// 원본 경계와 절단 후 남은 영역 // 지워도 될듯하다.
 	UE::Geometry::FPolygon2d OriginalOuter;
 	TArray<FVector2d> OriginalVertices;
 	UE::Geometry::FAxisAlignedBox2d OriginBounds;
 	FVector2d OriginalDepthRange = FVector2d::ZeroVector;
 
+	// 현재 표면상태 (필수)
 	FBreachSurfaceState SurfaceState;
 
 public:
@@ -160,27 +160,6 @@ public:
 
 	UBreachSurfaceMaterial* GetSurfaceMaterial() const;
 	void SetSurfaceMaterial(UBreachSurfaceMaterial* InSurfaceMaterial);
-
-	/** SurfaceMaterial이 없을 때 사용하는 호환 설정이다. */
-	const FBreachAccumulationOptions& GetLegacyAccumulation() const
-	{
-		return Accumulation;
-	}
-
-	void SetLegacyAccumulation(const FBreachAccumulationOptions& InAccumulation)
-	{
-		Accumulation = InAccumulation;
-	}
-
-	const FBreachAccumulationShapeOptions& GetLegacyAccumulationShape() const
-	{
-		return AccumulationShape;
-	}
-
-	void SetLegacyAccumulationShape(const FBreachAccumulationShapeOptions& InAccumulationShape)
-	{
-		AccumulationShape = InAccumulationShape;
-	}
 
 	/** 아직 제거되지 않은 누적 피해 기록 수를 반환한다. 총 피격 횟수와는 다르다. */
 	int32 GetAccumulatedHitCount() const

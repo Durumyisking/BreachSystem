@@ -17,7 +17,14 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category="Grid", meta=(DisplayName="Cell Size", ClampMin="0.1", Units="cm"))
 	float CellSizeCm = 10.f;
 
+	UPROPERTY(Config, EditAnywhere, Category = "Grid", meta = (DisplayName = "Complex Hole Size Threshold", ClampMin = "0.1", Units = "cm"))
+	double ComplexHoleSizeThreshold = 500.f;
+
 	/** 전역 셀 크기를 읽는다. 잘못된 Config 값은 경고를 남기고 기본값 10cm를 반환한다. */
 	UFUNCTION(BlueprintPure, Category="Breach|Settings", meta=(DisplayName="Get Breach Cell Size (cm)"))
 	static float GetCellSizeCm();
+
+	UFUNCTION(BlueprintPure, Category = "Breach|Settings", meta = (DisplayName = "Complex Hole Size Threshold (cm)"))
+	static double GetComplexHoleSizeThreshold();
+
 };

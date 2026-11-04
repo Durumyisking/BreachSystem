@@ -66,13 +66,6 @@ bool FBreachSurfaceMaterialSharedTest::RunTest(const FString& Parameters)
 		Surface->SetStaticMesh(Cube);
 		Surface->SetWorldLocation(FVector(Offset, 0, 0));
 		Surface->SetSurfaceMaterial(Material);
-		// An assigned asset must override both legacy rule and shape settings.
-		FBreachAccumulationOptions LegacyOptions = Surface->GetLegacyAccumulation();
-		LegacyOptions.bEnabled = false;
-		Surface->SetLegacyAccumulation(LegacyOptions);
-		FBreachAccumulationShapeOptions LegacyShapeOptions = Surface->GetLegacyAccumulationShape();
-		LegacyShapeOptions.Padding = 0;
-		Surface->SetLegacyAccumulationShape(LegacyShapeOptions);
 		Surface->RegisterComponent();
 		return Surface;
 	};
@@ -127,6 +120,13 @@ bool FBreachSurfaceMaterialSharedTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Reset wall's collision stays intact"), Trace(SurfaceA, 0, 8, Hit));
 	TestEqual(TEXT("Gameplay preserves asset threshold"), Material->Accumulation.BreachHP, 1.f);
 	TestEqual(TEXT("Gameplay preserves asset shape padding"), Material->AccumulationShape.Padding, 10.f);
+	SurfaceA->SetSurfaceMaterial(nullptr);
+	Source->BreachDamage = 2.f;
+	Shoot(SurfaceA, -8);
+	Shoot(SurfaceA, 8);
+	TestEqual(TEXT("Missing material records no accumulation even for strong impacts"), SurfaceA->GetAccumulatedHitCount(), 0);
+	TestFalse(TEXT("Missing material still permits direct bullet holes"), Trace(SurfaceA, -8, 0, Hit));
+	TestTrue(TEXT("Missing material does not open an accumulated breach"), Trace(SurfaceA, 0, 8, Hit));
 	World->DestroyWorld(false);
 	return !HasAnyErrors();
 }

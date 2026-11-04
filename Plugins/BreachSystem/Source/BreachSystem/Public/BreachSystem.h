@@ -5,7 +5,9 @@
 #include "Modules/ModuleManager.h"
 #include "Templates/UniquePtr.h"
 
+#if WITH_EDITOR
 class FBreachCellDebug;
+#endif
 
 class FBreachSystemModule : public IModuleInterface
 {
@@ -19,5 +21,7 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
+#if WITH_EDITOR
 	TUniquePtr<FBreachCellDebug> CellDebug;
+#endif
 };

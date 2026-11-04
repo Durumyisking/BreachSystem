@@ -14,10 +14,12 @@ namespace BreachSurfaceGeometry
 	/** 원형 정점을 반경 방향으로 ±Roughness만큼 무작위 이동한다. Seed -1은 새 난수, 나머지는 재현 가능한 시드로 사용한다. */
 	FGeneralPolygon2d MakeRoughCircleCutter(const FVector2d& Center, double Radius, int32 Segments, double Roughness, int32 Seed);
 
+#if WITH_EDITOR
 	/** 로컬 XZ 영역들을 월드에 그린다. 외곽은 녹색, 구멍은 빨간색이며, 유효한 월드가 없으면 생략한다. */
 	void DebugDrawPolygon2ds(UObject* InWorldContext, const FTransform& InTransform, TArray<FGeneralPolygon2d> InGeneralPolygon2ds);
 	/** 다각형의 외곽선만 지정 색상으로 2초간 그린다. 로컬 Y=0 평면을 사용하며, 유효한 월드가 없으면 생략한다. */
 	void DebugDrawPolygon2d(UObject* InWorldContext, const FTransform& InTransform, FGeneralPolygon2d InGeneralPolygon2d, const FColor& InColor = FColor::Green);
+#endif
 
 	/** 월드 위치를 역변환한 뒤 로컬 XZ만 추출한다. 표면 두께 방향인 Y 좌표는 버린다. */
 	FVector2D WorldToSurface(const FTransform& InTransform, const FVector& InWorldPoint);

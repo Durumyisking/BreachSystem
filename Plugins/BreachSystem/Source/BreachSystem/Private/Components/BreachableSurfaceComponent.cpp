@@ -19,7 +19,9 @@
 
 #include "BreachSystemLog.h"
 
+#if WITH_EDITOR
 #include "Components/LineBatchComponent.h"
+#endif
 
 #include "Surface/BreachSurfaceGeometry.h"
 #include "Curve/PolygonIntersectionUtils.h"
@@ -29,8 +31,11 @@
 
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 
+#include "PhysicsEngine/AggregateGeom.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogBreachableSurface, Log, All);
 
+#if WITH_EDITOR
 bool UBreachableSurfaceComponent::GetCellGridForDebug(FBreachCellGrid& OutGrid, UE::Geometry::FAxisAlignedBox2d& OutLocalBounds, FVector2d& OutDepthRange) const
 {
 	OutGrid = FBreachCellGrid();
@@ -73,6 +78,7 @@ bool UBreachableSurfaceComponent::GetCellGridForDebug(FBreachCellGrid& OutGrid, 
 	return OutGrid.Configure(DebugUVs[0].Offset, DebugUVs[0].PerX, DebugUVs[0].PerZ,
 		MetricScale, UBreachSystemSettings::GetCellSizeCm(), Error);
 }
+#endif
 
 UBreachableSurfaceComponent::UBreachableSurfaceComponent()
 {
@@ -81,15 +87,8 @@ UBreachableSurfaceComponent::UBreachableSurfaceComponent()
 }
 
 #if WITH_EDITOR
-void UBreachableSurfaceComponent::PostLoad()
-{
-	Super::PostLoad();
-	AccumulationShape.Contour.CacheJitterInterval();
-}
-
 void UBreachableSurfaceComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	AccumulationShape.Contour.CacheJitterInterval();
 	DebugSourceMesh.Reset();
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -299,7 +298,8 @@ bool UBreachableSurfaceComponent::PrepareSurface(UE::Geometry::FDynamicMesh3& Ou
 	DynamicMeshProxy->SetTangentsType(EDynamicMeshComponentTangentsMode::ExternallyProvided);
 
 	// 추가 설정
-	DynamicMeshProxy->SetComplexAsSimpleCollisionEnabled(true, false);
+	//SetComplexAsSimpleCollisionEnabled(true, false); // InValidatePhysics 함수 호출해야하면 이거 사용 후 CTF변경한다.
+	DynamicMeshProxy->bEnableComplexCollision = true;
 	DynamicMeshProxy->CollisionType = CTF_UseSimpleAndComplex; // Simple, Complex둘 다 쓸거임!
 
 	SurfaceState = MoveTemp(InitialState);
@@ -331,22 +331,21 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh)
 		return false;
 	}
 
-	const bool bFirstUpdate = !DynamicMeshProxy->IsRegistered();
+	// 등록전에 메시를 갱신한다. (등록을 먼저하면 갱신 전 내용으로 충돌처리 할 수 있음)
 	DynamicMeshProxy->SetMesh(MoveTemp(Mesh));
-	if (bFirstUpdate)
+	DynamicMeshProxy->UpdateCollision();
+	
+	// 컴포넌트 등록 안되어있으면 등록
+	if (!DynamicMeshProxy->IsRegistered())
 	{
 		DynamicMeshProxy->RegisterComponent();
-	}
-	DynamicMeshProxy->UpdateCollision();
-
-	if (bFirstUpdate)
-	{
 		SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		SetVisibility(false, false);
 		DynamicMeshProxy->SetCollisionEnabled(OriginalCollisionEnabled);
 		DynamicMeshProxy->SetVisibility(bOriginalVisible, false);
 		DynamicMeshProxy->SetHiddenInGame(bOriginalHiddenInGame, false);
 	}
+
 	return true;
 }
 
@@ -357,7 +356,9 @@ bool UBreachableSurfaceComponent::ResetSurface()
 	CachedMeshScaleXZ = FVector2d::ZeroVector;
 	CellGrid = FBreachCellGrid();
 	CapturedCellSize = 0;
+#if WITH_EDITOR
 	DebugSourceMesh.Reset();
+#endif
 
 	if (IsValid(DynamicMeshProxy))
 	{
@@ -409,17 +410,16 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 
 		const FPointDamageEvent& PointDamage = static_cast<const FPointDamageEvent&>(DamageEvent);
 
-		// 설정 선택: 지정된 Material을 우선하고, 없으면 기존 컴포넌트 설정을 사용한다.
-		const FBreachAccumulationOptions* AccumulationOptions = &Accumulation;
-		const FBreachAccumulationShapeOptions* ShapeOptions = &AccumulationShape;
-		if (IsValid(SurfaceMaterial))
+		// 누적 규칙은 Material에서만 읽는다. 미지정 표면은 직접 절단만 수행한다.
+		const UBreachSurfaceMaterial* Material = SurfaceMaterial.Get();
+		bool bAccumulate = false;
+		if (IsValid(Material))
 		{
-			AccumulationOptions = &SurfaceMaterial->Accumulation;
-			ShapeOptions = &SurfaceMaterial->AccumulationShape;
+			bAccumulate = Material->Accumulation.bEnabled && Source->BreachDamage != 0;
 		}
 		else
 		{
-			UE_LOG(LogBreachableSurface, Verbose, TEXT("%s has no SurfaceMaterial; using its legacy accumulation settings. Assign a SurfaceMaterial asset to share settings."), *GetName());
+			UE_LOG(LogBreachableSurface, Verbose, TEXT("%s has no SurfaceMaterial; using direct cutting only. Assign a SurfaceMaterial asset to enable accumulation."), *GetName());
 		}
 
 		// 앞의 ValidCheck이 통과하면 프록시를 생성한다.
@@ -435,16 +435,15 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		}
 
 		// 누적 파손처리
-		const bool bAccumulate = AccumulationOptions->bEnabled && Source->BreachDamage != 0;
 		bool bPrepared = false;
 		bool bBreached = false;
 		if (bAccumulate)
 		{
 			FVector2d GridHitPoint;
-			bPrepared = PrepareAccumulation(PointDamage.HitInfo.ImpactPoint, Source->BreachDamage, *AccumulationOptions, GridHitPoint);
+			bPrepared = PrepareAccumulation(PointDamage.HitInfo.ImpactPoint, Source->BreachDamage, Material->Accumulation, GridHitPoint);
 			if (bPrepared)
 			{
-				bBreached = AccumulateHit(GridHitPoint, Source->BreachDamage, *ShapeOptions, Mesh);
+				bBreached = AccumulateHit(GridHitPoint, Source->BreachDamage, Material->AccumulationShape, Mesh);
 			}
 		}
 
@@ -580,13 +579,17 @@ bool UBreachableSurfaceComponent::ApplyDirectCut(UBreachSourceComponent* Source,
 	// 기본로직은 여기서 종료
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// 컨투어 적용한 Cut에 실패하면 Base로 우회한다.
-	UE_LOG(LogBreachableSurface, Warning, TEXT("%s is retrying the breach with its base cutter."), *GetName());
 	FGeneralPolygon2d BaseCutter;
 	const bool bResolvedBase = Source->ResolveCutterPolygon(GetComponentTransform(), ImpactPoint, BaseCutter, false);
 	if (!bResolvedBase)
 	{
 		return false;
 	}
+	if (InOutCutter.GetOuter().GetVertices() == BaseCutter.GetOuter().GetVertices())
+	{
+		return false;
+	}
+	UE_LOG(LogBreachableSurface, Warning, TEXT("%s is retrying the breach with its base cutter."), *GetName());
 	const bool bBaseCut = CutPolygon(BaseCutter.GetOuter(), OutMesh);
 	if (!bBaseCut)
 	{
@@ -934,6 +937,7 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 	return true;
 }
 
+#if WITH_EDITOR
 void UBreachableSurfaceComponent::DebugDrawSurface()
 {
 	// 상태 확인: 월드가 있을 때만 남은 표면 영역을 그린다.
@@ -981,6 +985,8 @@ void UBreachableSurfaceComponent::DebugDrawSurface()
 
 	}
 }
+
+#endif
 
 bool UBreachableSurfaceComponent::TouchesOriginalBorder(const UE::Geometry::FPolygon2d& Outer, const UE::Geometry::FAxisAlignedBox2d& Bounds)
 {

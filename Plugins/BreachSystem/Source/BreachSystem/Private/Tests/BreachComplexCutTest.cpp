@@ -1,9 +1,13 @@
 #include "Components/BreachableSurfaceComponent.h"
+#include "Components/BreachSourceComponent.h"
 #include "Components/DynamicMeshComponent.h"
+#include "Engine/DamageEvents.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/OutputDevice.h"
+#include "Misc/OutputDeviceRedirector.h"
 #include "Shape/BreachContour.h"
 
 // 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.
@@ -20,6 +24,21 @@ namespace
 		}
 		return Result;
 	}
+
+	// 테스트 전용: 실제 절단 실패 로그로 동일 커터의 중복 실행을 검출한다.
+	class FRejectedCutCounter : public FOutputDevice
+	{
+	public:
+		int32 Count = 0;
+
+		virtual void Serialize(const TCHAR* Message, ELogVerbosity::Type Verbosity, const FName& Category) override
+		{
+			if (Category == TEXT("LogBreachableSurface") && FCString::Strstr(Message, TEXT("kept its previous surface:")))
+			{
+				++Count;
+			}
+		}
+	};
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachComplexCutTest, "BreachSystem.Surface.ComplexCut",
@@ -170,6 +189,31 @@ bool FBreachComplexCutTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Rejected second hole remains solid"), Hits(20,20));
 		TestTrue(TEXT("Valid repeat after late failure"), Surface->ApplyCutterPolygon(FirstHole));
 		TestEqual(TEXT("Late failure did not commit candidate polygon state"), Proxies[0]->GetMesh()->TriangleCount(), Before.TriangleCount());
+	}
+	// 기본 커터가 기존 구멍과 점 접촉해 실패하면 같은 절단을 반복하지 않는다.
+	AActor* Weapon = World->SpawnActor<AActor>();
+	UBreachSourceComponent* Source = NewObject<UBreachSourceComponent>(Weapon);
+	Source->RegisterComponent();
+	Source->BindBox(FVector2D(20, 20));
+	Proxies.Reset();
+	Wall->GetComponents(Proxies);
+	if (TestEqual(TEXT("Direct-cut retry fixture keeps its existing proxy"), Proxies.Num(), 1))
+	{
+		const int32 BeforeTriangles = Proxies[0]->GetMesh()->TriangleCount();
+		FHitResult Hit;
+		Hit.Component = Proxies[0];
+		Hit.ImpactPoint = FVector(20, -50, 20);
+		const FPointDamageEvent Damage(1, Hit, FVector(0, 1, 0), nullptr);
+		FRejectedCutCounter RejectedCuts;
+		GLog->FlushThreadedLogs();
+		GLog->AddOutputDevice(&RejectedCuts);
+		Surface->HandleBreachDamage(Proxies[0], Damage, Weapon, 1);
+		GLog->FlushThreadedLogs();
+		GLog->RemoveOutputDevice(&RejectedCuts);
+		TestEqual(TEXT("Failed base cutter is attempted only once"), RejectedCuts.Count, 1);
+		TestEqual(TEXT("Failed base cutter preserves the mesh"), Proxies[0]->GetMesh()->TriangleCount(), BeforeTriangles);
+		TestFalse(TEXT("Existing hole remains open after failed direct cut"), Hits(0, 0));
+		TestTrue(TEXT("Rejected direct cut leaves wall material intact"), Hits(20, 20));
 	}
 	World->DestroyWorld(false);
 	return !HasAnyErrors();

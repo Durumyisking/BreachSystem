@@ -1,5 +1,6 @@
 #include "Debug/BreachCellDebug.h"
 
+#if WITH_EDITOR
 #include "BreachSystemLog.h"
 #include "Components/BreachableSurfaceComponent.h"
 #include "Components/LineBatchComponent.h"
@@ -303,3 +304,4 @@ void FBreachCellDebug::ClearBatches()
 	}
 	Batches.Reset();
 }
+#endif

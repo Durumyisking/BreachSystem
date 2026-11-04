@@ -21,15 +21,13 @@ void FBreachAccumulationSurfaceTest::GetTests(TArray<FString>& OutNames, TArray<
 	OutCommands.Add(TEXT("UnitScale"));
 	OutNames.Add(TEXT("MirroredScale"));
 	OutCommands.Add(TEXT("MirroredScale"));
-	OutNames.Add(TEXT("LegacySettings"));
-	OutCommands.Add(TEXT("LegacySettings"));
 }
 
 bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 {
 	UBreachSystemSettings* Settings = GetMutableDefault<UBreachSystemSettings>();
 	if (!TestNotNull(TEXT("Global cell settings"), Settings)) return false;
-	// These legacy tests isolate window/padding rules; 10 cm quantization has separate coverage.
+	// These tests isolate window/padding rules; 10 cm quantization has separate coverage.
 	TGuardValue<float> CellSizeGuard(Settings->CellSizeCm, 0.1f);
 	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
 	if (!TestNotNull(TEXT("World fixture"), World))
@@ -50,20 +48,9 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 	Surface->SetWorldTransform(FTransform(FRotator(0, 35, 0), FVector(100, 200, 300), Scale));
 	Surface->RegisterComponent();
 	UBreachSurfaceMaterial* Material = NewObject<UBreachSurfaceMaterial>(World);
-	FBreachAccumulationOptions LegacyOptions = Surface->GetLegacyAccumulation();
-	FBreachAccumulationShapeOptions LegacyShapeOptions = Surface->GetLegacyAccumulationShape();
-	const bool bUseLegacySettings = Parameters == TEXT("LegacySettings");
 	FBreachAccumulationOptions* Options = &Material->Accumulation;
 	FBreachAccumulationShapeOptions* ShapeOptions = &Material->AccumulationShape;
-	if (bUseLegacySettings)
-	{
-		Options = &LegacyOptions;
-		ShapeOptions = &LegacyShapeOptions;
-	}
-	else
-	{
-		Surface->SetSurfaceMaterial(Material);
-	}
+	Surface->SetSurfaceMaterial(Material);
 	Options->WindowSize = FVector2D(44, 30);
 	ShapeOptions->Contour.bEnabled = false;
 	AActor* WeaponA = World->SpawnActor<AActor>();
@@ -84,14 +71,8 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 		return World->LineTraceSingleByChannel(Hit, Transform.TransformPosition(LocalPoint + FVector(0, -100, 0)),
 			Transform.TransformPosition(LocalPoint + FVector(0, 100, 0)), ECC_Visibility);
 	};
-	auto Shoot = [this, Wall, Surface, Trace, bUseLegacySettings, Options, ShapeOptions](double X, AActor* Weapon)
+	auto Shoot = [this, Wall, Trace](double X, AActor* Weapon)
 	{
-		if (bUseLegacySettings)
-		{
-			Surface->SetLegacyAccumulation(*Options);
-			Surface->SetLegacyAccumulationShape(*ShapeOptions);
-		}
-
 		FHitResult Hit;
 		if (TestTrue(TEXT("Shot strikes remaining wall material"), Trace(X, 0, Hit)))
 		{

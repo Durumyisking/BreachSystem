@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#if WITH_EDITOR
 #include "Containers/Ticker.h"
 #include "UObject/StrongObjectPtr.h"
 
@@ -30,3 +31,4 @@ private:
 	TSet<TWeakObjectPtr<UBreachableSurfaceComponent>> WarnedSurfaces;
 	bool bEnabled = false;
 };
+#endif
