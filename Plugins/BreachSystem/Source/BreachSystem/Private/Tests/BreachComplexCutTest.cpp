@@ -69,7 +69,7 @@ bool FBreachComplexCutTest::RunTest(const FString& Parameters)
 	auto Hits = [World](double X, double Z)
 	{
 		FHitResult Hit;
-		return World->LineTraceSingleByChannel(Hit, FVector(X,-100,Z), FVector(X,100,Z), ECC_Visibility);
+		return World->LineTraceSingleByChannel(Hit, FVector(X,-100,Z), FVector(X,100,Z), ECC_Visibility, FCollisionQueryParams(SCENE_QUERY_STAT(BreachSurfaceTest), true));
 	};
 	const FPolygon2d Bowtie = MakePolygon({{-20,-20}, {20,20}, {-20,20}, {20,-20}});
 	TestFalse(TEXT("Invalid first cut rejected"), Surface->ApplyCutterPolygon(Bowtie));

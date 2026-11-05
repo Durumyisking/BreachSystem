@@ -8,6 +8,7 @@
 #include "Surface/BreachDamageAccumulator.h"
 #include "Surface/BreachAccumulationShape.h"
 #include "Surface/BreachCellGrid.h"
+#include "Surface/BreachSimpleCollision.h"
 #include "BreachableSurfaceComponent.generated.h"
 
 
@@ -70,7 +71,7 @@ public:
 
 protected:
 	 /** 원본을 읽고 표면 상태와 미등록 Proxy를 준비한다. 메시와 충돌은 아직 반영하지 않는다. */
-	bool PrepareSurface(UE::Geometry::FDynamicMesh3& OutMesh);
+	bool CreateDynamicMeshProxy(UE::Geometry::FDynamicMesh3& OutMesh);
 
 	/** Proxy와 누적 피해·표면 상태를 비우고, 저장해 둔 원본 StaticMesh의 표시·충돌 상태를 복구한다. */
 	UFUNCTION(BlueprintCallable, Category="Breach")
@@ -154,6 +155,7 @@ private:
 
 	// 현재 표면상태 (필수)
 	FBreachSurfaceState SurfaceState;
+	FBreachSimpleCollision SimpleCollision;
 
 public:
 	// Getters / Setters

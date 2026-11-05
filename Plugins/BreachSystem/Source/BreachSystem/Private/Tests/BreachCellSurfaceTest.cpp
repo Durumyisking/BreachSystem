@@ -80,7 +80,7 @@ namespace
 			const FVector Point(PhysicalXZ.X / Scale.X, 0, PhysicalXZ.Y / Scale.Z);
 			return World->LineTraceSingleByChannel(Hit,
 				Transform.TransformPosition(Point + FVector(0, -100, 0)),
-				Transform.TransformPosition(Point + FVector(0, 100, 0)), ECC_Visibility);
+				Transform.TransformPosition(Point + FVector(0, 100, 0)), ECC_Visibility, FCollisionQueryParams(SCENE_QUERY_STAT(BreachSurfaceTest), true));
 		}
 
 		bool Shoot(FAutomationTestBase& Test, const FVector2d& Point) const
@@ -104,9 +104,10 @@ namespace
 		bool Initialize(FAutomationTestBase& Test) const
 		{
 			check(Surface);
-			struct { bool ReturnValue = false; } Params;
-			Surface->ProcessEvent(Surface->FindFunctionChecked(TEXT("InitializeSurface")), &Params);
-			return Test.TestTrue(TEXT("Cell surface initialization succeeds"), Params.ReturnValue);
+			// 테스트 전용: 벽 바깥의 무효과 절단으로 공개 경로에서 Proxy를 준비한다.
+			UE::Geometry::FPolygon2d Outside = UE::Geometry::FPolygon2d::MakeCircle(1, 8);
+			Outside.Translate(FVector2d(1000, 1000));
+			return Test.TestTrue(TEXT("Cell surface initialization succeeds"), Surface->ApplyCutterPolygon(Outside));
 		}
 
 		bool Snapshot(FAutomationTestBase& Test, TArray<FVector3d>& Vertices, TArray<bool>& Collision) const

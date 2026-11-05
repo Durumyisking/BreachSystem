@@ -5,6 +5,7 @@
 #include "Misc/ScopeExit.h"
 #include "HAL/FileManager.h"
 #include "UObject/UnrealType.h"
+#include "Settings/BreachSystemSettings.h"
 #include <limits>
 
 // 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.
@@ -62,6 +63,26 @@ bool FBreachSystemSettingsTest::RunTest(const FString& Parameters)
 		CellSize->SetPropertyValue_InContainer(Settings, Invalid);
 		AddExpectedError(TEXT("Invalid CellSizeCm"), EAutomationExpectedErrorFlags::Contains, 1);
 		TestEqual(TEXT("Invalid config uses the safe 10 cm default"), ReadCellSize(), 10.f);
+	}
+	return !HasAnyErrors();
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachHoleAreaSettingsTest, "BreachSystem.Settings.HoleArea",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FBreachHoleAreaSettingsTest::RunTest(const FString& Parameters)
+{
+	UBreachSystemSettings* Settings = GetMutableDefault<UBreachSystemSettings>();
+	if (!TestNotNull(TEXT("Hole area settings"), Settings)) return false;
+	TGuardValue<double> ThresholdGuard(Settings->ComplexHoleSizeThreshold, 500.0);
+	TestEqual(TEXT("Hole threshold uses the existing 500 square cm default"), UBreachSystemSettings::GetComplexHoleSizeThreshold(), 500.0);
+	Settings->ComplexHoleSizeThreshold = 0.1;
+	TestEqual(TEXT("Minimum supported area is preserved"), UBreachSystemSettings::GetComplexHoleSizeThreshold(), 0.1);
+	for (double Invalid : {0.0, -1.0, 0.01, std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN()})
+	{
+		Settings->ComplexHoleSizeThreshold = Invalid;
+		AddExpectedError(TEXT("Invalid ComplexHoleSizeThreshold"), EAutomationExpectedErrorFlags::Contains, 1);
+		TestEqual(TEXT("Invalid area uses the same 500 square cm default"), UBreachSystemSettings::GetComplexHoleSizeThreshold(), 500.0);
 	}
 	return !HasAnyErrors();
 }

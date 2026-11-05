@@ -69,7 +69,7 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 		const FTransform Transform = Surface->GetComponentTransform();
 		const FVector LocalPoint(X / FMath::Abs(Scale.X), 0, Z / FMath::Abs(Scale.Z));
 		return World->LineTraceSingleByChannel(Hit, Transform.TransformPosition(LocalPoint + FVector(0, -100, 0)),
-			Transform.TransformPosition(LocalPoint + FVector(0, 100, 0)), ECC_Visibility);
+			Transform.TransformPosition(LocalPoint + FVector(0, 100, 0)), ECC_Visibility, FCollisionQueryParams(SCENE_QUERY_STAT(BreachSurfaceTest), true));
 	};
 	auto Shoot = [this, Wall, Trace](double X, AActor* Weapon)
 	{

@@ -85,7 +85,7 @@ bool FBreachSurfaceMaterialSharedTest::RunTest(const FString& Parameters)
 		const FTransform Transform = Surface->GetComponentTransform();
 		return World->LineTraceSingleByChannel(Hit,
 			Transform.TransformPosition(FVector(X, -100, Z)),
-			Transform.TransformPosition(FVector(X, 100, Z)), ECC_Visibility);
+			Transform.TransformPosition(FVector(X, 100, Z)), ECC_Visibility, FCollisionQueryParams(SCENE_QUERY_STAT(BreachSurfaceTest), true));
 	};
 	auto Shoot = [this, Weapon, Trace](UBreachableSurfaceComponent* Surface, double X)
 	{

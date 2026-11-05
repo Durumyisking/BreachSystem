@@ -193,7 +193,7 @@ bool FBreachSurfaceLifecycleTest::RunTest(const FString& Parameters)
 			const FTransform Transform = Surface->GetComponentTransform();
 			return World->LineTraceSingleByChannel(Hit,
 				Transform.TransformPosition(LocalPoint + FVector(0, -100, 0)),
-				Transform.TransformPosition(LocalPoint + FVector(0, 150, 0)), ECC_Visibility);
+				Transform.TransformPosition(LocalPoint + FVector(0, 150, 0)), ECC_Visibility, FCollisionQueryParams(SCENE_QUERY_STAT(BreachSurfaceTest), true));
 		};
 		TestFalse(TEXT("First hole is open to traces"), HitsWall(FVector(-20, 0, 0)));
 		TestTrue(TEXT("Untouched region still blocks"), HitsWall(FVector(20, 0, 0)));

@@ -5,6 +5,11 @@
 - Add replication, persistence, async loading, Gameplay Tags, Data Assets, or Blueprint exposure only when the requested behavior requires them.
 - New Unreal classes normally include the required `.h` and `.cpp` together. Existing classes change only the necessary files, but signature, reflection, member, override, or helper changes require checking declaration and implementation separately.
 
+## Code Readability
+- `if`, `else`, `for`, `while`의 본문은 한 문장이어도 중괄호로 감싸고, 중괄호와 본문을 각각 별도 줄에 쓴다. `return`, `continue`도 조건과 같은 줄에 쓰지 않는다.
+- 빈 줄은 검증, 준비, 계산, 상태 반영 등 의미가 바뀌는 경계에 넣는다. 서로 관련된 선언과 처리는 함께 두며, 문장마다 기계적으로 빈 줄을 넣지 않는다.
+- 줄 수보다 위에서 아래로 읽히는 흐름을 우선한다. 코드를 짧게 보이게 하려고 서로 다른 처리 단계를 한 줄이나 복합 표현식으로 압축하지 않는다.
+
 ## Pointer And Dependency Checks
 - Every function that dereferences a pointer or UObject reference must make the null contract explicit inside that function, even when a caller already checked it.
 - For a required dependency, use a project-appropriate assertion or diagnostic such as `checkf` or `ensureMsgf`, then stop the affected local operation if continuing would be invalid.

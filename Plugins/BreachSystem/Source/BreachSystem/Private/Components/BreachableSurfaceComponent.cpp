@@ -32,6 +32,7 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 
 #include "PhysicsEngine/AggregateGeom.h"
+#include "PhysicsEngine/BodySetup.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBreachableSurface, Log, All);
 
@@ -242,7 +243,7 @@ bool UBreachableSurfaceComponent::ReadSourceSurface(UE::Geometry::FDynamicMesh3&
 	return true;
 }
 
-bool UBreachableSurfaceComponent::PrepareSurface(UE::Geometry::FDynamicMesh3& OutMesh)
+bool UBreachableSurfaceComponent::CreateDynamicMeshProxy(UE::Geometry::FDynamicMesh3& OutMesh)
 {
 	FPlanarUVMapping InitialUVs[2];
 	if (!ReadSourceSurface(OutMesh, InitialUVs))
@@ -270,6 +271,7 @@ bool UBreachableSurfaceComponent::PrepareSurface(UE::Geometry::FDynamicMesh3& Ou
 	OriginalVertices = Outer.GetVertices();
 	OriginBounds = OriginalOuter.Bounds();
 	OriginalDepthRange = FVector2d(MeshBounds.Min.Y, MeshBounds.Max.Y);
+	SimpleCollision.Initialize(OriginalOuter, OriginalDepthRange);
 
 	// 6. 복사한 삼각형의 머티리얼 ID와 대응하도록 원본의 슬롯 순서를 유지한다.
 	TArray<UMaterialInterface*> Materials;
@@ -295,12 +297,15 @@ bool UBreachableSurfaceComponent::PrepareSurface(UE::Geometry::FDynamicMesh3& Ou
 	DynamicMeshProxy->SetCollisionObjectType(GetCollisionObjectType());
 	DynamicMeshProxy->SetCollisionResponseToChannels(GetCollisionResponseToChannels());
 	DynamicMeshProxy->ConfigureMaterialSet(Materials);
-	DynamicMeshProxy->SetTangentsType(EDynamicMeshComponentTangentsMode::ExternallyProvided);
+	DynamicMeshProxy->SetTangentsType(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
 	// 추가 설정
 	//SetComplexAsSimpleCollisionEnabled(true, false); // InValidatePhysics 함수 호출해야하면 이거 사용 후 CTF변경한다.
 	DynamicMeshProxy->bEnableComplexCollision = true;
 	DynamicMeshProxy->CollisionType = CTF_UseSimpleAndComplex; // Simple, Complex둘 다 쓸거임!
+	UBodySetup* ProxyBodySetup = DynamicMeshProxy->GetBodySetup();
+	checkf(ProxyBodySetup, TEXT("%s requires a body setup for movement collision."), *GetName());
+	ProxyBodySetup->bGenerateMirroredCollision = true;
 
 	SurfaceState = MoveTemp(InitialState);
 
@@ -331,9 +336,31 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh)
 		return false;
 	}
 
-	// 등록전에 메시를 갱신한다. (등록을 먼저하면 갱신 전 내용으로 충돌처리 할 수 있음)
+	// SimpleCollision을 미리 구성한 SimpleCollision으로 교체해준다.
+	if (SimpleCollision.IsDirty())
+	{
+		FKAggregateGeom CollisionShapes;
+		FString Error;
+		const bool bBuilt = SimpleCollision.BuildMesh(CollisionShapes, Error);
+		if (bBuilt)
+		{
+			DynamicMeshProxy->SetSimpleCollisionShapes(CollisionShapes, false);
+			SimpleCollision.ClearDirty();
+		}
+		else
+		{
+			UE_LOG(LogBreachableSurface, Warning, TEXT("%s kept its previous movement collision: %s"), *GetName(), *Error);
+			if (!DynamicMeshProxy->IsRegistered())
+			{
+				ResetSurface();
+				return false;
+			}
+		}
+	}
+
+	// 등록전에 메시와 충돌 데이터를 준비한다. 작은 구멍도 Complex에는 즉시 반영한다.
 	DynamicMeshProxy->SetMesh(MoveTemp(Mesh));
-	DynamicMeshProxy->UpdateCollision();
+	DynamicMeshProxy->UpdateCollision(false);
 	
 	// 컴포넌트 등록 안되어있으면 등록
 	if (!DynamicMeshProxy->IsRegistered())
@@ -371,6 +398,7 @@ bool UBreachableSurfaceComponent::ResetSurface()
 	}
 
 	SurfaceState = FBreachSurfaceState();
+	SimpleCollision = FBreachSimpleCollision();
 	SurfaceUVs[0] = FPlanarUVMapping();
 	SurfaceUVs[1] = FPlanarUVMapping();
 
@@ -427,7 +455,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		FDynamicMesh3 Mesh;
 		if (!bHadProxy)
 		{
-			const bool bInitialized = PrepareSurface(Mesh);
+			const bool bInitialized = CreateDynamicMeshProxy(Mesh);
 			if (!bInitialized)
 			{
 				return;
@@ -735,7 +763,7 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 	const bool bHadProxy = IsValid(DynamicMeshProxy);
 	if (!bHadProxy)
 	{
-		const bool bInitialized = PrepareSurface(OutMesh);
+		const bool bInitialized = CreateDynamicMeshProxy(OutMesh);
 		if (!bInitialized) 
 		{ 
 			return false; 
@@ -752,6 +780,8 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 		}
 		return false;
 	};
+
+	// 주요로직 시작
 
 	// 처리: 현재 영역에서 커터를 빼되 결과는 아직 후보 상태로 보관한다.
 	TArray<FGeneralPolygon2d> Cutters;
@@ -923,6 +953,15 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 		}
 
 		UVOverlay->SetTriangle(TriangleID, UVElementIDs);
+	}
+
+	// Simple Collision 생성
+	//const bool bSimpleUpdated = SimpleCollision.ApplyCut(Cutter, DetachedRegions, Error);
+	const bool bSimpleUpdated = SimpleCollision.ApplyCutDebug(this, GetComponentTransform(), Cutter, DetachedRegions, Error);
+	if (!bSimpleUpdated)
+	{
+		UE_LOG(LogBreachableSurface, Warning, TEXT("%s could not prepare movement collision: %s"), *GetName(), *Error);
+		return Reject(TEXT("Movement collision update failed."));
 	}
 
 	// 계산 결과만 보관한다. 실제 메시와 충돌은 모든 절단이 끝난 뒤 반영한다.
