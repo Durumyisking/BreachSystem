@@ -7,6 +7,10 @@ using namespace UE::Geometry;
 
 namespace BreachSurfaceGeometry
 {
+	/** 구멍을 포함한 영역을 삼각분할하고 정점 인덱스, 삼각형 유효성, 면적 일치를 검증한다. */
+	bool TriangulateRegion(const FGeneralPolygon2d& Region, TArray<FVector2d>& OutVertices,
+		TArray<FIndex3i>& OutTriangles, FString& OutError);
+
 	/** 표면 2D 좌표의 Center에 원형 커터를 만든다. 반경이 0 이하면 1, 분할 수가 8 이하면 16으로 보정한다. */
 	FGeneralPolygon2d MakeCircleCutter(const FVector2d& Center, double Radius, int32 Segments);
 	/** Center를 중심으로 폭·높이가 Size인 사각 커터를 만든다. 0 이하인 크기 성분은 1로 보정한다. */

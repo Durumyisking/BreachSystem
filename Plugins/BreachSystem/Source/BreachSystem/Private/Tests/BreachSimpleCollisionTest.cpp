@@ -304,7 +304,7 @@ bool FBreachSimpleCollisionCacheTest::RunTest(const FString& Parameters)
 	Collision.Initialize(Rectangle(-50, -50, 50, 50), {-5, 5});
 	FKAggregateGeom Shapes;
 	FString Error;
-	TestTrue(TEXT("Unbroken movement collision builds"), Collision.Build(Shapes, Error));
+	TestTrue(TEXT("Unbroken movement collision builds"), Collision.BuildMesh(Shapes, Error));
 	TestEqual(TEXT("Unbroken rectangle merges into one convex piece"), Shapes.ConvexElems.Num(), 1);
 	Collision.ClearDirty();
 	const TArray<FPolygon2d> NoDetached;
@@ -316,7 +316,7 @@ bool FBreachSimpleCollisionCacheTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Large cut updates movement region"), Collision.ApplyCut(Rectangle(-15, -15, 15, 15), NoDetached, Error));
 	TestTrue(TEXT("Large cut marks collision dirty"), Collision.IsDirty());
 	const double BuildStart = FPlatformTime::Seconds();
-	TestTrue(TEXT("Changed movement regions build"), Collision.Build(Shapes, Error));
+	TestTrue(TEXT("Changed movement regions build"), Collision.BuildMesh(Shapes, Error));
 	AddInfo(FString::Printf(TEXT("Movement convex build: %d pieces, %.3f ms (automation fixture)."),
 		Shapes.ConvexElems.Num(), (FPlatformTime::Seconds() - BuildStart) * 1000));
 	Collision.ClearDirty();
@@ -374,7 +374,7 @@ bool FBreachSimpleCollisionThresholdTest::RunTest(const FString& Parameters)
 	const bool bShouldOpen = Parameters == TEXT("Above");
 	TestEqual(TEXT("Only an opening above the threshold changes Simple collision"), Collision.IsDirty(), bShouldOpen);
 	FKAggregateGeom Shapes;
-	TestTrue(TEXT("Simple collision builds"), Collision.Build(Shapes, Error));
+	TestTrue(TEXT("Simple collision builds"), Collision.BuildMesh(Shapes, Error));
 	if (bShouldOpen)
 	{
 		TestTrue(TEXT("Large opening leaves multiple wall pieces"), Shapes.ConvexElems.Num() > 1);

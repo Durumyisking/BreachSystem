@@ -1,6 +1,57 @@
 #include "Surface/BreachSurfaceGeometry.h"
+#include "CompGeom/Delaunay2.h"
 
 using namespace UE::Geometry;
+
+bool BreachSurfaceGeometry::TriangulateRegion(const FGeneralPolygon2d& Region, TArray<FVector2d>& OutVertices,
+    TArray<FIndex3i>& OutTriangles, FString& OutError)
+{
+    OutError.Reset();
+
+    FDelaunay2 Delaunay;
+    const bool bTriangulated = Delaunay.Triangulate(Region, &OutTriangles, &OutVertices, false);
+    if (!bTriangulated)
+    {
+        OutError = TEXT("Region triangulation failed.");
+        return false;
+    }
+
+    if (OutTriangles.IsEmpty())
+    {
+        OutError = TEXT("Triangulation produced no faces for a remaining region.");
+        return false;
+    }
+
+    double TriangulatedArea = 0;
+    for (const FIndex3i& Triangle : OutTriangles)
+    {
+        if (!OutVertices.IsValidIndex(Triangle.A) || !OutVertices.IsValidIndex(Triangle.B) || !OutVertices.IsValidIndex(Triangle.C))
+        {
+            OutError = TEXT("Triangulation returned an invalid vertex index.");
+            return false;
+        }
+
+        const FVector2d AB = OutVertices[Triangle.B] - OutVertices[Triangle.A];
+        const FVector2d AC = OutVertices[Triangle.C] - OutVertices[Triangle.A];
+        const double Area = FMath::Abs(AB.X * AC.Y - AB.Y * AC.X) * 0.5;
+        if (!FMath::IsFinite(Area))
+        {
+            OutError = TEXT("Triangulation produced a degenerate face.");
+            return false;
+        }
+
+        TriangulatedArea += Area;
+    }
+
+    const double RegionArea = FMath::Abs(Region.SignedArea());
+    if (FMath::Abs(TriangulatedArea - RegionArea) > FMath::Max(1.e-6, RegionArea * 1.e-6))
+    {
+        OutError = TEXT("Triangulation does not cover the remaining region.");
+        return false;
+    }
+
+    return true;
+}
 
 UE::Geometry::FGeneralPolygon2d BreachSurfaceGeometry::MakeCircleCutter(const FVector2d& Center, double Radius, int32 Segments)
 {

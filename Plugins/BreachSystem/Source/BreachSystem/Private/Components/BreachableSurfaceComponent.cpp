@@ -27,8 +27,6 @@
 #include "Curve/PolygonIntersectionUtils.h"
 #include "DynamicMesh/MeshNormals.h"
 
-#include "Math/BreachSystemDelaunay.h"
-
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 
 #include "PhysicsEngine/AggregateGeom.h"
@@ -808,7 +806,6 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 	});
 
 	// 메시 생성: 후보 영역으로 새 메시를 만든다. 검증이 끝날 때까지 SurfaceState는 유지한다.
-	FDelaunay2 Delaunay;
 	FDynamicMesh3 RenewedMesh;
 	bool bMeshValid = true;
 	auto AppendTriangle = [&](int32 A, int32 B, int32 C)
@@ -825,41 +822,23 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 		TArray<FVector2d> Vertices;
 		TArray<FIndex3i> Triangles; // 삼각분할 결과로 만들어진 삼각형들의 정점 인덱스를 저장하는 배열 (그냥 int 3개임)
 
-		// 삼각분할
-		if (!Delaunay.Triangulate(RemainingRegion, &Triangles, &Vertices, false))
+		// 삼각분할과 결과 검증
+		const bool bTriangulated = BreachSurfaceGeometry::TriangulateRegion(RemainingRegion, Vertices, Triangles, Error);
+		if (!bTriangulated)
 		{
-			return Reject(TEXT("Region triangulation failed."));
+			return Reject(*Error);
 		}
 
-		// 검증: 유효한 삼각형들이 남은 영역의 면적을 빠짐없이 덮어야 한다.
-		if (Triangles.IsEmpty())
-		{
-			return Reject(TEXT("Triangulation produced no faces for a remaining region."));
-		}
-
-		double TriangulatedArea = 0;
+		// 실제 메시에는 퇴화 면을 허용하지 않는다. Simple 충돌의 면적 허용 오차와 구분한다.
 		for (const FIndex3i& Triangle : Triangles)
 		{
-			if (!Vertices.IsValidIndex(Triangle.A) || !Vertices.IsValidIndex(Triangle.B) || !Vertices.IsValidIndex(Triangle.C))
-			{
-				return Reject(TEXT("Triangulation returned an invalid vertex index."));
-			}
-
 			const FVector2d AB = Vertices[Triangle.B] - Vertices[Triangle.A];
 			const FVector2d AC = Vertices[Triangle.C] - Vertices[Triangle.A];
 			const double Area = FMath::Abs(AB.X * AC.Y - AB.Y * AC.X) * 0.5;
-			if (!FMath::IsFinite(Area) || Area <= 1.e-12)
+			if (Area <= 1.e-12)
 			{
 				return Reject(TEXT("Triangulation produced a degenerate face."));
 			}
-
-			TriangulatedArea += Area;
-		}
-
-		const double RegionArea = FMath::Abs(RemainingRegion.SignedArea());
-		if (FMath::Abs(TriangulatedArea - RegionArea) > FMath::Max(1.e-6, RegionArea * 1.e-6))
-		{
-			return Reject(TEXT("Triangulation does not cover the remaining region."));
 		}
 
 		// 메시 생성: 검증된 삼각분할을 원본 두께의 앞·뒷면으로 확장한다.

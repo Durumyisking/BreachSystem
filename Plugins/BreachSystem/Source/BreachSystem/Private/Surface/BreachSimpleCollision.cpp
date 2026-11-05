@@ -1,6 +1,5 @@
 #include "Surface/BreachSimpleCollision.h"
 #include "CompGeom/ConvexHull2.h"
-#include "CompGeom/Delaunay2.h"
 #include "Curve/PolygonIntersectionUtils.h"
 #include "PhysicsEngine/AggregateGeom.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -252,28 +251,17 @@ bool FBreachSimpleCollision::BuildMesh(FKAggregateGeom& OutCollision, FString& O
 	{
 		TArray<FVector2d> Vertices;
 		TArray<FIndex3i> Triangles;
-		FDelaunay2 Delaunay;
-		const bool bTriangulated = Delaunay.Triangulate(Region, &Triangles, &Vertices, false);
-		if (!bTriangulated || Triangles.IsEmpty())
+		const bool bTriangulated = BreachSurfaceGeometry::TriangulateRegion(Region, Vertices, Triangles, OutError);
+		if (!bTriangulated)
 		{
-			OutError = TEXT("Simple region triangulation failed.");
 			return false;
 		}
 
 		TArray<TArray<int32>> Parts;
-		double TriangleArea = 0;
 		for (const FIndex3i& Triangle : Triangles)
 		{
 			TArray<int32> Part = {Triangle.A, Triangle.B, Triangle.C};
-			TriangleArea += FMath::Abs(PolygonFromIndices(Part, Vertices).SignedArea());
 			Parts.Add(MoveTemp(Part));
-		}
-
-		const double RegionArea = FMath::Abs(Region.SignedArea());
-		if (FMath::Abs(TriangleArea - RegionArea) > FMath::Max(1.e-6, RegionArea * 1.e-6))
-		{
-			OutError = TEXT("Simple region triangulation does not preserve the hole area.");
-			return false;
 		}
 
 		bool bMerged = true;
