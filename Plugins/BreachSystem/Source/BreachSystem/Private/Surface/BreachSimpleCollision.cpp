@@ -1,6 +1,8 @@
 #include "Surface/BreachSimpleCollision.h"
 #include "CompGeom/ConvexHull2.h"
+#include "CompGeom/ConvexHull3.h"
 #include "Curve/PolygonIntersectionUtils.h"
+#include "Curve/PolygonOffsetUtils.h"
 #include "PhysicsEngine/AggregateGeom.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
@@ -170,8 +172,11 @@ bool FBreachSimpleCollision::ApplyCutDebug(UObject* WorldContext, const FTransfo
 	// 현재 상태 : 모든 구멍들이 Connected로 통합되어있음
 
 	TArray<FGeneralPolygon2d> SimpleCuts;
-	for (const FGeneralPolygon2d& Hole : Connected)
+	for (FGeneralPolygon2d& Hole : Connected)
 	{
+		// 구멍에 둘러싸인 벽은 이미 고립 제거 대상이다. Detached 경계 오차로 남은 내부 틈도 채운다.
+		Hole.ClearHoles();
+
 		const double LocalArea = FMath::Abs(Hole.SignedArea());
 		//UE_LOG(LogTemp, Log, TEXT("Local %f"), LocalArea);
 		if (LocalArea + Bias < AreaThreshold)
@@ -200,7 +205,21 @@ bool FBreachSimpleCollision::ApplyCutDebug(UObject* WorldContext, const FTransfo
 			return false;
 		}
 
-		SimpleCuts.Append(MoveTemp(SafeHoles));
+		if (SafeHoles.IsEmpty())
+		{
+			continue;
+		}
+
+		// 같은 경계를 다시 자를 때 미세한 틈이 남지 않도록 구멍에 0.001cm 여유를 준다.
+		TArray<FGeneralPolygon2d> ExpandedHoles;
+		const bool bExpandedHole = PolygonsOffset(1.e-3, SafeHoles, ExpandedHoles, false, 2.0);
+		if (!bExpandedHole)
+		{
+			OutError = TEXT("Simple hole boundary could not be expanded.");
+			return false;
+		}
+
+		SimpleCuts.Append(MoveTemp(ExpandedHoles));
 	}
 
 	TArray<FGeneralPolygon2d> CandidateRegions;
@@ -246,9 +265,22 @@ bool FBreachSimpleCollision::BuildMesh(FKAggregateGeom& OutCollision, FString& O
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | BuildConvex");
 	OutError.Reset();
 
+	// 중간에 실패해도 기존 출력 충돌을 유지하도록 임시 결과에 구성한다.
 	FKAggregateGeom Collision;
-	for (const FGeneralPolygon2d& Region : RemainingRegions)
+	for (FGeneralPolygon2d Region : RemainingRegions)
 	{
+		// 누적 영역은 유지하고 삼각분할에 사용할 복사본의 미세 정점만 정리한다.
+		Region.Simplify(1.e-4, 1.e-4);
+		if (FMath::Abs(Region.GetOuter().SignedArea()) <= 1.e-8)
+		{
+			continue;
+		}
+		Region.FilterHoles([](const FPolygon2d& Hole)
+		{
+			return FMath::Abs(Hole.SignedArea()) <= 1.e-8;
+		});
+
+		// 구멍을 제외한 남은 벽 영역을 2D 삼각형으로 분할한다.
 		TArray<FVector2d> Vertices;
 		TArray<FIndex3i> Triangles;
 		const bool bTriangulated = BreachSurfaceGeometry::TriangulateRegion(Region, Vertices, Triangles, OutError);
@@ -257,6 +289,7 @@ bool FBreachSimpleCollision::BuildMesh(FKAggregateGeom& OutCollision, FString& O
 			return false;
 		}
 
+		// 각 삼각형을 병합의 시작점이 되는 볼록 조각으로 등록한다.
 		TArray<TArray<int32>> Parts;
 		for (const FIndex3i& Triangle : Triangles)
 		{
@@ -264,6 +297,7 @@ bool FBreachSimpleCollision::BuildMesh(FKAggregateGeom& OutCollision, FString& O
 			Parts.Add(MoveTemp(Part));
 		}
 
+		// 변을 공유하는 조각 중 합쳐도 볼록한 쌍을 더 이상 없을 때까지 병합한다.
 		bool bMerged = true;
 		while (bMerged)
 		{
@@ -275,6 +309,7 @@ bool FBreachSimpleCollision::BuildMesh(FKAggregateGeom& OutCollision, FString& O
 				{
 					const int32 A = Parts[Index][Edge];
 					const int32 B = Parts[Index][(Edge + 1) % Parts[Index].Num()];
+					// 변의 방향과 무관하게 같은 키를 사용해 인접 조각을 찾는다.
 					const FIntPoint Key(FMath::Min(A, B), FMath::Max(A, B));
 					const int32* Other = EdgeOwners.Find(Key);
 					if (Other)
@@ -296,9 +331,23 @@ bool FBreachSimpleCollision::BuildMesh(FKAggregateGeom& OutCollision, FString& O
 			}
 		}
 
+		// 남은 볼록 조각을 로컬 XZ 평면에 놓고 Y축 두께를 주어 충돌 기둥으로 만든다.
 		for (const TArray<int32>& Part : Parts)
 		{
 			if (Part.IsEmpty())
+			{
+				continue;
+			}
+
+			// Chaos와 같은 float 정밀도로 확인하여 선이나 평면으로 무너진 조각은 제외한다.
+			const FExtremePoints3f Extreme(Part.Num() * 2, [&](int32 VertexIndex)
+			{
+				const int32 Index = Part[VertexIndex % Part.Num()];
+				const double Depth = VertexIndex < Part.Num() ? DepthRange.X : DepthRange.Y;
+				return FVector3f(static_cast<float>(Vertices[Index].X),
+					static_cast<float>(Depth), static_cast<float>(Vertices[Index].Y));
+			});
+			if (Extreme.Dimension < 3)
 			{
 				continue;
 			}
@@ -312,6 +361,7 @@ bool FBreachSimpleCollision::BuildMesh(FKAggregateGeom& OutCollision, FString& O
 				}
 			}
 
+			// 완성된 3D 정점에 맞춰 각 충돌 기둥의 경계 상자를 갱신한다.
 			Convex.UpdateElemBox();
 		}
 	}
