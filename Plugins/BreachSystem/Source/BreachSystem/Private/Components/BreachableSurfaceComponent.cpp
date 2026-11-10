@@ -257,8 +257,6 @@ bool UBreachableSurfaceComponent::CreateDynamicMeshProxy(UE::Geometry::FDynamicM
 	SurfaceUVs[0] = InitialUVs[0];
 	SurfaceUVs[1] = InitialUVs[1];
 
-	// 5. 아직 구멍이 없으므로 남은 영역은 사각형 하나다. 피벗이 중앙이 아니어도 원래 좌표를 쓴다.
-	// 사각형 판이라는 전제에서 XZ 경계를 사용하며, 임의 메시의 윤곽을 추출하는 과정은 아니다.
 	UE::Geometry::FPolygon2d Outer;
 	Outer.AppendVertex(FVector2d(MeshBounds.Min.X, MeshBounds.Min.Z));
 	Outer.AppendVertex(FVector2d(MeshBounds.Max.X, MeshBounds.Min.Z));
@@ -334,25 +332,23 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh)
 		return false;
 	}
 
-	// SimpleCollision을 미리 구성한 SimpleCollision으로 교체해준다.
-	if (SimpleCollision.IsDirty())
+	// 확정된 표면 영역에서 이동 충돌을 생성한다.
+	const FVector Scale = GetComponentScale();
+	const double AreaScale = FMath::Abs(Scale.X * Scale.Z);
+	FKAggregateGeom CollisionShapes;
+	FString Error;
+	const bool bBuilt = SimpleCollision.BuildMesh(SurfaceState.RemainingRegions, AreaScale, CollisionShapes, Error);
+	if (bBuilt)
 	{
-		FKAggregateGeom CollisionShapes;
-		FString Error;
-		const bool bBuilt = SimpleCollision.BuildMesh(CollisionShapes, Error);
-		if (bBuilt)
+		DynamicMeshProxy->SetSimpleCollisionShapes(CollisionShapes, false);
+	}
+	else
+	{
+		UE_LOG(LogBreachableSurface, Warning, TEXT("%s kept its previous movement collision: %s"), *GetName(), *Error);
+		if (!DynamicMeshProxy->IsRegistered())
 		{
-			DynamicMeshProxy->SetSimpleCollisionShapes(CollisionShapes, false);
-			SimpleCollision.ClearDirty();
-		}
-		else
-		{
-			UE_LOG(LogBreachableSurface, Warning, TEXT("%s kept its previous movement collision: %s"), *GetName(), *Error);
-			if (!DynamicMeshProxy->IsRegistered())
-			{
-				ResetSurface();
-				return false;
-			}
+			ResetSurface();
+			return false;
 		}
 	}
 
@@ -932,15 +928,6 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 		}
 
 		UVOverlay->SetTriangle(TriangleID, UVElementIDs);
-	}
-
-	// Simple Collision 생성
-	//const bool bSimpleUpdated = SimpleCollision.ApplyCut(Cutter, DetachedRegions, Error);
-	const bool bSimpleUpdated = SimpleCollision.ApplyCutDebug(this, GetComponentTransform(), Cutter, DetachedRegions, Error);
-	if (!bSimpleUpdated)
-	{
-		UE_LOG(LogBreachableSurface, Warning, TEXT("%s could not prepare movement collision: %s"), *GetName(), *Error);
-		return Reject(TEXT("Movement collision update failed."));
 	}
 
 	// 계산 결과만 보관한다. 실제 메시와 충돌은 모든 절단이 끝난 뒤 반영한다.

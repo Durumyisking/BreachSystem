@@ -8,20 +8,14 @@
 
 #include "BreachSurfaceGeometry.h"
 
+#if WITH_EDITOR
+#include "Surface/BreachSimpleCollisionDiagnostics.h"
+#include "Misc/Paths.h"
+#endif
+
 namespace
 {
 	using namespace UE::Geometry;
-
-	double Area(TConstArrayView<FGeneralPolygon2d> Regions)
-	{
-		double Result = 0;
-		for (const FGeneralPolygon2d& Region : Regions)
-		{
-			Result += FMath::Abs(Region.SignedArea());
-		}
-
-		return Result;
-	}
 
 	FPolygon2d PolygonFromIndices(TConstArrayView<int32> Indices, TConstArrayView<FVector2d> Vertices)
 	{
@@ -80,116 +74,51 @@ void FBreachSimpleCollision::Initialize(const FPolygon2d& Outer, const FVector2d
 {
 	OriginalOuter = Outer;
 	DepthRange = Depth;
-	Holes.Reset();
-	RemainingRegions = {FGeneralPolygon2d(Outer)};
-	bDirty = true;
+#if WITH_EDITOR
+	bFailureSnapshotSaved = false;
+#endif
 }
 
-										// 이번에 컷팅될 구멍,		// 고립된 벽
-bool FBreachSimpleCollision::ApplyCut(const FPolygon2d& Cutter, TConstArrayView<FPolygon2d> Detached, FString& OutError)
+bool FBreachSimpleCollision::BuildMesh(TConstArrayView<FGeneralPolygon2d> RemainingRegions, const double ComponentArea, FKAggregateGeom& OutCollision, FString& OutError) const
 {
-	return ApplyCutDebug(nullptr, FTransform::Identity, Cutter, Detached, OutError);
-}
-
-bool FBreachSimpleCollision::ApplyCutDebug(UObject* WorldContext, const FTransform ComponentTransform, const UE::Geometry::FPolygon2d& Cutter, TConstArrayView<UE::Geometry::FPolygon2d> Detached, FString& OutError)
-{
-	// 검증
-	const double AreaThreshold = UBreachSystemSettings::GetComplexHoleSizeThreshold();
-	const double Bias = 1.e-7;
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | UpdateRegions");
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | BuildConvex");
 	OutError.Reset();
 
+	const double AreaThreshold = UBreachSystemSettings::GetComplexHoleSizeThreshold();
+	const double Bias = 1.e-7;
 	if (OriginalOuter.VertexCount() < 3 || !FMath::IsFinite(AreaThreshold) || AreaThreshold <= 0)
 	{
 		OutError = TEXT("Simple collision requires an initialized surface and a positive area threshold.");
 		return false;
 	}
 
-	TArray<FGeneralPolygon2d> Incoming; // 이번 파괴에 간단화될 구멍 폴리곤
-	const TArray<FGeneralPolygon2d> Original = { FGeneralPolygon2d(OriginalOuter) };
-	const TArray<FGeneralPolygon2d> Cutters = { FGeneralPolygon2d(Cutter) };
-	const bool bClipped = PolygonsIntersection(Original, Cutters, Incoming); // 벽 범위를 넘어가는 Cutter을 제거한다.
-	if (!bClipped)
+	// 모든 구멍들을 가져온다
+	const TArray<FGeneralPolygon2d> Original = {FGeneralPolygon2d(OriginalOuter)};
+	TArray<FGeneralPolygon2d> Holes;
+	const bool bOpeningsBuilt = PolygonsDifference(Original, RemainingRegions, Holes);
+	if (!bOpeningsBuilt)
 	{
-		OutError = TEXT("Simple cutter could not be clipped to the original wall.");
+		OutError = TEXT("Simple openings could not be derived from the damage regions.");
 		return false;
 	}
 
-	// 간단화 될 폴리곤에 고립된 벽 부분 추가한다.
-	for (const FPolygon2d& Region : Detached)
-	{
-		Incoming.Add(FGeneralPolygon2d(Region));
-	}
-
-	if (Incoming.IsEmpty())
-	{
-		return true;
-	}
-
-	FAxisAlignedBox2d Affected = FAxisAlignedBox2d::Empty();
-	for (const FGeneralPolygon2d& Region : Incoming)
-	{
-		Affected.Contain(Region.GetOuter().Bounds());
-	}
-	// 맞닿은 구멍을 경계 오차 때문에 놓치지 않도록 여유준다.
-	Affected.Expand(Bias);
-
-	TArray<bool> Selected;
-	Selected.Init(false, Holes.Num());
-
-	bool bExpanded = true;
-	while (bExpanded)
-	{
-		bExpanded = false;
-		for (int32 Index = 0; Index < Holes.Num(); ++Index)
-		{
-			if (Selected[Index])
-			{
-				continue;
-			}
-
-			if (!Affected.Intersects(Holes[Index].Bounds)) // 기존 구멍과 이번에 처리할 구멍의 겹치는 부분을 구한다.
-			{
-				continue;
-			}
-
-			Selected[Index] = true;
-			Incoming.Add(Holes[Index].Polygon); // 이번에 처리할 구멍에 겹쳤던 구멍 추가한다.
-			Affected.Contain(Holes[Index].Bounds);  // 이번에 처리할 구멍의 AABB에 겹쳤던 구멍의 AABB 추가한다.
-			bExpanded = true;
-		}
-	}
-
-	TArray<FGeneralPolygon2d> Connected;
-	const bool bUnited = PolygonsUnion(Incoming, Connected, false); // 겹친 구멍들을 하나로 합친다. (겹치지 않는 구멍은 그대로 유지)
-	if (!bUnited)
-	{
-		OutError = TEXT("Connected simple Holes could not be united.");
-		return false;
-	}
-	// 현재 상태 : 모든 구멍들이 Connected로 통합되어있음
-
+	//UE_LOG(LogTemp, Log, TEXT("Openings Count %d"), Holes.Num());
 	TArray<FGeneralPolygon2d> SimpleCuts;
-	for (const FGeneralPolygon2d& Hole : Connected)
+	for (FGeneralPolygon2d& Hole : Holes)
 	{
-		const double LocalArea = FMath::Abs(Hole.SignedArea());
-		//UE_LOG(LogTemp, Log, TEXT("Local %f"), LocalArea);
-		if (LocalArea + Bias < AreaThreshold)
+		const double WorldArea = FMath::Abs(Hole.SignedArea()) * ComponentArea;
+		// 임계보다 작은 구멍은 스킵
+		if (WorldArea + Bias < AreaThreshold)
 		{
-			// 완전히 없어진 벽에는 임계값과 무관하게 충돌도 남기지 않는다.
-			if (LocalArea < FMath::Abs(OriginalOuter.SignedArea()) - 1.e-7)
+			const double OriginalArea = FMath::Abs(OriginalOuter.SignedArea());
+			if (WorldArea < OriginalArea - 1.e-7)
 			{
 				continue;
 			}
 		}
 
-		// 컴포넌트 Scale이 오차판정에 영향이 가지 않게 한다.
 		FGeneralPolygon2d Simplified = Hole;
-		Simplified.Simplify(0.0, 1.0);
-		if (WorldContext)
-		{
-			BreachSurfaceGeometry::DebugDrawPolygon2d(WorldContext, ComponentTransform, Simplified);
-		}
+		//Simplified.Simplify(0.0, 1.0);
 
 		// 단순화한 구멍이 원래 구멍 밖으로 나가지 않도록 잘라내는 작업
 		TArray<FGeneralPolygon2d> SafeHoles;
@@ -199,61 +128,62 @@ bool FBreachSimpleCollision::ApplyCutDebug(UObject* WorldContext, const FTransfo
 			OutError = TEXT("Simplified hole could not be confined to the actual Hole.");
 			return false;
 		}
-
 		SimpleCuts.Append(MoveTemp(SafeHoles));
 	}
 
-	TArray<FGeneralPolygon2d> CandidateRegions;
-	bool bChanged = false;
+	// 충돌은 원본 벽에서 파생한다. 전달받은 표면 영역은 변경하지 않는다.
+	TArray<FGeneralPolygon2d> CollisionRegions(Original); 
+#if WITH_EDITOR
+	bool bFinalDifferenceApplied = false;
+#endif
 	if (!SimpleCuts.IsEmpty())
 	{
-		const bool bCut = PolygonsDifference(RemainingRegions, SimpleCuts, CandidateRegions);
-		if (!bCut)
+		const bool bCollisionBuilt = PolygonsDifference(Original, SimpleCuts, CollisionRegions);
+#if WITH_EDITOR
+		bFinalDifferenceApplied = true;
+#endif
+		if (!bCollisionBuilt)
 		{
-			OutError = TEXT("Simple wall regions could not be cut.");
+			OutError = TEXT("Simple collision regions could not be built from the original wall.");
 			return false;
 		}
 
-		bChanged = Area(RemainingRegions) - Area(CandidateRegions) > 1.e-8;
-	}
-
-	// 구멍 기록 캐시 갱신
-	for (int32 Index = Holes.Num() - 1; Index >= 0; --Index)
-	{
-		if (Selected[Index])
+		const bool bBoundariesResolved = BreachSurfaceGeometry::ResolveBoundaryOverlaps(CollisionRegions, OutError);
+		if (!bBoundariesResolved)
 		{
-			Holes.RemoveAt(Index);
+			return false;
 		}
 	}
-	for (FGeneralPolygon2d& Region : Connected)
-	{
-		const FAxisAlignedBox2d Bounds = Region.GetOuter().Bounds();
-		Holes.Add({ MoveTemp(Region), Bounds });
-	}
 
-
-	if (bChanged)
-	{
-		RemainingRegions = MoveTemp(CandidateRegions);
-		bDirty = true;
-	}
-
-	return true;
-}
-
-bool FBreachSimpleCollision::BuildMesh(FKAggregateGeom& OutCollision, FString& OutError) const
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | BuildConvex");
-	OutError.Reset();
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+	ObserveGeometry(TEXT("CollisionRegions"), CollisionRegions);
+#endif
 
 	FKAggregateGeom Collision;
-	for (const FGeneralPolygon2d& Region : RemainingRegions)
+	for (int32 RegionIndex = 0; RegionIndex < CollisionRegions.Num(); ++RegionIndex)
 	{
+		const FGeneralPolygon2d& Region = CollisionRegions[RegionIndex];
 		TArray<FVector2d> Vertices;
 		TArray<FIndex3i> Triangles;
 		const bool bTriangulated = BreachSurfaceGeometry::TriangulateRegion(Region, Vertices, Triangles, OutError);
 		if (!bTriangulated)
 		{
+#if WITH_EDITOR
+			if (!bFailureSnapshotSaved)
+			{
+				const BreachSimpleCollisionDiagnostics::FFailureSnapshot Snapshot{OriginalOuter, DepthRange, RemainingRegions, Holes, SimpleCuts, CollisionRegions, AreaThreshold, Bias, bFinalDifferenceApplied, RegionIndex, OutError};
+				FString SnapshotPath;
+				bFailureSnapshotSaved = BreachSimpleCollisionDiagnostics::SaveSnapshot(Snapshot, FPaths::ProjectSavedDir() / TEXT("Diagnostics/SimpleCollisionFailures"), SnapshotPath);
+				if (bFailureSnapshotSaved)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[BreachSimpleDiag] Failure snapshot saved: %s"), *SnapshotPath);
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[BreachSimpleDiag] Failed to save collision failure snapshot under Saved/Diagnostics/SimpleCollisionFailures."));
+				}
+			}
+#endif
 			return false;
 		}
 
@@ -264,7 +194,7 @@ bool FBreachSimpleCollision::BuildMesh(FKAggregateGeom& OutCollision, FString& O
 			Parts.Add(MoveTemp(Part));
 		}
 
-		bool bMerged = true;
+	/*	bool bMerged = true;
 		while (bMerged)
 		{
 			bMerged = false;
@@ -294,7 +224,7 @@ bool FBreachSimpleCollision::BuildMesh(FKAggregateGeom& OutCollision, FString& O
 					}
 				}
 			}
-		}
+		}*/
 
 		for (const TArray<int32>& Part : Parts)
 		{

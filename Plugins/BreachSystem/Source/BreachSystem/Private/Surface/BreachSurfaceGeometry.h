@@ -7,6 +7,9 @@ using namespace UE::Geometry;
 
 namespace BreachSurfaceGeometry
 {
+	/** 기존 정점 위치에서 역방향으로 겹친 변을 상쇄하고 닫힌 영역으로 다시 연결한다. 실패하면 입력을 유지한다. */
+	bool ResolveBoundaryOverlaps(TArray<FGeneralPolygon2d>& Regions, FString& OutError);
+
 	/** 구멍을 포함한 영역을 삼각분할하고 정점 인덱스, 삼각형 유효성, 면적 일치를 검증한다. */
 	bool TriangulateRegion(const FGeneralPolygon2d& Region, TArray<FVector2d>& OutVertices,
 		TArray<FIndex3i>& OutTriangles, FString& OutError);
@@ -20,9 +23,9 @@ namespace BreachSurfaceGeometry
 
 #if WITH_EDITOR
 	/** 로컬 XZ 영역들을 월드에 그린다. 외곽은 녹색, 구멍은 빨간색이며, 유효한 월드가 없으면 생략한다. */
-	void DebugDrawPolygon2ds(UObject* InWorldContext, const FTransform& InTransform, TArray<FGeneralPolygon2d> InGeneralPolygon2ds);
+	void DebugDrawPolygon2ds(UObject* InWorldContext, const FTransform& InTransform, TArray<FGeneralPolygon2d> InGeneralPolygon2ds, const FColor& InOuterColor = FColor::Green, const FColor& InHoleColor = FColor::Red, const float InTime = 2.f);
 	/** 다각형의 외곽선만 지정 색상으로 2초간 그린다. 로컬 Y=0 평면을 사용하며, 유효한 월드가 없으면 생략한다. */
-	void DebugDrawPolygon2d(UObject* InWorldContext, const FTransform& InTransform, FGeneralPolygon2d InGeneralPolygon2d, const FColor& InColor = FColor::Green);
+	void DebugDrawPolygon2d(UObject* InWorldContext, const FTransform& InTransform, FGeneralPolygon2d InGeneralPolygon2d, const FColor& InColor = FColor::Green, const float InTime = 2.f);
 #endif
 
 	/** 월드 위치를 역변환한 뒤 로컬 XZ만 추출한다. 표면 두께 방향인 Y 좌표는 버린다. */

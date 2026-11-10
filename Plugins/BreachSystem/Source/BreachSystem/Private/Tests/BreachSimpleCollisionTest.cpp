@@ -4,6 +4,7 @@
 #include "Surface/BreachSurfaceMaterial.h"
 #include "Surface/BreachSimpleCollision.h"
 #include "Settings/BreachSystemSettings.h"
+#include "Curve/PolygonIntersectionUtils.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -27,6 +28,22 @@ namespace
 			Polygon.AppendVertex(Point);
 		}
 		return Polygon;
+	}
+
+	bool CutFixtureRegions(TArray<FGeneralPolygon2d>& Regions, const FPolygon2d& Cutter, TConstArrayView<FPolygon2d> Detached)
+	{
+		TArray<FGeneralPolygon2d> Cutters = {FGeneralPolygon2d(Cutter)};
+		for (const FPolygon2d& Region : Detached)
+		{
+			Cutters.Add(FGeneralPolygon2d(Region));
+		}
+		TArray<FGeneralPolygon2d> Candidate;
+		if (!PolygonsDifference(Regions, Cutters, Candidate))
+		{
+			return false;
+		}
+		Regions = MoveTemp(Candidate);
+		return true;
 	}
 
 	struct FSimpleCollisionFixture
@@ -300,28 +317,28 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachSimpleCollisionCacheTest, "BreachSystem.
 
 bool FBreachSimpleCollisionCacheTest::RunTest(const FString& Parameters)
 {
+	const FPolygon2d Wall = Rectangle(-50, -50, 50, 50);
+	TArray<FGeneralPolygon2d> Regions = {FGeneralPolygon2d(Wall)};
 	FBreachSimpleCollision Collision;
-	Collision.Initialize(Rectangle(-50, -50, 50, 50), {-5, 5});
+	Collision.Initialize(Wall, {-5, 5});
 	FKAggregateGeom Shapes;
 	FString Error;
-	TestTrue(TEXT("Unbroken movement collision builds"), Collision.BuildMesh(Shapes, Error));
+	TestTrue(TEXT("Unbroken movement collision builds"), Collision.BuildMesh(Regions, 1.0, Shapes, Error));
 	TestEqual(TEXT("Unbroken rectangle merges into one convex piece"), Shapes.ConvexElems.Num(), 1);
-	Collision.ClearDirty();
 	const TArray<FPolygon2d> NoDetached;
 	for (double Center : {-30.0, 0.0, 30.0})
 	{
-		TestTrue(TEXT("A separate small opening is recorded"), Collision.ApplyCut(Rectangle(Center - 2, -2, Center + 2, 2), NoDetached, Error));
-		TestFalse(TEXT("Separate small openings do not rebuild movement geometry"), Collision.IsDirty());
+		TestTrue(TEXT("A separate small opening is recorded in the supplied regions"), CutFixtureRegions(Regions, Rectangle(Center - 2, -2, Center + 2, 2), NoDetached));
 	}
-	TestTrue(TEXT("Large cut updates movement region"), Collision.ApplyCut(Rectangle(-15, -15, 15, 15), NoDetached, Error));
-	TestTrue(TEXT("Large cut marks collision dirty"), Collision.IsDirty());
+	TestTrue(TEXT("Large cut updates supplied regions"), CutFixtureRegions(Regions, Rectangle(-15, -15, 15, 15), NoDetached));
 	const double BuildStart = FPlatformTime::Seconds();
-	TestTrue(TEXT("Changed movement regions build"), Collision.BuildMesh(Shapes, Error));
+	TestTrue(TEXT("Changed supplied regions build"), Collision.BuildMesh(Regions, 1.0, Shapes, Error));
 	AddInfo(FString::Printf(TEXT("Movement convex build: %d pieces, %.3f ms (automation fixture)."),
 		Shapes.ConvexElems.Num(), (FPlatformTime::Seconds() - BuildStart) * 1000));
-	Collision.ClearDirty();
-	TestTrue(TEXT("An already open cut is accepted"), Collision.ApplyCut(Rectangle(-10, -10, 10, 10), NoDetached, Error));
-	TestFalse(TEXT("An unchanged opening does not rebuild movement geometry"), Collision.IsDirty());
+	const int32 PreviousPieceCount = Shapes.ConvexElems.Num();
+	TestTrue(TEXT("An already open cut is accepted"), CutFixtureRegions(Regions, Rectangle(-10, -10, 10, 10), NoDetached));
+	TestTrue(TEXT("Unchanged supplied regions build"), Collision.BuildMesh(Regions, 1.0, Shapes, Error));
+	TestEqual(TEXT("An unchanged opening preserves collision output"), Shapes.ConvexElems.Num(), PreviousPieceCount);
 	return !HasAnyErrors();
 }
 // 테스트 전용: 모든 구멍에 동일한 월드 면적 임계값을 적용하는지 검증한다.
@@ -346,8 +363,9 @@ bool FBreachSimpleCollisionThresholdTest::RunTest(const FString& Parameters)
 	}
 	TGuardValue<double> ThresholdGuard(Settings->ComplexHoleSizeThreshold, 500.0);
 	FBreachSimpleCollision Collision;
-	Collision.Initialize(Rectangle(-50, -50, 50, 50), {-5, 5});
-	Collision.ClearDirty();
+	const FPolygon2d Wall = Rectangle(-50, -50, 50, 50);
+	Collision.Initialize(Wall, {-5, 5});
+	TArray<FGeneralPolygon2d> Regions = {FGeneralPolygon2d(Wall)};
 	FPolygon2d Cutter = Rectangle(-5, -24, 5, 24);
 	TArray<FPolygon2d> Detached;
 	if (Parameters == TEXT("Equal"))
@@ -370,11 +388,10 @@ bool FBreachSimpleCollisionThresholdTest::RunTest(const FString& Parameters)
 	}
 
 	FString Error;
-	TestTrue(TEXT("Cut succeeds"), Collision.ApplyCut(Cutter, Detached, Error));
+	TestTrue(TEXT("Cut succeeds"), CutFixtureRegions(Regions, Cutter, Detached));
 	const bool bShouldOpen = Parameters == TEXT("Above");
-	TestEqual(TEXT("Only an opening above the threshold changes Simple collision"), Collision.IsDirty(), bShouldOpen);
 	FKAggregateGeom Shapes;
-	TestTrue(TEXT("Simple collision builds"), Collision.BuildMesh(Shapes, Error));
+	TestTrue(TEXT("Simple collision builds"), Collision.BuildMesh(Regions, 1.0, Shapes, Error));
 	if (bShouldOpen)
 	{
 		TestTrue(TEXT("Large opening leaves multiple wall pieces"), Shapes.ConvexElems.Num() > 1);

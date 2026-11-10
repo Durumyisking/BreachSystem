@@ -593,6 +593,54 @@
                   "eState": "{}"
                 },
                 {
+                  "title": "SimpleCollision에서 Cutter와 Detach 병합후 미세오차때문에 생기는 정점들",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"이슈/SimpleCollision에서 Cutter와 Detach 병합후 미세오차때문에 생기는 정점들.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"SimpleCollision에서 Cutter와 Detach 병합후 미세오차때문에 생기는 정점들\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":9,\"ch\":36},\"to\":{\"line\":9,\"ch\":36}},\"scroll\":0}"
+                },
+                {
+                  "title": "MeshCut 실패",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"이슈/MeshCut 실패.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"MeshCut 실패\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":11,\"ch\":14},\"to\":{\"line\":11,\"ch\":0}},\"scroll\":9.613880691399663}"
+                },
+                {
+                  "title": "MeshBoolean.Compute 프레임 저하",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"이슈/MeshBoolean.Compute 프레임 저하.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"MeshBoolean.Compute 프레임 저하\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "DynamicMeshComponent로 변환하면서 라이팅 변화",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"이슈/DynamicMeshComponent로 변환하면서 라이팅 변화.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"DynamicMeshComponent로 변환하면서 라이팅 변화\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":0,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "SimpleCollision에서 Cutter와 Detach 병합후 미세오차때문에 생기는 정점들",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"이슈/SimpleCollision에서 Cutter와 Detach 병합후 미세오차때문에 생기는 정점들.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"SimpleCollision에서 Cutter와 Detach 병합후 미세오차때문에 생기는 정점들\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":8,\"ch\":0},\"to\":{\"line\":8,\"ch\":0}}}"
+                },
+                {
+                  "title": "DynamicMeshComponent로 변환하면서 라이팅 변화",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"이슈/DynamicMeshComponent로 변환하면서 라이팅 변화.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"DynamicMeshComponent로 변환하면서 라이팅 변화\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":4,\"ch\":0},\"to\":{\"line\":0,\"ch\":0}}}"
+                },
+                {
+                  "title": "SimpleCollision에서 Cutter와 Detach 병합후 미세오차때문에 생기는 정점들",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"이슈/SimpleCollision에서 Cutter와 Detach 병합후 미세오차때문에 생기는 정점들.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"Cutter와 Detach 병합후 미세오차때문에 생기는 정점들\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":5,\"ch\":0},\"to\":{\"line\":5,\"ch\":0}},\"scroll\":0}"
+                },
+                {
+                  "title": "2026-11-02 11. 브리칭, 이동 충돌체 분리",
+                  "icon": "lucide-file",
+                  "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/2026-11-02 11. 브리칭, 이동 충돌체 분리.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"2026-11-02 11. 브리칭, 이동 충돌체 분리\"}",
+                  "eState": "{\"cursor\":{\"from\":{\"line\":139,\"ch\":0},\"to\":{\"line\":139,\"ch\":0}},\"scroll\":137.3080174180328}"
+                },
+                {
                   "title": "멀티스레드, ComputeShader방식 폴리곤 절단 고찰",
                   "icon": "lucide-file",
                   "state": "{\"type\":\"markdown\",\"state\":{\"file\":\"개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md\",\"mode\":\"source\",\"source\":false},\"icon\":\"lucide-file\",\"title\":\"멀티스레드, ComputeShader방식 폴리곤 절단 고찰\"}",
@@ -933,12 +981,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "개발노트/2026-11-02 11. 브리칭, 이동 충돌체 분리.md",
+                "file": "이슈/삼각분할 실패.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "2026-11-02 11. 브리칭, 이동 충돌체 분리"
+              "title": "삼각분할 실패"
             }
           }
         ],
@@ -1185,25 +1233,29 @@
   },
   "active": "9cd7fce626909e9b",
   "lastOpenFiles": [
+    "이슈/SimpleCollision에서 Cutter와 Detach 병합후 미세오차때문에 생기는 정점들.md",
+    "이슈/삼각분할 실패.md",
+    "Pasted image 20261109172253.png",
+    "이슈/MeshCut 실패.md",
+    "이슈/MeshBoolean.Compute 프레임 저하.md",
+    "이슈/DynamicMeshComponent로 변환하면서 라이팅 변화.md",
+    "Pasted image 20261109171206.png",
+    "개발노트/2026-11-02 11. 브리칭, 이동 충돌체 분리.md",
+    "Pasted image 20261109171119.png",
     "Pasted image 20261105142649.png",
     "개발노트/멀티스레드, ComputeShader방식 폴리곤 절단 고찰.md",
-    "개발노트/2026-11-02 11. 브리칭, 이동 충돌체 분리.md",
     "Pasted image 20261105002616.png",
     "Pasted image 20261104235619.png",
     "Pasted image 20261104235606.png",
     "Pasted image 20261104235527.png",
     "Pasted image 20261104235422.png",
     "Pasted image 20261104235144.png",
-    "Pasted image 20261103100839.png",
-    "Pasted image 20261102203246.png",
     "개발노트/00. 임시메모장.md",
-    "Pasted image 20261102202327.png",
     "개발노트/FPS Dedicated Server 환경으로 변경.md",
     "개발노트/Convex vs Concave.md",
     "개발노트/StaticMesh에서 DynamicMesh변환.md",
     "개발노트/StaticMesh vs DynamicMesh.md",
     "개발노트/R6 분석.md",
-    "Pasted image 20261102202052.png",
     "개발노트/충돌 계산 최적화.md",
     "개발노트/삼각분할 함수 분석.md",
     "개발노트/메시의 Hit 지점 알아내기.md",
@@ -1227,10 +1279,6 @@
     "Research/R6-Destruction-Guide-2026-10-22/video-study/qa/server.log",
     "개발노트/2026-10-10 Chaos Destruction 브리칭.md",
     "개발노트/2026-10-11 브리칭 방식 변경.md",
-    "개발노트/2026-09-29 브리칭 1차 완성.md",
-    "개발노트/2026-10-12 1. 사각형 벽 데이터 캐시.md",
-    "개발노트/2026-10-13 3. 맞은 곳 주변에 절단용 다각형 만들기.md",
-    "개발노트/2026-10-12 2. 충돌 위치를 벽의 2D 좌표로 바꾸기.md",
     "무제.canvas"
   ]
 }

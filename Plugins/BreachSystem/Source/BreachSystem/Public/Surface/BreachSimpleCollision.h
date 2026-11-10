@@ -5,31 +5,33 @@
 
 struct FKAggregateGeom;
 
-/** 정밀 파손과 별도로 보관하는 이동용 영역. 작은 구멍도 연결 판정을 위해 기록한다. */
+/** 전달받은 표면 영역에서 면적 조건을 적용한 이동 충돌을 파생한다. */
 class BREACHSYSTEM_API FBreachSimpleCollision
 {
 public:
 	void Initialize(const UE::Geometry::FPolygon2d& Outer, const FVector2d& Depth);
 
-	/** 성공한 절단과 고립 조각만 반영한다. 임계값은 월드 면적(cm^2)이며, 실패 시 기존 상태를 유지한다. */
-	bool ApplyCut(const UE::Geometry::FPolygon2d& Cutter, TConstArrayView<UE::Geometry::FPolygon2d> Detached, FString& OutError);
-	bool ApplyCutDebug(UObject* WorldContext, const FTransform ComponentTransform, const UE::Geometry::FPolygon2d& Cutter, TConstArrayView<UE::Geometry::FPolygon2d> Detached, FString& OutError);
-
-	/** 이동용 영역을 볼록 기둥으로 만든다. 실제 등록과 물리 갱신은 호출자가 한 번 수행한다. */
-	bool BuildMesh(FKAggregateGeom& OutCollision, FString& OutError) const;
-	bool IsDirty() const { return bDirty; }
-	void ClearDirty() { bDirty = false; }
+	/** 면적 조건을 적용한 충돌 영역을 볼록 기둥으로 만든다. 입력 영역은 변경하거나 보관하지 않는다. */
+	bool BuildMesh(TConstArrayView<UE::Geometry::FGeneralPolygon2d> RemainingRegions, const double ComponentArea, FKAggregateGeom& OutCollision, FString& OutError) const;
 
 private:
-	struct FHole
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+	// 테스트 전용: 충돌 파생 단계의 출력을 보존해 수치 오류의 발생 지점을 추적한다.
+	friend class FBreachGeometryDiagnosisTest;
+	TFunction<void(const TCHAR*, TConstArrayView<UE::Geometry::FGeneralPolygon2d>)> GeometryObserver;
+	void ObserveGeometry(const TCHAR* Stage, TConstArrayView<UE::Geometry::FGeneralPolygon2d> Regions) const
 	{
-		UE::Geometry::FGeneralPolygon2d Polygon;
-		UE::Geometry::FAxisAlignedBox2d Bounds;
-	};
+		if (GeometryObserver)
+		{
+			GeometryObserver(Stage, Regions);
+		}
+	}
+#endif
 
 	UE::Geometry::FPolygon2d OriginalOuter;
 	FVector2d DepthRange = FVector2d::ZeroVector;
-	TArray<FHole> Holes;
-	TArray<UE::Geometry::FGeneralPolygon2d> RemainingRegions;
-	bool bDirty = false;
+#if WITH_EDITOR
+	// Editor 진단용: 표면 수명마다 최초 실패 입력만 보존한다.
+	mutable bool bFailureSnapshotSaved = false;
+#endif
 };
