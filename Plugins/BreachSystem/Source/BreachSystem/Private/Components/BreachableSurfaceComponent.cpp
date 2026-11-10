@@ -355,6 +355,56 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh)
 	// 등록전에 메시와 충돌 데이터를 준비한다. 작은 구멍도 Complex에는 즉시 반영한다.
 	DynamicMeshProxy->SetMesh(MoveTemp(Mesh));
 	DynamicMeshProxy->UpdateCollision(false);
+
+#if WITH_EDITOR
+	// bUseAsyncCooking = false인 현재 구성에서 사용한다.
+	const UBodySetup* DebugBodySetup = DynamicMeshProxy->GetBodySetup();
+	if (IsValid(DebugBodySetup))
+	{
+		if (DebugBodySetup->GetCollisionTraceFlag() != CTF_UseComplexAsSimple)
+		{
+			for (int32 ElementIndex = 0;
+				ElementIndex < DebugBodySetup->AggGeom.ConvexElems.Num();
+				++ElementIndex)
+			{
+				const FKConvexElem& Convex =
+					DebugBodySetup->AggGeom.ConvexElems[ElementIndex];
+
+				if (Convex.GetChaosConvexMesh())
+				{
+					continue;
+				}
+
+				UE_LOG(LogBreachableSurface, Warning,
+					TEXT("[BreachConvexDebug] Body=%s Element=%d Vertices=%d Depth=%.17g"),
+					*DebugBodySetup->GetPathName(),
+					ElementIndex,
+					Convex.VertexData.Num(),
+					Convex.ElemBox.GetSize().Y);
+
+				for (int32 VertexIndex = 0;
+					VertexIndex < Convex.VertexData.Num();
+					++VertexIndex)
+				{
+					const FVector& P = Convex.VertexData[VertexIndex];
+					const FVector3f F(P);
+
+					UE_LOG(LogBreachableSurface, Warning,
+						TEXT("[BreachConvexDebug] Element=%d V%d Double=(%.17g, %.17g, %.17g) Float=(%.9g, %.9g, %.9g)"),
+						ElementIndex,
+						VertexIndex,
+						P.X, P.Y, P.Z,
+						static_cast<double>(F.X),
+						static_cast<double>(F.Y),
+						static_cast<double>(F.Z));
+				}
+
+				// 로그가 쌓이지 않도록 이번 갱신에서 실패한 첫 조각만 출력한다.
+				break;
+			}
+		}
+	}
+#endif
 	
 	// 컴포넌트 등록 안되어있으면 등록
 	if (!DynamicMeshProxy->IsRegistered())
