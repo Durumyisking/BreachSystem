@@ -337,7 +337,20 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh)
 	const double AreaScale = FMath::Abs(Scale.X * Scale.Z);
 	FKAggregateGeom CollisionShapes;
 	FString Error;
-	const bool bBuilt = SimpleCollision.BuildMesh(SurfaceState.RemainingRegions, AreaScale, CollisionShapes, Error);
+	// 누적한 구멍 캐시에서 먼저 만든다. 캐시를 쓸 수 없거나 실패하면 RemainingRegions에서 구멍을 되짚는 경로로 대체한다.
+	bool bBuilt = false;
+	if (SimpleCollision.HasHoleCache())
+	{
+		bBuilt = SimpleCollision.BuildMeshFromCuts(AreaScale, CollisionShapes, Error);
+		if (!bBuilt)
+		{
+			UE_LOG(LogBreachableSurface, Warning, TEXT("%s could not build movement collision from tracked openings and derives it from the remaining regions: %s"), *GetName(), *Error);
+		}
+	}
+	if (!bBuilt)
+	{
+		bBuilt = SimpleCollision.BuildMesh(SurfaceState.RemainingRegions, AreaScale, CollisionShapes, Error);
+	}
 	if (bBuilt)
 	{
 		DynamicMeshProxy->SetSimpleCollisionShapes(CollisionShapes, false);
@@ -933,6 +946,17 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 	// 계산 결과만 보관한다. 실제 메시와 충돌은 모든 절단이 끝난 뒤 반영한다.
 	SurfaceState.RemainingRegions = MoveTemp(CandidateRegions);
 	OutMesh = MoveTemp(RenewedMesh);
+
+	// 확정된 절단을 이동 충돌용 구멍 캐시에 알린다. 실패하면 캐시만 무효화되고 UpdateMesh가 RemainingRegions에서 충돌을 파생한다.
+	if (SimpleCollision.HasHoleCache())
+	{
+		FString CacheError;
+		const bool bTracked = SimpleCollision.ApplyCut(Cutter, DetachedRegions, CacheError);
+		if (!bTracked)
+		{
+			UE_LOG(LogBreachableSurface, Warning, TEXT("%s stopped tracking movement openings and now derives them from the remaining regions: %s"), *GetName(), *CacheError);
+		}
+	}
 
 	for (const FPolygon2d& Detached : DetachedRegions)
 	{
