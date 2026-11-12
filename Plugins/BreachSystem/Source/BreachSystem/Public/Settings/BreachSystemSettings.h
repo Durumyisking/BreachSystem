@@ -21,6 +21,12 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Grid", meta = (DisplayName = "Complex Hole Area Threshold (cm^2)", ClampMin = "0.1"))
 	double ComplexHoleSizeThreshold = 500.f;
 
+	/** 연결된 개구부 하나에서 선택할 Convex 통과 영역 수. 실제 벽 충돌체 수와는 다르다. */
+	UPROPERTY(Config, EditAnywhere, Category = "Collision", meta = (ClampMin = "1", ClampMax = "16"))
+	int32 MaxSimpleConvexCount = 3;
+
+	static int32 GetMaxSimpleConvexCount();
+
 	/** 전역 셀 크기를 읽는다. 잘못된 Config 값은 경고를 남기고 기본값 10cm를 반환한다. */
 	UFUNCTION(BlueprintPure, Category="Breach|Settings", meta=(DisplayName="Get Breach Cell Size (cm)"))
 	static float GetCellSizeCm();

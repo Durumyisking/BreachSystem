@@ -239,6 +239,7 @@ bool FBreachBoundaryOverlapTest::RunTest(const FString& Parameters)
 				const bool bBuilt = Collision.BuildMesh(Remaining, 1.0, Shapes, Error);
 				TestTrue(File + TEXT(" actual Simple BuildMesh succeeds: ") + Error, bBuilt);
 				double CollisionArea = 0;
+				TArray<FGeneralPolygon2d> Footprints;
 				for (const FKConvexElem& Convex : Shapes.ConvexElems)
 				{
 					FPolygon2d Front;
@@ -248,8 +249,18 @@ bool FBreachBoundaryOverlapTest::RunTest(const FString& Parameters)
 						Front.AppendVertex({Point.X, Point.Z});
 					}
 					CollisionArea += FMath::Abs(Front.SignedArea());
+					Footprints.Add(FGeneralPolygon2d(Front));
 				}
-				TestTrue(File + TEXT(" collision covers the selected wall area"), FMath::Abs(CollisionArea - Area) <= 1.e-8);
+				// Convex 통과 영역은 원본 개구부보다 작을 수 있다. 남아 있는 벽을 제거하지 않는지 공간으로 검사한다.
+				TArray<FGeneralPolygon2d> MissingSolid;
+				TestTrue(File + TEXT(" retained-wall coverage can be measured"), PolygonsDifference(Remaining, Footprints, MissingSolid));
+				double MissingArea = 0;
+				for (const FGeneralPolygon2d& Part : MissingSolid)
+				{
+					MissingArea += FMath::Abs(Part.SignedArea());
+				}
+				TestTrue(File + TEXT(" collision covers every retained wall region"), MissingArea <= 1.e-6);
+				TestTrue(File + TEXT(" collision stays within the original wall area"), CollisionArea <= FMath::Abs(Original[0].SignedArea()) + 1.e-6);
 			}
 		}
 		AddInfo(FString::Printf(TEXT("Replayed %d captured failure snapshots."), ReplayedCount));

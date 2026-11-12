@@ -144,41 +144,41 @@ bool FBreachSimpleHoleCacheTest::RunTest(const FString& Parameters)
 
 	if (Parameters == TEXT("Policy"))
 	{
-		// 상태 확인: 내부 구멍은 이어져 임계를 넘을 때만 열리고, 임계를 바꾸면 출력만 바뀐다.
+		// 상태 확인: 면적이 커져도 기준 원보다 얇은 구멍은 계속 막는다.
 		FHoleCacheFixture Inner(Wall);
 		TestTrue(TEXT("Small cut recorded"), Inner.Cut(MakeCacheRectangle(-25, -5, -5, 5)));
 		ExpectArea(Inner, TEXT("Small cut"), 10000.0);
 		TestTrue(TEXT("Second separate cut recorded"), Inner.Cut(MakeCacheRectangle(5, -5, 25, 5)));
 		ExpectArea(Inner, TEXT("Separate cuts"), 10000.0);
 		TestTrue(TEXT("Connecting cut recorded"), Inner.Cut(MakeCacheRectangle(-6, -5, 6, 5)));
-		ExpectArea(Inner, TEXT("Connected opening"), 9500.0);
+		ExpectArea(Inner, TEXT("Connected opening"), 10000.0);
 
 		FKAggregateGeom FromRegions;
 		TestTrue(TEXT("Same state builds from the supplied regions"), Inner.Collision.BuildMesh(Inner.Regions, 1.0, FromRegions, Error));
-		TestTrue(TEXT("Hole cache output matches the region-derived output"), FMath::IsNearlyEqual(CacheFootprintArea(FromRegions), 9500.0, 1.e-6));
+		TestTrue(TEXT("Hole cache output matches the region-derived output"), FMath::IsNearlyEqual(CacheFootprintArea(FromRegions), 10000.0, 1.e-6));
 
 		Settings->ComplexHoleSizeThreshold = 600.0;
 		ExpectArea(Inner, TEXT("Higher threshold"), 10000.0);
 		Settings->ComplexHoleSizeThreshold = 450.0;
-		ExpectArea(Inner, TEXT("Restored threshold"), 9500.0);
+		ExpectArea(Inner, TEXT("Restored threshold"), 10000.0);
 
 		// 처리: 임계 미만인 별도 구멍은 이미 만든 충돌 출력을 바꾸지 않는다.
 		const int32 PieceCount = Shapes.ConvexElems.Num();
 		TestTrue(TEXT("Unrelated small cut recorded"), Inner.Cut(MakeCacheRectangle(30, 30, 34, 34)));
-		ExpectArea(Inner, TEXT("Unrelated small cut"), 9500.0);
+		ExpectArea(Inner, TEXT("Unrelated small cut"), 10000.0);
 		TestEqual(TEXT("Unchanged selected openings keep the previous pieces"), Shapes.ConvexElems.Num(), PieceCount);
 
-		// 상태 확인: 가장자리 파임도 같은 면적 조건을 따른다.
+		// 상태 확인: 가장자리 파임과 벽을 가르는 절단에도 폭 조건을 적용한다.
 		FHoleCacheFixture Border(Wall);
 		TestTrue(TEXT("Small border cut recorded"), Border.Cut(MakeCacheRectangle(-60, -5, -45, 5)));
 		ExpectArea(Border, TEXT("Small border notch"), 10000.0);
 		TestTrue(TEXT("Large border cut recorded"), Border.Cut(MakeCacheRectangle(-60, -20, -35, 20)));
-		ExpectArea(Border, TEXT("Large border opening"), 9400.0);
+		ExpectArea(Border, TEXT("Large border opening"), 10000.0);
 
 		FHoleCacheFixture Split(Wall);
 		TestTrue(TEXT("Wall-splitting cut recorded"), Split.Cut(MakeCacheRectangle(-5, -60, 5, 60)));
 		TestEqual(TEXT("Split wall has two remaining regions"), Split.Regions.Num(), 2);
-		ExpectArea(Split, TEXT("Split wall"), 9000.0);
+		ExpectArea(Split, TEXT("Split wall"), 10000.0);
 
 		FHoleCacheFixture Removed(Wall);
 		TestTrue(TEXT("Full removal recorded"), Removed.Cut(MakeCacheRectangle(-100, -100, 100, 100)));
@@ -198,7 +198,9 @@ bool FBreachSimpleHoleCacheTest::RunTest(const FString& Parameters)
 		ExpectArea(Fixture, TEXT("Open ring below the threshold"), 10000.0);
 		TestTrue(TEXT("Closing ring cut recorded"), Fixture.Cut(MakeCacheRectangle(15, -15, 20, 15)));
 		TestTrue(TEXT("Closing the ring detaches the center"), FMath::IsNearlyEqual(Fixture.RemainingArea(), 8400.0, 1.e-6));
-		ExpectArea(Fixture, TEXT("Detached center joins the opening"), 8400.0);
+		TestTrue(TEXT("Detached center joins a broad opening"), Fixture.Collision.BuildMeshFromCuts(1.0, Shapes, Error));
+		AddInfo(FString::Printf(TEXT("Detached broad opening retained area %.9f"), CacheFootprintArea(Shapes)));
+		TestTrue(TEXT("The broad detached opening opens its body while retaining rounded corners"), CacheFootprintArea(Shapes) > 8400.0 && CacheFootprintArea(Shapes) < 9000.0);
 		Settings->ComplexHoleSizeThreshold = 2000.0;
 		ExpectArea(Fixture, TEXT("Detached opening below a higher threshold"), 10000.0);
 	}
@@ -211,9 +213,9 @@ bool FBreachSimpleHoleCacheTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Upper notch recorded"), Fixture.Cut(MakeCacheRectangle(-70, 2, -45, 12)));
 		TestTrue(TEXT("Cutter outside the wall recorded"), Fixture.Cut(MakeCacheRectangle(-70, -12, -55, 12)));
 		ExpectArea(Fixture, TEXT("Notches joined only outside the wall"), 10000.0);
-		// 다리는 파임의 모서리에서 2만큼 떨어뜨린다. 더 가까우면 모서리가 단순화 허용 거리 안에 들어와 면적이 정확히 맞지 않는다.
+		// 벽 안에서 연결돼도 각 Convex 부분이 80보다 작으므로 이동 통과 영역은 만들지 않는다.
 		TestTrue(TEXT("Bridge inside the wall recorded"), Fixture.Cut(MakeCacheRectangle(-49, -4, -47, 4)));
-		ExpectArea(Fixture, TEXT("Notches joined inside the wall"), 9892.0);
+		ExpectArea(Fixture, TEXT("Connected notches have no qualifying convex passage"), 10000.0);
 	}
 	else if (Parameters == TEXT("Stress"))
 	{

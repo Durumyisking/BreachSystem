@@ -16,6 +16,9 @@
 #include "StaticMeshResources.h"
 #include "Engine/DamageEvents.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Async/Async.h"
+#include "Engine/World.h"
+#include "HAL/PlatformTime.h"
 
 #include "BreachSystemLog.h"
 
@@ -33,6 +36,18 @@
 #include "PhysicsEngine/BodySetup.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBreachableSurface, Log, All);
+
+struct FBreachSimpleBuildJob
+{
+	FBreachSimpleCollision Snapshot;
+	FBreachSimpleBuildPolicy Policy;
+	FKAggregateGeom Collision;
+	FString Error;
+	uint64 Generation = 0;
+	uint64 Revision = 0;
+	double RequestedAt = 0;
+	bool bSucceeded = false;
+};
 
 #if WITH_EDITOR
 bool UBreachableSurfaceComponent::GetCellGridForDebug(FBreachCellGrid& OutGrid, UE::Geometry::FAxisAlignedBox2d& OutLocalBounds, FVector2d& OutDepthRange) const
@@ -95,6 +110,7 @@ void UBreachableSurfaceComponent::PostEditChangeProperty(FPropertyChangedEvent& 
 
 void UBreachableSurfaceComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
+	InvalidateSimpleCollisionJobs();
 	if (IsValid(DynamicMeshProxy))
 	{
 		DynamicMeshProxy->SetSurface(nullptr);
@@ -267,6 +283,7 @@ bool UBreachableSurfaceComponent::CreateDynamicMeshProxy(UE::Geometry::FDynamicM
 	OriginalVertices = Outer.GetVertices();
 	OriginBounds = OriginalOuter.Bounds();
 	OriginalDepthRange = FVector2d(MeshBounds.Min.Y, MeshBounds.Max.Y);
+	InvalidateSimpleCollisionJobs();
 	SimpleCollision.Initialize(OriginalOuter, OriginalDepthRange);
 
 	// 6. 복사한 삼각형의 머티리얼 ID와 대응하도록 원본의 슬롯 순서를 유지한다.
@@ -325,6 +342,158 @@ bool UBreachableSurfaceComponent::CreateDynamicMeshProxy(UE::Geometry::FDynamicM
 	return true;
 }
 
+FBreachSimpleBuildPolicy UBreachableSurfaceComponent::GetSimpleBuildPolicy() const
+{
+	check(IsInGameThread());
+	const FVector Scale = GetComponentScale();
+	FBreachSimpleBuildPolicy Policy;
+	Policy.WorldScale = FVector2d(FMath::Abs(Scale.X), FMath::Abs(Scale.Z));
+	Policy.AreaThreshold = UBreachSystemSettings::GetComplexHoleSizeThreshold();
+	Policy.MaxCount = UBreachSystemSettings::GetMaxSimpleConvexCount();
+	return Policy;
+}
+
+void UBreachableSurfaceComponent::InvalidateSimpleCollisionJobs()
+{
+	++SimpleBuildGeneration;
+	// 진행 중인 이전 수명의 작업도 완료까지 보관하여 같은 표면의 작업이 겹치지 않게 한다.
+	bSimpleBuildPending = false;
+	SimplePendingSince = 0;
+	CompletedSimpleRevision = 0;
+}
+
+void UBreachableSurfaceComponent::OnUnregister()
+{
+	InvalidateSimpleCollisionJobs();
+	Super::OnUnregister();
+}
+
+void UBreachableSurfaceComponent::OnRegister()
+{
+	Super::OnRegister();
+	UWorld* World = GetWorld();
+	if (IsValid(DynamicMeshProxy) && World && World->IsGameWorld())
+	{
+		QueueSimpleCollision();
+	}
+}
+
+void UBreachableSurfaceComponent::QueueSimpleCollision()
+{
+	check(IsInGameThread());
+	if (!IsValid(DynamicMeshProxy) || !SimpleCollision.HasHoleCache())
+	{
+		bSimpleBuildPending = false;
+		SimplePendingSince = 0;
+		UE_LOG(LogBreachableSurface, Warning, TEXT("%s cannot queue Simple collision without a valid proxy and hole cache; previous collision is retained."), *GetName());
+		return;
+	}
+	const FBreachSimpleBuildPolicy Policy = GetSimpleBuildPolicy();
+	if (!SimpleBuildJob.IsValid() && SimpleCollision.GetRevision() == CompletedSimpleRevision && Policy == CompletedSimplePolicy)
+	{
+		return;
+	}
+	if (!bSimpleBuildPending)
+	{
+		SimplePendingSince = FPlatformTime::Seconds();
+	}
+	bSimpleBuildPending = true;
+	if (SimpleBuildJob.IsValid())
+	{
+		return;
+	}
+
+	auto Job = MakeShared<FBreachSimpleBuildJob, ESPMode::ThreadSafe>();
+	Job->Snapshot = SimpleCollision;
+	Job->Policy = Policy;
+	Job->Generation = SimpleBuildGeneration;
+	Job->Revision = SimpleCollision.GetRevision();
+	Job->RequestedAt = SimplePendingSince;
+	SimpleBuildJob = Job;
+	bSimpleBuildPending = false;
+	SimplePendingSince = 0;
+	const TWeakObjectPtr<UBreachableSurfaceComponent> WeakThis(this);
+	Async(EAsyncExecution::ThreadPool, [WeakThis, Job]
+	{
+		Job->bSucceeded = Job->Snapshot.BuildMeshFromCuts(Job->Policy, Job->Collision, Job->Error);
+		AsyncTask(ENamedThreads::GameThread, [WeakThis, Job]
+		{
+			UBreachableSurfaceComponent* Surface = WeakThis.Get();
+			if (IsValid(Surface))
+			{
+				Surface->CompleteSimpleCollision(Job);
+			}
+		});
+	});
+}
+
+void UBreachableSurfaceComponent::CompleteSimpleCollision(const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job)
+{
+	check(IsInGameThread());
+	check(Job.IsValid());
+	if (SimpleBuildJob != Job)
+	{
+		return;
+	}
+	SimpleBuildJob.Reset();
+	if (Job->Generation != SimpleBuildGeneration)
+	{
+		if (bSimpleBuildPending)
+		{
+			QueueSimpleCollision();
+		}
+		return;
+	}
+	UWorld* World = GetWorld();
+	if (!IsValid(DynamicMeshProxy) || !World || World->bIsTearingDown)
+	{
+		bSimpleBuildPending = false;
+		SimplePendingSince = 0;
+		return;
+	}
+	const FBreachSimpleBuildPolicy CurrentPolicy = GetSimpleBuildPolicy();
+	if (!(CurrentPolicy == Job->Policy))
+	{
+		QueueSimpleCollision();
+		return;
+	}
+	if (!SimpleCollision.HasHoleCache())
+	{
+		bSimpleBuildPending = false;
+		SimplePendingSince = 0;
+		UE_LOG(LogBreachableSurface, Warning, TEXT("%s discarded completed Simple collision because its live hole cache is invalid."), *GetName());
+		return;
+	}
+	if (Job->bSucceeded)
+	{
+		const double AdoptStarted = FPlatformTime::Seconds();
+		SimpleCollision.CommitBuild(Job->Snapshot);
+		const double AdoptMs = (FPlatformTime::Seconds() - AdoptStarted) * 1000;
+		CompletedSimpleRevision = Job->Revision;
+		CompletedSimplePolicy = Job->Policy;
+		const FBreachSimpleBuildStats& Stats = SimpleCollision.GetLastBuildStats();
+		const double CookStarted = FPlatformTime::Seconds();
+		if (Stats.bCollisionChanged)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | ApplyAndCook");
+			DynamicMeshProxy->SetSimpleCollisionShapes(Job->Collision, false);
+			// 최신 표시 메시를 유지한 채 Simple 도형만 교체한다.
+			DynamicMeshProxy->UpdateCollision(false);
+		}
+		const double CookMs = (FPlatformTime::Seconds() - CookStarted) * 1000;
+		const double LatencyMs = (FPlatformTime::Seconds() - Job->RequestedAt) * 1000;
+		UE_LOG(LogBreachableSurface, Verbose, TEXT("[BreachSimpleAsync] %s revision=%llu geometry=%.3fms adopt=%.3fms cook=%.3fms latency=%.3fms boolean=%llu boundary=%llu nodes=%llu prepared=%d reused=%d overLimit=%d changed=%d"), *GetName(), Job->Revision, Stats.GeometryMs, AdoptMs, CookMs, LatencyMs, Stats.BooleanOperations, Stats.BoundaryTests, Stats.BoundaryNodeVisits, Stats.PreparedOpenings, Stats.ReusedBodies, Stats.OverLimitBodies, Stats.bCollisionChanged);
+	}
+	else
+	{
+		UE_LOG(LogBreachableSurface, Warning, TEXT("%s kept its previous Simple collision after background calculation failed: %s"), *GetName(), *Job->Error);
+	}
+	if (bSimpleBuildPending)
+	{
+		QueueSimpleCollision();
+	}
+}
+
 bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh)
 {
 	if (!ensureMsgf(IsValid(DynamicMeshProxy), TEXT("%s requires a surface proxy to update its mesh."), *GetName()))
@@ -332,42 +501,63 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh)
 		return false;
 	}
 
-	// 확정된 표면 영역에서 이동 충돌을 생성한다.
-	const FVector Scale = GetComponentScale();
-	const double AreaScale = FMath::Abs(Scale.X * Scale.Z);
-	FKAggregateGeom CollisionShapes;
-	FString Error;
-	// 누적한 구멍 캐시에서 먼저 만든다. 캐시를 쓸 수 없거나 실패하면 RemainingRegions에서 구멍을 되짚는 경로로 대체한다.
-	bool bBuilt = false;
-	if (SimpleCollision.HasHoleCache())
+	UWorld* World = GetWorld();
+	const bool bAsyncSimple = World && World->IsGameWorld();
+	if (bAsyncSimple)
 	{
-		bBuilt = SimpleCollision.BuildMeshFromCuts(AreaScale, CollisionShapes, Error);
-		if (!bBuilt)
+		if (!DynamicMeshProxy->IsRegistered())
 		{
-			UE_LOG(LogBreachableSurface, Warning, TEXT("%s could not build movement collision from tracked openings and derives it from the remaining regions: %s"), *GetName(), *Error);
+			FKAggregateGeom InitialCollision;
+			FString Error;
+			if (!SimpleCollision.BuildInitialCollision(GetSimpleBuildPolicy(), InitialCollision, Error))
+			{
+				UE_LOG(LogBreachableSurface, Warning, TEXT("%s cannot prepare initial Simple collision: %s"), *GetName(), *Error);
+				ResetSurface();
+				return false;
+			}
+			DynamicMeshProxy->SetSimpleCollisionShapes(InitialCollision, false);
 		}
-	}
-	if (!bBuilt)
-	{
-		bBuilt = SimpleCollision.BuildMesh(SurfaceState.RemainingRegions, AreaScale, CollisionShapes, Error);
-	}
-	if (bBuilt)
-	{
-		DynamicMeshProxy->SetSimpleCollisionShapes(CollisionShapes, false);
 	}
 	else
 	{
-		UE_LOG(LogBreachableSurface, Warning, TEXT("%s kept its previous movement collision: %s"), *GetName(), *Error);
-		if (!DynamicMeshProxy->IsRegistered())
+		// 확정된 표면 영역에서 이동 충돌을 생성한다.
+		FKAggregateGeom CollisionShapes;
+		FString Error;
+		// 누적한 구멍 캐시에서 먼저 만든다. 캐시를 쓸 수 없거나 실패하면 RemainingRegions에서 구멍을 되짚는 경로로 대체한다.
+		bool bBuilt = false;
+		if (SimpleCollision.HasHoleCache())
 		{
-			ResetSurface();
-			return false;
+			bBuilt = SimpleCollision.BuildMeshFromCuts(GetSimpleBuildPolicy(), CollisionShapes, Error);
+			if (!bBuilt)
+			{
+				UE_LOG(LogBreachableSurface, Warning, TEXT("%s could not build movement collision from tracked openings and derives it from the remaining regions: %s"), *GetName(), *Error);
+			}
+		}
+		//if (!bBuilt)
+		//{
+		//	bBuilt = SimpleCollision.BuildMesh(SurfaceState.RemainingRegions, AreaScale, CollisionShapes, Error);
+		//}
+		if (bBuilt)
+		{
+			DynamicMeshProxy->SetSimpleCollisionShapes(CollisionShapes, false);
+		}
+		else
+		{
+			UE_LOG(LogBreachableSurface, Warning, TEXT("%s kept its previous movement collision: %s"), *GetName(), *Error);
+			if (!DynamicMeshProxy->IsRegistered())
+			{
+				ResetSurface();
+				return false;
+			}
 		}
 	}
 
 	// 등록전에 메시와 충돌 데이터를 준비한다. 작은 구멍도 Complex에는 즉시 반영한다.
 	DynamicMeshProxy->SetMesh(MoveTemp(Mesh));
-	DynamicMeshProxy->UpdateCollision(false);
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | ComplexCollisionCook");
+		DynamicMeshProxy->UpdateCollision(false);
+	}
 
 	// 컴포넌트 등록 안되어있으면 등록
 	if (!DynamicMeshProxy->IsRegistered())
@@ -380,11 +570,17 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh)
 		DynamicMeshProxy->SetHiddenInGame(bOriginalHiddenInGame, false);
 	}
 
+	if (bAsyncSimple)
+	{
+		QueueSimpleCollision();
+	}
+
 	return true;
 }
 
 bool UBreachableSurfaceComponent::ResetSurface()
 {
+	InvalidateSimpleCollisionJobs();
 	// 처리: 누적 기록을 비우고 Proxy가 대신하던 원본 표시·충돌을 복구한다.
 	DamageAccumulator.Reset();
 	CachedMeshScaleXZ = FVector2d::ZeroVector;
@@ -838,7 +1034,7 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 			return Reject(*Error);
 		}
 
-		// 실제 메시에는 퇴화 면을 허용하지 않는다. Simple 충돌의 면적 허용 오차와 구분한다.
+		// 아주 작은 면이 있으면 이번 브리칭은 스킵
 		for (const FIndex3i& Triangle : Triangles)
 		{
 			const FVector2d AB = Vertices[Triangle.B] - Vertices[Triangle.A];

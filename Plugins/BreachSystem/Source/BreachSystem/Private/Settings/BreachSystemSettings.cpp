@@ -8,6 +8,18 @@ UBreachSystemSettings::UBreachSystemSettings()
 	SectionName = TEXT("BreachSystem");
 }
 
+int32 UBreachSystemSettings::GetMaxSimpleConvexCount()
+{
+	const UBreachSystemSettings* Settings = GetDefault<UBreachSystemSettings>();
+	checkf(Settings, TEXT("BreachSystemSettings default object is required to read MaxSimpleConvexCount."));
+	if (Settings->MaxSimpleConvexCount < 1 || Settings->MaxSimpleConvexCount > 16)
+	{
+		UE_LOG(LogBreachSystemSettings, Warning, TEXT("Invalid MaxSimpleConvexCount (%d). Set a value from 1 to 16 in Project Settings > Plugins > Breach System. Using 3."), Settings->MaxSimpleConvexCount);
+		return 3;
+	}
+	return Settings->MaxSimpleConvexCount;
+}
+
 float UBreachSystemSettings::GetCellSizeCm()
 {
 	const UBreachSystemSettings* Settings = GetDefault<UBreachSystemSettings>();

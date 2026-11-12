@@ -109,7 +109,7 @@ bool FBreachSimpleRemainingRegionsTest::RunTest(const FString& Parameters)
 	const TArray<FGeneralPolygon2d> ConnectedRegions = Regions;
 	const FString AfterBridge = RegionSnapshot(Regions);
 	TestTrue(TEXT("Connected opening collision builds"), Collision.BuildMesh(Regions, 1.0, Shapes, Error));
-	TestTrue(TEXT("Connected opening crosses area threshold"), FMath::IsNearlyEqual(CollisionFootprintArea(Shapes), 9500.0, 1.e-6));
+	TestTrue(TEXT("Connected but narrow opening stays blocked"), FMath::IsNearlyEqual(CollisionFootprintArea(Shapes), 10000.0, 1.e-6));
 	TestEqual(TEXT("Connected collision build preserves supplied regions"), RegionSnapshot(Regions), AfterBridge);
 	Settings->ComplexHoleSizeThreshold = 600.0;
 	TestTrue(TEXT("Changed output threshold builds"), Collision.BuildMesh(Regions, 1.0, Shapes, Error));
@@ -120,7 +120,7 @@ bool FBreachSimpleRemainingRegionsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Same builder accepts an uncut wall without reinitialization"), Collision.BuildMesh(UncutRegions, 1.0, Shapes, Error));
 	TestTrue(TEXT("Previous damage is not retained by the builder"), FMath::IsNearlyEqual(CollisionFootprintArea(Shapes), 10000.0, 1.e-6));
 	TestTrue(TEXT("Same builder accepts the previous input again"), Collision.BuildMesh(ConnectedRegions, 1.0, Shapes, Error));
-	TestTrue(TEXT("Output depends on the supplied regions"), FMath::IsNearlyEqual(CollisionFootprintArea(Shapes), 9500.0, 1.e-6));
+	TestTrue(TEXT("Supplying the narrow opening again keeps it blocked"), FMath::IsNearlyEqual(CollisionFootprintArea(Shapes), 10000.0, 1.e-6));
 	TestEqual(TEXT("Repeated builds preserve the connected input"), RegionSnapshot(ConnectedRegions), AfterBridge);
 
 	Regions = UncutRegions;
@@ -130,7 +130,7 @@ bool FBreachSimpleRemainingRegionsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Small border notch stays blocked"), FMath::IsNearlyEqual(CollisionFootprintArea(Shapes), 10000.0, 1.e-6));
 	TestTrue(TEXT("Large border cut recorded"), ApplySurfaceCut(MakeRegionRectangle(-60, -20, -35, 20)));
 	TestTrue(TEXT("Large border opening output builds"), Collision.BuildMesh(Regions, 1.0, Shapes, Error));
-	TestTrue(TEXT("Large border opening is represented without a Hole"), FMath::IsNearlyEqual(CollisionFootprintArea(Shapes), 9400.0, 1.e-6));
+	TestTrue(TEXT("Narrow border opening remains blocked"), FMath::IsNearlyEqual(CollisionFootprintArea(Shapes), 10000.0, 1.e-6));
 
 	Regions = UncutRegions;
 	for (const FPolygon2d& RingCut : {MakeRegionRectangle(-20, -20, 20, -15), MakeRegionRectangle(-20, 15, 20, 20), MakeRegionRectangle(-20, -15, -15, 15), MakeRegionRectangle(15, -15, 20, 15)})
@@ -139,7 +139,7 @@ bool FBreachSimpleRemainingRegionsTest::RunTest(const FString& Parameters)
 	}
 	const FString AfterRing = RegionSnapshot(Regions);
 	TestTrue(TEXT("Ring opening collision builds"), Collision.BuildMesh(Regions, 1.0, Shapes, Error));
-	TestTrue(TEXT("Ring opening preserves the retained center"), FMath::IsNearlyEqual(CollisionFootprintArea(Shapes), 9300.0, 1.e-6));
+	TestTrue(TEXT("Thin ring has no convex passage above the threshold"), FMath::IsNearlyEqual(CollisionFootprintArea(Shapes), 10000.0, 1.e-6));
 	Settings->ComplexHoleSizeThreshold = 1000.0;
 	TestTrue(TEXT("Ring opening below threshold builds"), Collision.BuildMesh(Regions, 1.0, Shapes, Error));
 	TestTrue(TEXT("Ring threshold uses removed area excluding retained center"), FMath::IsNearlyEqual(CollisionFootprintArea(Shapes), 10000.0, 1.e-6));
@@ -150,7 +150,13 @@ bool FBreachSimpleRemainingRegionsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Wall-splitting cut recorded"), ApplySurfaceCut(MakeRegionRectangle(-5, -60, 5, 60)));
 	TestEqual(TEXT("Supplied wall has two remaining regions"), Regions.Num(), 2);
 	TestTrue(TEXT("Split wall collision builds"), Collision.BuildMesh(Regions, 1.0, Shapes, Error));
-	TestTrue(TEXT("Both supplied wall fragments are represented"), FMath::IsNearlyEqual(CollisionFootprintArea(Shapes), 9000.0, 1.e-6));
+	TestTrue(TEXT("Narrow wall-splitting opening remains blocked"), FMath::IsNearlyEqual(CollisionFootprintArea(Shapes), 10000.0, 1.e-6));
+	Regions = UncutRegions;
+	TestTrue(TEXT("Broad cut recorded"), ApplySurfaceCut(MakeRegionRectangle(-25, -25, 25, 25)));
+	TestTrue(TEXT("Broad supplied opening builds"), Collision.BuildMesh(Regions, 1.0, Shapes, Error));
+	TestTrue(TEXT("A broad opening changes the stateless output"), CollisionFootprintArea(Shapes) > 7500 && CollisionFootprintArea(Shapes) < 8500);
+	TestTrue(TEXT("Uncut input restores the stateless output"), Collision.BuildMesh(UncutRegions, 1.0, Shapes, Error));
+	TestTrue(TEXT("Stateless builder retains no previous passage"), FMath::IsNearlyEqual(CollisionFootprintArea(Shapes), 10000.0, 1.e-6));
 	const TArray<FGeneralPolygon2d> RemovedRegions;
 	TestTrue(TEXT("Empty supplied regions represent complete removal"), Collision.BuildMesh(RemovedRegions, 1.0, Shapes, Error));
 	TestEqual(TEXT("Complete removal clears previous collision output"), Shapes.ConvexElems.Num(), 0);

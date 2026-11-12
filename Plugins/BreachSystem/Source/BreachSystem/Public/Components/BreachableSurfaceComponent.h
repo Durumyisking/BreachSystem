@@ -15,6 +15,7 @@
 class UBreachSurfaceProxy;
 class UBreachSurfaceMaterial;
 class UBreachSourceComponent;
+struct FBreachSimpleBuildJob;
 namespace UE::Geometry { class FDynamicMesh3; }
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBreachedDelegate, const FHitResult&, HitInfo, UPrimitiveComponent*, BreachedMesh);
@@ -47,6 +48,8 @@ public:
 
 	/** 원본 컴포넌트가 파괴될 때 연결된 동적 메시 Proxy도 정리한다. */
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	virtual void OnUnregister() override;
+	virtual void OnRegister() override;
 
 	//UFUNCTION(Server, Reliable)
 	/** 원본 StaticMesh로 전달된 피해를 부모 처리 후 공통 브리칭 경로로 넘긴다. */
@@ -83,11 +86,20 @@ protected:
 #endif
 
 private:
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+	// 테스트 전용: 기존 동기 충돌 질의 테스트가 실제 작업 완료를 기다릴 수 있게 한다.
+	friend struct FBreachSimpleAsyncTestAccess;
+#endif
 	/** 절단 결과를 계산한다. 성공한 표면 상태와 메시만 보관하고 실제 반영은 미룬다. */
 	bool CutPolygon(const UE::Geometry::FPolygon2d& Cutter, UE::Geometry::FDynamicMesh3& OutMesh);
 
 	/** 최종 메시와 충돌을 반영하고, 첫 갱신이면 원본에서 Proxy로 표시와 충돌을 전환한다. */
 	bool UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh);
+
+	FBreachSimpleBuildPolicy GetSimpleBuildPolicy() const;
+	void QueueSimpleCollision();
+	void CompleteSimpleCollision(const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job);
+	void InvalidateSimpleCollisionJobs();
 
 	/** 총알 커터로 절단하고, 실패하면 모양이 다른 기본 커터로만 재시도한다. */
 	bool ApplyDirectCut(UBreachSourceComponent* Source, const FVector& ImpactPoint, UE::Geometry::FGeneralPolygon2d& InOutCutter,
@@ -156,6 +168,13 @@ private:
 	// 현재 표면상태 (필수)
 	FBreachSurfaceState SurfaceState;
 	FBreachSimpleCollision SimpleCollision;
+	// 한 표면 수명에는 실행 작업 하나와 최신 변경을 나타내는 대기 표시만 둔다.
+	TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe> SimpleBuildJob;
+	uint64 SimpleBuildGeneration = 0;
+	uint64 CompletedSimpleRevision = 0;
+	FBreachSimpleBuildPolicy CompletedSimplePolicy;
+	bool bSimpleBuildPending = false;
+	double SimplePendingSince = 0;
 
 public:
 	// Getters / Setters

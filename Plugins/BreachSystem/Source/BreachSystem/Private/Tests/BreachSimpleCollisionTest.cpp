@@ -13,6 +13,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "PhysicsEngine/AggregateGeom.h"
+#include "BreachSimpleAsyncTestUtils.h"
 
 // 테스트 전용: 총알과 이동 충돌의 면적 정책, 연결, 고립 조각, 누적 파손을 검증한다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
@@ -84,6 +85,10 @@ namespace
 		{
 			check(World);
 			check(Surface);
+			if (!bComplex)
+			{
+				checkf(FBreachSimpleAsyncTestAccess::Wait(Surface), TEXT("Simple collision did not finish before the movement query."));
+			}
 			const FTransform Transform = Surface->GetComponentTransform();
 			const FVector Start = Transform.TransformPosition(FVector(Point.X, -100, Point.Y));
 			const FVector End = Transform.TransformPosition(FVector(Point.X, 100, Point.Y));
@@ -182,9 +187,9 @@ bool FBreachSimpleCollisionTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Bridge cut"), Fixture.Cut(Rectangle(-6, -5, 6, 5)));
 		TestTrue(TEXT("Combined area at the threshold stays blocked"), Fixture.Hits({-15, 0}, false));
 		TestTrue(TEXT("Extend the connected opening above the threshold"), Fixture.Cut(Rectangle(-25, -5, 26, 5)));
-		TestFalse(TEXT("Combined area above the threshold opens the first hole"), Fixture.Hits({-15, 0}, false));
-		TestFalse(TEXT("Combined opening includes its small bridge"), Fixture.Hits({0, 0}, false));
-		TestFalse(TEXT("Combined opening includes the second hole"), Fixture.Hits({15, 0}, false));
+		TestTrue(TEXT("A long opening narrower than the probe keeps the first hole blocked"), Fixture.Hits({-15, 0}, false));
+		TestTrue(TEXT("The narrow bridge remains blocked"), Fixture.Hits({0, 0}, false));
+		TestTrue(TEXT("The narrow second hole remains blocked"), Fixture.Hits({15, 0}, false));
 	}
 	else if (Parameters == TEXT("Detached"))
 	{
@@ -215,7 +220,7 @@ bool FBreachSimpleCollisionTest::RunTest(const FString& Parameters)
 	else if (Parameters == TEXT("WorldArea"))
 	{
 		TestTrue(TEXT("Scaled opening succeeds"), Fixture.Cut(Rectangle(-5, -5, 5, 5)));
-		TestFalse(TEXT("100 local square cm times scale 6 exceeds threshold 500"), Fixture.Hits({0, 0}, false));
+		TestTrue(TEXT("Sufficient world area with insufficient world width remains blocked"), Fixture.Hits({0, 0}, false));
 		TestTrue(TEXT("Scaled untouched wall remains solid"), Fixture.Hits({30, 0}, false));
 	}
 	else if (Parameters == TEXT("Concave"))
@@ -224,9 +229,18 @@ bool FBreachSimpleCollisionTest::RunTest(const FString& Parameters)
 		for (FVector2d Point : {FVector2d(-30, -30), FVector2d(30, -30), FVector2d(30, -10),
 			FVector2d(-10, -10), FVector2d(-10, 30), FVector2d(-30, 30)}) L.AppendVertex(Point);
 		TestTrue(TEXT("Concave opening succeeds"), Fixture.Cut(L));
-		TestFalse(TEXT("First concave arm opens"), Fixture.Hits({-20, 15}, false));
-		TestFalse(TEXT("Second concave arm opens"), Fixture.Hits({15, -20}, false));
+		TestTrue(TEXT("First narrow concave arm stays blocked"), Fixture.Hits({-20, 15}, false));
+		TestTrue(TEXT("Second narrow concave arm stays blocked"), Fixture.Hits({15, -20}, false));
 		TestTrue(TEXT("Solid corner inside the opening hull remains blocked"), Fixture.Hits({15, 15}, false));
+		FPolygon2d Wide;
+		for (const FVector2d Point : {FVector2d(-40,-40), FVector2d(40,-40), FVector2d(40,0), FVector2d(0,0), FVector2d(0,40), FVector2d(-40,40)})
+		{
+			Wide.AppendVertex(Point);
+		}
+		TestTrue(TEXT("Widen the two concave arms"), Fixture.Cut(Wide));
+		TestFalse(TEXT("First broad arm opens"), Fixture.Hits({-20,15}, false));
+		TestFalse(TEXT("Second broad arm opens"), Fixture.Hits({15,-20}, false));
+		TestTrue(TEXT("Broad arms preserve the solid corner"), Fixture.Hits({15,15}, false));
 	}
 	else if (Parameters == TEXT("Simplified"))
 	{
@@ -253,7 +267,8 @@ bool FBreachSimpleCollisionTest::RunTest(const FString& Parameters)
 		if (TestNotNull(TEXT("Simplified proxy"), Proxy))
 		{
 			const FKAggregateGeom& Shapes = Proxy->GetSimpleCollisionShapes();
-			TestTrue(TEXT("Small teeth are reduced instead of producing one piece per tooth"), Shapes.ConvexElems.Num() < 48);
+			const int32 PassageCount = FBreachSimpleAsyncTestAccess::PassageCount(Fixture.Surface);
+			TestTrue(TEXT("Detailed opening uses a bounded number of convex passages"), PassageCount > 0 && PassageCount <= Settings->MaxSimpleConvexCount);
 			FString Geometry = TEXT("{\"opening\":[");
 			for (int32 Index = 0; Index < Opening.VertexCount(); ++Index)
 			{
