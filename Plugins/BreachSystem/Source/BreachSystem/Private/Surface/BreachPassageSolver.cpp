@@ -1,4 +1,4 @@
-#include "BreachPassageSolver.h"
+﻿#include "BreachPassageSolver.h"
 #include "BreachSurfaceGeometry.h"
 #include "Algo/Sort.h"
 #include "Async/ParallelFor.h"
@@ -7,6 +7,7 @@
 #include "Curve/PolygonIntersectionUtils.h"
 #include "Curve/PolygonOffsetUtils.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Misc/ScopeExit.h"
 
 using namespace UE::Geometry;
 
@@ -197,6 +198,73 @@ namespace
 	}
 }
 
+// 한 경계를 조회하는 작업의 임시 데이터다. 병렬 그룹과 다음 브리치에는 공유하지 않는다.
+struct FBoundaryQueryCache
+{
+	static constexpr int32 MaxPoints = 2048;
+	static constexpr int32 MaxEdges = 2048;
+	static constexpr int32 MaxPolygons = 128;
+
+	struct FEdgeKey
+	{
+		FVector2d A, B;
+		bool operator==(const FEdgeKey& Other) const { return A == Other.A && B == Other.B; }
+		friend uint32 GetTypeHash(const FEdgeKey& Edge) { return HashCombineFast(GetTypeHash(Edge.A), GetTypeHash(Edge.B)); }
+	};
+	struct FPolygonResult
+	{
+		TArray<FVector2d> Vertices;
+		bool bContained;
+	};
+
+	const FBreachPreparedBoundary* Boundary;
+	bool bEnabled = true;
+	TMap<FVector2d, bool> Points;
+	TMap<FEdgeKey, bool> Edges;
+	TMap<uint32, TArray<FPolygonResult>> Polygons;
+	int32 PolygonCount = 0;
+
+	FBoundaryQueryCache(const FBreachPreparedBoundary& InBoundary, const FBreachSimpleBuildStats& Stats) : Boundary(&InBoundary)
+	{
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+		bEnabled = !Stats.bDisableBoundaryCache;
+#endif
+	}
+
+	static FVector2d PointKey(const FVector2d& Point)
+	{
+		// FVector2d의 해시는 메모리 비트 기반이다. 같은 값인 +0/-0만 정규화하고 정밀도는 유지한다.
+		return FVector2d(Point.X == 0 ? 0.0 : Point.X, Point.Y == 0 ? 0.0 : Point.Y);
+	}
+
+	static uint32 PolygonKey(const FPolygon2d& Polygon)
+	{
+		uint32 Hash = GetTypeHash(Polygon.VertexCount());
+		for (const FVector2d& Point : Polygon.GetVertices())
+		{
+			Hash = HashCombineFast(Hash, GetTypeHash(PointKey(Point)));
+		}
+		return Hash;
+	}
+
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+	// 테스트 전용: 병렬 그룹별 할당을 합산해 캐시 메모리의 상한을 기록한다.
+	uint64 GetAllocatedSize() const
+	{
+		uint64 Bytes = Points.GetAllocatedSize() + Edges.GetAllocatedSize() + Polygons.GetAllocatedSize();
+		for (const auto& Bucket : Polygons)
+		{
+			Bytes += Bucket.Value.GetAllocatedSize();
+			for (const FPolygonResult& Result : Bucket.Value)
+			{
+				Bytes += Result.Vertices.GetAllocatedSize();
+			}
+		}
+		return Bytes;
+	}
+#endif
+};
+
 /** 본체별 경계를 전처리하여 국소 교차·포함 검사에 재사용한다. */
 class FBreachPreparedBoundary
 {
@@ -297,8 +365,20 @@ class FBreachPreparedBoundary
 		return Cross * Cross <= FMath::Square(PositionTolerance) * AB.SquaredLength() && Edge.Bounds.Contains(P);
 	}
 
-	bool ContainsPoint(const FVector2d& P, FBreachSimpleBuildStats& Stats) const
+	bool ContainsPoint(const FVector2d& P, FBreachSimpleBuildStats& Stats, FBoundaryQueryCache& Queries) const
 	{
+		check(Queries.Boundary == this);
+		const FVector2d Key = FBoundaryQueryCache::PointKey(P);
+		if (Queries.bEnabled)
+		{
+			if (const bool* Cached = Queries.Points.Find(Key))
+			{
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+				++Stats.PointCacheHits;
+#endif
+				return *Cached;
+			}
+		}
 		FAxisAlignedBox2d Ray(P, P);
 		Ray.Contain(FVector2d(Nodes[0].Bounds.Max.X + 1, P.Y));
 		bool bInside = false;
@@ -320,33 +400,87 @@ class FBreachPreparedBoundary
 			}
 			return true;
 		}, Stats);
-		return bBoundary || bInside;
+		const bool bContained = bBoundary || bInside;
+		if (Queries.bEnabled && Queries.Points.Num() < FBoundaryQueryCache::MaxPoints)
+		{
+			Queries.Points.Add(Key, bContained);
+		}
+		return bContained;
 	}
 
-	bool MayContainEdge(const FVector2d& A, const FVector2d& B, FBreachSimpleBuildStats& Stats) const
+	bool MayContainEdge(const FVector2d& A, const FVector2d& B, FBreachSimpleBuildStats& Stats, FBoundaryQueryCache& Queries) const
 	{
-		if (!ContainsPoint((A + B) * 0.5, Stats))
+		check(Queries.Boundary == this);
+		const FBoundaryQueryCache::FEdgeKey Key{FBoundaryQueryCache::PointKey(A), FBoundaryQueryCache::PointKey(B)};
+		if (Queries.bEnabled)
 		{
-			return false;
+			if (const bool* Cached = Queries.Edges.Find(Key))
+			{
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+				++Stats.EdgeCacheHits;
+#endif
+				return *Cached;
+			}
 		}
-		FAxisAlignedBox2d Bounds(A, B);
-		return Visit(0, Bounds, [&](const FEdge& Edge)
+		bool bContained = ContainsPoint((A + B) * 0.5, Stats, Queries);
+		if (bContained)
 		{
-			const double C = ExactPredicates::Orient2(A, B, Edge.A), D = ExactPredicates::Orient2(A, B, Edge.B);
-			const double U = ExactPredicates::Orient2(Edge.A, Edge.B, A), V = ExactPredicates::Orient2(Edge.A, Edge.B, B);
-			return !(((C < 0 && D > 0) || (C > 0 && D < 0)) && ((U < 0 && V > 0) || (U > 0 && V < 0)));
-		}, Stats);
+			FAxisAlignedBox2d Bounds(A, B);
+			bContained = Visit(0, Bounds, [&](const FEdge& Edge)
+			{
+				const double C = ExactPredicates::Orient2(A, B, Edge.A), D = ExactPredicates::Orient2(A, B, Edge.B);
+				const double U = ExactPredicates::Orient2(Edge.A, Edge.B, A), V = ExactPredicates::Orient2(Edge.A, Edge.B, B);
+				return !(((C < 0 && D > 0) || (C > 0 && D < 0)) && ((U < 0 && V > 0) || (U > 0 && V < 0)));
+			}, Stats);
+		}
+		if (Queries.bEnabled && Queries.Edges.Num() < FBoundaryQueryCache::MaxEdges)
+		{
+			Queries.Edges.Add(Key, bContained);
+		}
+		return bContained;
 	}
 
 public:
-	bool ContainsExact(const FPolygon2d& Polygon, FBreachSimpleBuildStats& Stats) const
+	bool ContainsExact(const FPolygon2d& Polygon, FBreachSimpleBuildStats& Stats, FBoundaryQueryCache* Queries = nullptr) const
 	{
+		uint32 Hash = 0;
+		if (Queries)
+		{
+			check(Queries->Boundary == this);
+			if (Queries->bEnabled)
+			{
+				Hash = FBoundaryQueryCache::PolygonKey(Polygon);
+				if (const auto* Bucket = Queries->Polygons.Find(Hash))
+				{
+					for (const FBoundaryQueryCache::FPolygonResult& Result : *Bucket)
+					{
+						// 해시가 같아도 정점 배열 전체가 같을 때만 재사용한다.
+						if (Result.Vertices == Polygon.GetVertices())
+						{
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+							++Stats.ExactCacheHits;
+#endif
+							return Result.bContained;
+						}
+					}
+				}
+			}
+		}
 		TArray<FGeneralPolygon2d> Outside;
 		if (!Difference(TArray<FGeneralPolygon2d>{FGeneralPolygon2d(Polygon)}, TArray<FGeneralPolygon2d>{Domain}, Outside, Stats))
 		{
 			return false;
 		}
-		return Area(Outside) <= AreaTolerance;
+		const bool bContained = Area(Outside) <= AreaTolerance;
+		if (Queries)
+		{
+			if (Queries->bEnabled && Queries->PolygonCount < FBoundaryQueryCache::MaxPolygons)
+			{
+				Queries->Polygons.FindOrAdd(Hash).Add({Polygon.GetVertices(), bContained});
+				++Queries->PolygonCount;
+			}
+		}
+		return bContained;
 	}
 
 	explicit FBreachPreparedBoundary(const FGeneralPolygon2d& InDomain) : Domain(InDomain)
@@ -369,9 +503,9 @@ public:
 		Build(0, Edges.Num());
 	}
 
-	bool MayContainExtension(const FPolygon2d& Polygon, const FVector2d& Added, FBreachSimpleBuildStats& Stats) const
+	bool MayContainExtension(const FPolygon2d& Polygon, const FVector2d& Added, FBreachSimpleBuildStats& Stats, FBoundaryQueryCache& Queries) const
 	{
-		if (!ContainsPoint(Added, Stats))
+		if (!ContainsPoint(Added, Stats, Queries))
 		{
 			return false;
 		}
@@ -379,17 +513,17 @@ public:
 		{
 			if (Polygon[Index] == Added)
 			{
-				if (!MayContainEdge(Polygon[(Index + Polygon.VertexCount() - 1) % Polygon.VertexCount()], Added, Stats))
+				if (!MayContainEdge(Polygon[(Index + Polygon.VertexCount() - 1) % Polygon.VertexCount()], Added, Stats, Queries))
 				{
 					return false;
 				}
-				return MayContainEdge(Added, Polygon[(Index + 1) % Polygon.VertexCount()], Stats);
+				return MayContainEdge(Added, Polygon[(Index + 1) % Polygon.VertexCount()], Stats, Queries);
 			}
 		}
 		return false;
 	}
 
-	bool MayContain(const FPolygon2d& Polygon, FBreachSimpleBuildStats& Stats) const
+	bool MayContain(const FPolygon2d& Polygon, FBreachSimpleBuildStats& Stats, FBoundaryQueryCache& Queries) const
 	{
 		if (Polygon.VertexCount() < 3)
 		{
@@ -399,11 +533,11 @@ public:
 		for (int32 Index = 0; Index < Polygon.VertexCount(); ++Index)
 		{
 			const FVector2d A = Polygon[Index], B = Polygon[(Index + 1) % Polygon.VertexCount()];
-			if (!ContainsPoint(A, Stats))
+			if (!ContainsPoint(A, Stats, Queries))
 			{
 				return false;
 			}
-			if (!ContainsPoint((A + B) * 0.5, Stats))
+			if (!ContainsPoint((A + B) * 0.5, Stats, Queries))
 			{
 				return false;
 			}
@@ -531,7 +665,7 @@ namespace
 		return true;
 	}
 
-	FPolygon2d Expand(FPolygon2d Polygon, const TArray<FVector2d>& Targets, const FBreachPreparedBoundary& Boundary, FBreachSimpleBuildStats& Stats)
+	FPolygon2d Expand(FPolygon2d Polygon, const TArray<FVector2d>& Targets, const FBreachPreparedBoundary& Boundary, FBreachSimpleBuildStats& Stats, FBoundaryQueryCache& Queries)
 	{
 		TArray<FVector2d> Remaining = Targets;
 		int32 AcceptedSteps = 0;
@@ -565,7 +699,7 @@ namespace
 				{
 					continue;
 				}
-				if (!Boundary.MayContainExtension(Trial, Point, Stats))
+				if (!Boundary.MayContainExtension(Trial, Point, Stats, Queries))
 				{
 					continue;
 				}
@@ -584,7 +718,7 @@ namespace
 			Remaining = MoveTemp(Next);
 			Remaining.RemoveSingleSwap(BestPoint);
 			// 불변식은 각 채택 단계에 확인한다. 실패한 점은 다시 시도하지 않는다.
-			if (!Boundary.ContainsExact(Best, Stats))
+			if (!Boundary.ContainsExact(Best, Stats, &Queries))
 			{
 				continue;
 			}
@@ -594,18 +728,18 @@ namespace
 		return Polygon;
 	}
 
-	void Merge(TArray<FPolygon2d>& Pieces, const FBreachPreparedBoundary& Boundary, FBreachSimpleBuildStats& Stats)
+	void Merge(TArray<FPolygon2d>& Pieces, const FBreachPreparedBoundary& Boundary, FBreachSimpleBuildStats& Stats, FBoundaryQueryCache& Queries)
 	{
 		for (int32 A = 0; A < Pieces.Num(); ++A)
 		{
 			for (int32 B = Pieces.Num() - 1; B > A; --B)
 			{
 				FPolygon2d Combined = CombinedHull(Pieces[A], Pieces[B]);
-				if (!Boundary.MayContain(Combined, Stats))
+				if (!Boundary.MayContain(Combined, Stats, Queries))
 				{
 					continue;
 				}
-				if (Boundary.ContainsExact(Combined, Stats))
+				if (Boundary.ContainsExact(Combined, Stats, &Queries))
 				{
 					Pieces[A] = MoveTemp(Combined);
 					Pieces.RemoveAt(B);
@@ -804,6 +938,15 @@ bool BreachPassageSolver::Solve(TConstArrayView<TSharedPtr<const FBreachPrepared
 				continue;
 			}
 		}
+		check(Body->Boundary.IsValid());
+		FBoundaryQueryCache Queries(*Body->Boundary, Stats);
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+		// 테스트 전용: 조기 반환을 포함해 본체 캐시의 최대 할당량을 기록한다.
+		ON_SCOPE_EXIT
+		{
+			Stats.BoundaryCacheBytes = FMath::Max(Stats.BoundaryCacheBytes, Queries.GetAllocatedSize());
+		};
+#endif
 		TArray<FVector2d> BoundaryPoints(Domain.GetOuter().GetVertices());
 		for (const FPolygon2d& Hole : Domain.GetHoles())
 		{
@@ -814,12 +957,12 @@ bool BreachPassageSolver::Solve(TConstArrayView<TSharedPtr<const FBreachPrepared
 		{
 			Targets.Add(BoundaryPoints[Index * BoundaryPoints.Num() / FMath::Min(128, BoundaryPoints.Num())]);
 		}
-		Merge(Body->Pieces, *Body->Boundary, Stats);
+		Merge(Body->Pieces, *Body->Boundary, Stats, Queries);
 		for (FPolygon2d& Piece : Body->Pieces)
 		{
-			Piece = Expand(MoveTemp(Piece), Targets, *Body->Boundary, Stats);
+			Piece = Expand(MoveTemp(Piece), Targets, *Body->Boundary, Stats, Queries);
 		}
-		Merge(Body->Pieces, *Body->Boundary, Stats);
+		Merge(Body->Pieces, *Body->Boundary, Stats, Queries);
 		const double MinAddition = FMath::Max(UE_DOUBLE_PI * Radius * Radius * 0.05, FMath::Abs(Domain.SignedArea()) * 0.10);
 		TArray<FGeneralPolygon2d> CurrentCovered;
 		if (!Union(General(Body->Pieces), CurrentCovered, Stats))
@@ -857,11 +1000,18 @@ bool BreachPassageSolver::Solve(TConstArrayView<TSharedPtr<const FBreachPrepared
 			Groups = FMath::Min(1, BodySeeds.Num());
 		}
 #endif
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+		// 테스트 전용: 그룹별 독립 슬롯에 기록하며 병렬 쓰기를 공유하지 않는다.
+		TArray<uint64> GroupCacheBytes;
+		GroupCacheBytes.SetNumZeroed(Groups);
+#endif
 		if (Groups > 0)
 		{
 			ParallelFor(Groups, [&](int32 Group)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | FitCandidateGroup");
+				check(Body->Boundary.IsValid());
+				FBoundaryQueryCache GroupQueries(*Body->Boundary, Stats);
 				const int32 Begin = Group * BodySeeds.Num() / Groups;
 				const int32 End = (Group + 1) * BodySeeds.Num() / Groups;
 				for (int32 Index = Begin; Index < End; ++Index)
@@ -870,20 +1020,37 @@ bool BreachPassageSolver::Solve(TConstArrayView<TSharedPtr<const FBreachPrepared
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 					Result.Stats.bLinearBoundaryQueries = Stats.bLinearBoundaryQueries;
 					Result.Stats.bRebuildTrialHulls = Stats.bRebuildTrialHulls;
+					Result.Stats.bDisableBoundaryCache = Stats.bDisableBoundaryCache;
 #endif
 					const FPolygon2d& Seed = BodySeeds[Index];
-					if (Body->Boundary->ContainsExact(Seed, Result.Stats))
+					if (Body->Boundary->ContainsExact(Seed, Result.Stats, &GroupQueries))
 					{
-						Result.Candidate = Expand(Seed, Targets, *Body->Boundary, Result.Stats);
+						Result.Candidate = Expand(Seed, Targets, *Body->Boundary, Result.Stats, GroupQueries);
 					}
 				}
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+				GroupCacheBytes[Group] = GroupQueries.GetAllocatedSize();
+#endif
 			}, EParallelForFlags::Unbalanced | EParallelForFlags::BackgroundPriority);
 		}
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+		uint64 ConcurrentCacheBytes = Queries.GetAllocatedSize();
+		for (const uint64 Bytes : GroupCacheBytes)
+		{
+			ConcurrentCacheBytes += Bytes;
+		}
+		Stats.BoundaryCacheBytes = FMath::Max(Stats.BoundaryCacheBytes, ConcurrentCacheBytes);
+#endif
 		for (const FSeedResult& Result : SeedResults)
 		{
 			Stats.BooleanOperations += Result.Stats.BooleanOperations;
 			Stats.BoundaryTests += Result.Stats.BoundaryTests;
 			Stats.BoundaryNodeVisits += Result.Stats.BoundaryNodeVisits;
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+			Stats.PointCacheHits += Result.Stats.PointCacheHits;
+			Stats.EdgeCacheHits += Result.Stats.EdgeCacheHits;
+			Stats.ExactCacheHits += Result.Stats.ExactCacheHits;
+#endif
 		}
 		for (FSeedResult& Result : SeedResults)
 		{
@@ -956,7 +1123,7 @@ bool BreachPassageSolver::Solve(TConstArrayView<TSharedPtr<const FBreachPrepared
 				break;
 			}
 			Body->Pieces.Add(Candidates[Best]);
-			Merge(Body->Pieces, *Body->Boundary, Stats);
+			Merge(Body->Pieces, *Body->Boundary, Stats, Queries);
 		}
 		// 조각 단위의 고정 대신 기존 통로 전체를 보존하는 교체를 허용한다.
 		for (int32 Pass = 0; Pass < 2; ++Pass)
@@ -988,11 +1155,11 @@ bool BreachPassageSolver::Solve(TConstArrayView<TSharedPtr<const FBreachPrepared
 						Points.Append(Part.GetOuter().GetVertices());
 					}
 					FPolygon2d Replacement = Hull(Points);
-					if (!Body->Boundary->MayContain(Replacement, Stats))
+					if (!Body->Boundary->MayContain(Replacement, Stats, Queries))
 					{
 						continue;
 					}
-					if (!Body->Boundary->ContainsExact(Replacement, Stats))
+					if (!Body->Boundary->ContainsExact(Replacement, Stats, &Queries))
 					{
 						continue;
 					}
@@ -1015,7 +1182,7 @@ bool BreachPassageSolver::Solve(TConstArrayView<TSharedPtr<const FBreachPrepared
 					}
 				}
 			}
-			Merge(Body->Pieces, *Body->Boundary, Stats);
+			Merge(Body->Pieces, *Body->Boundary, Stats, Queries);
 			if (!bChanged)
 			{
 				break;
@@ -1027,7 +1194,6 @@ bool BreachPassageSolver::Solve(TConstArrayView<TSharedPtr<const FBreachPrepared
 	for (const auto& Body : Out.Bodies)
 	{
 		Pieces.Append(General(Body->Pieces));
-		Stats.OverLimitBodies += Body->Pieces.Num() > MaxCount ? 1 : 0;
 		Out.PieceCount += Body->Pieces.Num();
 	}
 	Stats.PassagePieceCount = Out.PieceCount;

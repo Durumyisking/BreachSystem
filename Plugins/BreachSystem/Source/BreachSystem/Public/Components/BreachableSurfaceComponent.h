@@ -13,6 +13,7 @@
 
 
 class UBreachSurfaceProxy;
+class UBreachSimpleProxy;
 class UBreachSurfaceMaterial;
 class UBreachSourceComponent;
 struct FBreachSimpleBuildJob;
@@ -46,7 +47,7 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
-	/** 원본 컴포넌트가 파괴될 때 연결된 동적 메시 Proxy도 정리한다. */
+	/** 원본 컴포넌트가 파괴될 때 표시·이동 충돌 프록시도 정리한다. */
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 	virtual void OnUnregister() override;
 	virtual void OnRegister() override;
@@ -57,7 +58,7 @@ public:
 
 	/**
 	 * 원본과 Proxy의 포인트 피해를 처리한다. 누적 파손이 성공하면 총알 구멍을 생략한다.
-	 * 최종 메시와 충돌을 한 번 반영한 뒤 브리칭 이벤트를 알린다.
+	 * 표시 메시와 Complex를 반영하고 Simple 비동기 갱신을 요청한 뒤 브리칭 이벤트를 알린다.
 	 */
 	void HandleBreachDamage(UPrimitiveComponent* HitComponent, const FDamageEvent& DamageEvent, AActor* DamageCauser, float DamageAmount);
 
@@ -99,6 +100,8 @@ private:
 	FBreachSimpleBuildPolicy GetSimpleBuildPolicy() const;
 	void QueueSimpleCollision();
 	void CompleteSimpleCollision(const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job);
+	void CompleteSimpleCook(const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job, bool bCookSucceeded);
+	bool CanPublishSimpleCollision(const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job) const;
 	void InvalidateSimpleCollisionJobs();
 
 	/** 총알 커터로 절단하고, 실패하면 모양이 다른 기본 커터로만 재시도한다. */
@@ -155,13 +158,15 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UBreachSurfaceProxy> DynamicMeshProxy;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UBreachSimpleProxy> SimpleProxy;
+
 	ECollisionEnabled::Type OriginalCollisionEnabled = ECollisionEnabled::QueryAndPhysics;
 	bool bOriginalVisible = true;
 	bool bOriginalHiddenInGame = false;
 
 	// 원본 경계와 절단 후 남은 영역 // 지워도 될듯하다.
 	UE::Geometry::FPolygon2d OriginalOuter;
-	TArray<FVector2d> OriginalVertices;
 	UE::Geometry::FAxisAlignedBox2d OriginBounds;
 	FVector2d OriginalDepthRange = FVector2d::ZeroVector;
 

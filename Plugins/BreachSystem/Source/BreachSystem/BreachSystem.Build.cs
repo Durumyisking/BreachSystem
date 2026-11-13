@@ -36,6 +36,7 @@ public class BreachSystem : ModuleRules
 			new string[]
 			{
 				"GeometryAlgorithms",
+				"Chaos",
 				"MeshConversionEngineTypes",
 			}
 			);

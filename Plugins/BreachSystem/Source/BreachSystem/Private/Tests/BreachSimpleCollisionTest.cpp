@@ -1,6 +1,8 @@
 #include "Components/BreachableSurfaceComponent.h"
 #include "Components/BreachSourceComponent.h"
 #include "Components/DynamicMeshComponent.h"
+#include "Components/BreachSimpleProxy.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "Surface/BreachSurfaceMaterial.h"
 #include "Surface/BreachSimpleCollision.h"
 #include "Settings/BreachSystemSettings.h"
@@ -29,6 +31,22 @@ namespace
 			Polygon.AppendVertex(Point);
 		}
 		return Polygon;
+	}
+
+	double RetainedArea(const FKAggregateGeom& Shapes)
+	{
+		double Area = 0;
+		for (const FKConvexElem& Convex : Shapes.ConvexElems)
+		{
+			FPolygon2d Footprint;
+			for (int32 Index = 0; Index < Convex.VertexData.Num() / 2; ++Index)
+			{
+				const FVector& Point = Convex.VertexData[Index];
+				Footprint.AppendVertex({Point.X, Point.Z});
+			}
+			Area += FMath::Abs(Footprint.SignedArea());
+		}
+		return Area;
 	}
 
 	bool CutFixtureRegions(TArray<FGeneralPolygon2d>& Regions, const FPolygon2d& Cutter, TConstArrayView<FPolygon2d> Detached)
@@ -172,11 +190,13 @@ bool FBreachSimpleCollisionTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("Large Source opening clears Simple collision"), Fixture.Hits({10, 0}, false));
 		TestFalse(TEXT("Capsule passes through a large Source opening"), Fixture.Hits({10, 0}, false, true));
 		TestTrue(TEXT("Untouched wall still blocks a capsule"), Fixture.Hits({40, 0}, false, true));
-		UDynamicMeshComponent* Proxy = Fixture.Proxy();
+		UBreachSimpleProxy* Proxy = Fixture.Wall->FindComponentByClass<UBreachSimpleProxy>();
 		if (TestNotNull(TEXT("Movement proxy"), Proxy))
 		{
-			TestEqual(TEXT("Simple output does not use whole-wall boxes"), Proxy->GetSimpleCollisionShapes().BoxElems.Num(), 0);
-			TestTrue(TEXT("Simple output contains convex pieces"), Proxy->GetSimpleCollisionShapes().ConvexElems.Num() > 1);
+			UBodySetup* Body = Proxy->GetBodySetup();
+			check(Body);
+			TestEqual(TEXT("Simple output does not use whole-wall boxes"), Body->AggGeom.BoxElems.Num(), 0);
+			TestTrue(TEXT("Simple output contains convex pieces"), Body->AggGeom.ConvexElems.Num() > 1);
 		}
 	}
 	else if (Parameters == TEXT("Connected"))
@@ -263,10 +283,12 @@ bool FBreachSimpleCollisionTest::RunTest(const FString& Parameters)
 				}
 			}
 		}
-		UDynamicMeshComponent* Proxy = Fixture.Proxy();
+		UBreachSimpleProxy* Proxy = Fixture.Wall->FindComponentByClass<UBreachSimpleProxy>();
 		if (TestNotNull(TEXT("Simplified proxy"), Proxy))
 		{
-			const FKAggregateGeom& Shapes = Proxy->GetSimpleCollisionShapes();
+			UBodySetup* Body = Proxy->GetBodySetup();
+			check(Body);
+			const FKAggregateGeom& Shapes = Body->AggGeom;
 			const int32 PassageCount = FBreachSimpleAsyncTestAccess::PassageCount(Fixture.Surface);
 			TestTrue(TEXT("Detailed opening uses a bounded number of convex passages"), PassageCount > 0 && PassageCount <= Settings->MaxSimpleConvexCount);
 			FString Geometry = TEXT("{\"opening\":[");
@@ -306,7 +328,7 @@ bool FBreachSimpleCollisionTest::RunTest(const FString& Parameters)
 	{
 		Settings->ComplexHoleSizeThreshold = 1.e8;
 		TestTrue(TEXT("Full visual removal succeeds"), Fixture.Cut(Rectangle(-100, -100, 100, 100)));
-		TestTrue(TEXT("Full opening below the threshold keeps Simple collision"), Fixture.Hits({0, 0}, false));
+		TestFalse(TEXT("Complete removal clears Simple even below the opening threshold"), Fixture.Hits({0, 0}, false));
 	}
 	else if (Parameters == TEXT("Lifecycle"))
 	{
@@ -339,7 +361,7 @@ bool FBreachSimpleCollisionCacheTest::RunTest(const FString& Parameters)
 	FKAggregateGeom Shapes;
 	FString Error;
 	TestTrue(TEXT("Unbroken movement collision builds"), Collision.BuildMesh(Regions, 1.0, Shapes, Error));
-	TestEqual(TEXT("Unbroken rectangle merges into one convex piece"), Shapes.ConvexElems.Num(), 1);
+	TestTrue(TEXT("Unbroken rectangle preserves the complete wall area"), FMath::IsNearlyEqual(RetainedArea(Shapes), 10000.0, 1.e-5));
 	const TArray<FPolygon2d> NoDetached;
 	for (double Center : {-30.0, 0.0, 30.0})
 	{
@@ -407,13 +429,17 @@ bool FBreachSimpleCollisionThresholdTest::RunTest(const FString& Parameters)
 	const bool bShouldOpen = Parameters == TEXT("Above");
 	FKAggregateGeom Shapes;
 	TestTrue(TEXT("Simple collision builds"), Collision.BuildMesh(Regions, 1.0, Shapes, Error));
-	if (bShouldOpen)
+	if (Parameters == TEXT("FullRemoval"))
+	{
+		TestEqual(TEXT("Complete removal leaves no collision"), Shapes.GetElementCount(), 0);
+	}
+	else if (bShouldOpen)
 	{
 		TestTrue(TEXT("Large opening leaves multiple wall pieces"), Shapes.ConvexElems.Num() > 1);
 	}
 	else
 	{
-		TestEqual(TEXT("Small or equal opening keeps the solid wall"), Shapes.ConvexElems.Num(), 1);
+		TestTrue(TEXT("Small or equal opening preserves the complete wall area"), FMath::IsNearlyEqual(RetainedArea(Shapes), 10000.0, 1.e-5));
 	}
 	return !HasAnyErrors();
 }

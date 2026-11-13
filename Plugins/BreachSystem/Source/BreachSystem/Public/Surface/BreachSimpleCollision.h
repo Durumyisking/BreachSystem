@@ -19,12 +19,14 @@ struct FBreachSimpleBuildPolicy
 	bool bLinearBoundaryQueries = false;
 	// 테스트 전용: 증분 볼록 껍질을 엔진의 전체 재계산과 비교한다.
 	bool bRebuildTrialHulls = false;
+	// 테스트 전용: 동일 입력으로 경계 검사 결과 캐시의 동등성과 비용을 비교한다.
+	bool bDisableBoundaryCache = false;
 #endif
 
 	bool operator==(const FBreachSimpleBuildPolicy& Other) const
 	{
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
-		if (bLinearBoundaryQueries != Other.bLinearBoundaryQueries || bRebuildTrialHulls != Other.bRebuildTrialHulls)
+		if (bLinearBoundaryQueries != Other.bLinearBoundaryQueries || bRebuildTrialHulls != Other.bRebuildTrialHulls || bDisableBoundaryCache != Other.bDisableBoundaryCache)
 		{
 			return false;
 		}
@@ -41,7 +43,6 @@ struct FBreachSimpleBuildStats
 	uint64 BoundaryNodeVisits = 0;
 	int32 PreparedOpenings = 0;
 	int32 ReusedBodies = 0;
-	int32 OverLimitBodies = 0;
 	int32 PassagePieceCount = 0;
 	double DiscardedWorldArea = 0;
 	double GeometryMs = 0;
@@ -51,6 +52,12 @@ struct FBreachSimpleBuildStats
 	bool bLinearBoundaryQueries = false;
 	// 테스트 전용: 증분 갱신의 결과 동등성 비교에 사용한다.
 	bool bRebuildTrialHulls = false;
+	// 테스트 전용: 캐시 유무의 형상 동등성·검색 절감·임시 메모리를 비교한다.
+	bool bDisableBoundaryCache = false;
+	uint64 PointCacheHits = 0;
+	uint64 EdgeCacheHits = 0;
+	uint64 ExactCacheHits = 0;
+	uint64 BoundaryCacheBytes = 0;
 #endif
 };
 
@@ -75,8 +82,8 @@ public:
 	/** 독립적인 복사본에서 호출할 수 있다. UObject나 전역 설정을 읽지 않는다. */
 	bool BuildMeshFromCuts(const FBreachSimpleBuildPolicy& Policy, FKAggregateGeom& OutCollision, FString& OutError);
 
-	/** 첫 비동기 결과 전에도 원본 벽이 플레이어를 막도록 한다. 구멍 캐시는 변경하지 않는다. */
-	bool BuildInitialCollision(const FBreachSimpleBuildPolicy& Policy, FKAggregateGeom& OutCollision, FString& OutError);
+	/** 실제 초기 차단 도형을 캐시에 등록한다. 구멍 캐시는 변경하지 않는다. */
+	void InitializeCollision(const FBreachSimpleBuildPolicy& Policy, const FKAggregateGeom& Collision);
 
 	/** 완료된 파생 상태만 받아들인다. 현재 절단 도형과 변경 번호는 덮어쓰지 않는다. */
 	void CommitBuild(const FBreachSimpleCollision& Completed);
@@ -138,7 +145,6 @@ private:
 	TArray<uint64> BuiltRevisions;
 	FKAggregateGeom BuiltCollision;
 	bool bBuiltCollisionValid = false;
-	double BuiltAreaScale = 0;
 	double BuiltAreaThreshold = 0;
 	int32 BuiltMaxConvexCount = 0;
 	FVector2d BuiltWorldScale = FVector2d::ZeroVector;

@@ -1,5 +1,7 @@
 #include "Components/BreachableSurfaceComponent.h"
 #include "Components/BreachSurfaceProxy.h"
+#include "Components/BreachSimpleProxy.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "Settings/BreachSystemSettings.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -22,11 +24,17 @@ namespace
 		}
 		return Polygon;
 	}
-	double AsyncCollisionArea(const UBreachSurfaceProxy* Proxy)
+	double AsyncCollisionArea(UBreachSimpleProxy* Proxy)
 	{
 		check(Proxy);
+		UBodySetup* Body = Proxy->GetBodySetup();
+		check(Body);
 		double Area = 0;
-		for (const FKConvexElem& Convex : Proxy->GetSimpleCollisionShapes().ConvexElems)
+		for (const FKBoxElem& Box : Body->AggGeom.BoxElems)
+		{
+			Area += Box.X * Box.Z;
+		}
+		for (const FKConvexElem& Convex : Body->AggGeom.ConvexElems)
 		{
 			FPolygon2d Polygon;
 			for (int32 Index = 0; Index < Convex.VertexData.Num() / 2; ++Index)
@@ -38,10 +46,19 @@ namespace
 		}
 		return Area;
 	}
-	bool AsyncBlocksPoint(const UBreachSurfaceProxy* Proxy, const FVector2d Point)
+	bool AsyncBlocksPoint(UBreachSimpleProxy* Proxy, const FVector2d Point)
 	{
 		check(Proxy);
-		for (const FKConvexElem& Convex : Proxy->GetSimpleCollisionShapes().ConvexElems)
+		UBodySetup* Body = Proxy->GetBodySetup();
+		check(Body);
+		for (const FKBoxElem& Box : Body->AggGeom.BoxElems)
+		{
+			if (FMath::Abs(Point.X - Box.Center.X) <= Box.X * 0.5 && FMath::Abs(Point.Y - Box.Center.Z) <= Box.Z * 0.5)
+			{
+				return true;
+			}
+		}
+		for (const FKConvexElem& Convex : Body->AggGeom.ConvexElems)
 		{
 			FPolygon2d Polygon;
 			for (int32 Index = 0; Index < Convex.VertexData.Num() / 2; ++Index)
@@ -62,10 +79,11 @@ namespace
 		UWorld* World;
 		TWeakObjectPtr<UBreachableSurfaceComponent> Surface;
 		FAutomationTestBase* Test;
+		TSharedRef<TGuardValue<double>> Threshold;
 		double Started = FPlatformTime::Seconds();
 		int32 Phase = 0;
 	public:
-		FWaitForSimple(UWorld* InWorld, UBreachableSurfaceComponent* InSurface, FAutomationTestBase* InTest) : World(InWorld), Surface(InSurface), Test(InTest) {}
+		FWaitForSimple(UWorld* InWorld, UBreachableSurfaceComponent* InSurface, FAutomationTestBase* InTest, TSharedRef<TGuardValue<double>> InThreshold) : World(InWorld), Surface(InSurface), Test(InTest), Threshold(InThreshold) {}
 		virtual bool Update() override
 		{
 			check(World);
@@ -79,7 +97,7 @@ namespace
 			}
 			AActor* Owner = Current->GetOwner();
 			check(Owner);
-			UBreachSurfaceProxy* Proxy = Owner->FindComponentByClass<UBreachSurfaceProxy>();
+			UBreachSimpleProxy* Proxy = Owner->FindComponentByClass<UBreachSimpleProxy>();
 			if (!Proxy || FPlatformTime::Seconds() - Started > 5)
 			{
 				Test->AddError(TEXT("Simple collision did not finish within the test timeout."));
@@ -132,8 +150,8 @@ bool FBreachSimpleAsyncTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	// 설정은 작업이 끝날 때까지 유지해야 하므로 프로젝트 기본값을 읽어 검증한다.
-	TestTrue(TEXT("Default threshold fits the fixture"), Settings->ComplexHoleSizeThreshold < 3000);
+	// 테스트 전용: 사용자 설정과 무관하게 같은 개구부를 만들고 마지막 완료 콜백까지 설정을 유지한다.
+	const auto Threshold = MakeShared<TGuardValue<double>>(Settings->ComplexHoleSizeThreshold, 500.0);
 	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
 	if (!TestNotNull(TEXT("Game world exists"), World))
 	{
@@ -152,12 +170,19 @@ bool FBreachSimpleAsyncTest::RunTest(const FString& Parameters)
 		World->DestroyWorld(false);
 		return false;
 	}
-	TestTrue(TEXT("First frame keeps a complete blocking wall while the passage is calculated"), FMath::IsNearlyEqual(AsyncCollisionArea(Proxy), 10000.0, 1.e-5));
+	TestEqual(TEXT("Complex proxy never owns Simple collision shapes"), Proxy->GetSimpleCollisionShapes().GetElementCount(), 0);
+	UBreachSimpleProxy* Movement = Wall->FindComponentByClass<UBreachSimpleProxy>();
+	if (!TestNotNull(TEXT("Movement has its own primitive proxy"), Movement))
+	{
+		World->DestroyWorld(false);
+		return false;
+	}
+	TestTrue(TEXT("First frame keeps a complete blocking wall while the passage is calculated"), FMath::IsNearlyEqual(AsyncCollisionArea(Movement), 10000.0, 1.e-5));
 	for (int32 Index = 1; Index <= 10; ++Index)
 	{
 		TestTrue(TEXT("Burst cut succeeds while the worker is running"), Surface->ApplyCutterPolygon(AsyncBox(30 + Index)));
 	}
-	ADD_LATENT_AUTOMATION_COMMAND(FWaitForSimple(World, Surface, this));
+	ADD_LATENT_AUTOMATION_COMMAND(FWaitForSimple(World, Surface, this, Threshold));
 	return true;
 }
 #endif

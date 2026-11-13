@@ -3,6 +3,7 @@
 // 테스트 전용: 실제 게임 스레드 완료 콜백을 처리하며 충돌 질의 전 작업을 기다린다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 #include "Components/BreachableSurfaceComponent.h"
+#include "Components/BreachSimpleProxy.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformTime.h"
@@ -28,6 +29,31 @@ struct FBreachSimpleAsyncTestAccess
 	{
 		check(Surface);
 		return Surface->SimpleBuildJob.IsValid() || Surface->bSimpleBuildPending;
+	}
+	static uint32 CookCount(const UBreachSimpleProxy* Proxy)
+	{
+		check(Proxy);
+		return Proxy->CookRequestCount;
+	}
+	static bool IsCooking(const UBreachSimpleProxy* Proxy)
+	{
+		check(Proxy);
+		return Proxy->bCooking;
+	}
+	static void FailNextCook(UBreachSimpleProxy* Proxy)
+	{
+		check(Proxy);
+		Proxy->bFailNextCook = true;
+	}
+	static void DropNextCookedHull(UBreachSimpleProxy* Proxy)
+	{
+		check(Proxy);
+		Proxy->bDropNextCookedHull = true;
+	}
+	static bool InputIndicesReady(const UBreachSimpleProxy* Proxy)
+	{
+		check(Proxy);
+		return Proxy->bLastCookHadIndices;
 	}
 
 	static bool Wait(const UBreachableSurfaceComponent* Surface)

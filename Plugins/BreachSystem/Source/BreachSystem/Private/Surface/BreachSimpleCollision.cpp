@@ -611,29 +611,15 @@ bool FBreachSimpleCollision::BuildMeshFromCuts(const double ComponentArea, FKAgg
 	return BuildMeshFromCuts(Policy, OutCollision, OutError);
 }
 
-bool FBreachSimpleCollision::BuildInitialCollision(const FBreachSimpleBuildPolicy& Policy, FKAggregateGeom& OutCollision, FString& OutError)
+void FBreachSimpleCollision::InitializeCollision(const FBreachSimpleBuildPolicy& Policy, const FKAggregateGeom& Collision)
 {
-	TArray<FVector2d> Vertices;
-	TArray<FIndex3i> Triangles;
-	if (!BreachSurfaceGeometry::TriangulateRegion(FGeneralPolygon2d(OriginalOuter), Vertices, Triangles, OutError))
-	{
-		return false;
-	}
-	FKAggregateGeom Collision;
-	if (!BuildPrisms(Vertices, Triangles, DepthRange, Collision, OutError, Policy.WorldScale.X * Policy.WorldScale.Y, LastBuildStats.DiscardedWorldArea))
-	{
-		return false;
-	}
-	BuiltCollision = MoveTemp(Collision);
+	BuiltCollision = Collision;
 	BuiltRevisions.Reset();
 	BuiltWorldScale = Policy.WorldScale;
-	BuiltAreaScale = Policy.WorldScale.X * Policy.WorldScale.Y;
 	BuiltAreaThreshold = Policy.AreaThreshold;
 	BuiltMaxConvexCount = Policy.MaxCount;
 	bBuiltCollisionValid = true;
 	PassageState = MakeShared<FBreachPassageState, ESPMode::ThreadSafe>();
-	OutCollision = BuiltCollision;
-	return true;
 }
 
 void FBreachSimpleCollision::CommitBuild(const FBreachSimpleCollision& Completed)
@@ -661,7 +647,6 @@ void FBreachSimpleCollision::CommitBuild(const FBreachSimpleCollision& Completed
 	BuiltRevisions = Completed.BuiltRevisions;
 	BuiltCollision = Completed.BuiltCollision;
 	bBuiltCollisionValid = Completed.bBuiltCollisionValid;
-	BuiltAreaScale = Completed.BuiltAreaScale;
 	BuiltWorldScale = Completed.BuiltWorldScale;
 	BuiltAreaThreshold = Completed.BuiltAreaThreshold;
 	BuiltMaxConvexCount = Completed.BuiltMaxConvexCount;
@@ -677,6 +662,7 @@ bool FBreachSimpleCollision::BuildMeshFromCuts(const FBreachSimpleBuildPolicy& P
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 	LastBuildStats.bLinearBoundaryQueries = Policy.bLinearBoundaryQueries;
 	LastBuildStats.bRebuildTrialHulls = Policy.bRebuildTrialHulls;
+	LastBuildStats.bDisableBoundaryCache = Policy.bDisableBoundaryCache;
 #endif
 	ON_SCOPE_EXIT
 	{
@@ -712,7 +698,6 @@ bool FBreachSimpleCollision::BuildMeshFromCuts(const FBreachSimpleBuildPolicy& P
 			bBuiltCollisionValid = false;
 		}
 		BuiltWorldScale = Policy.WorldScale;
-		BuiltAreaScale = AreaScale;
 		BuiltAreaThreshold = Policy.AreaThreshold;
 		BuiltMaxConvexCount = Policy.MaxCount;
 	}

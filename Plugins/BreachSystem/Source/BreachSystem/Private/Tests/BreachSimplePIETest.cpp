@@ -3,6 +3,7 @@
 // 테스트 전용: 저장하지 않는 임시 맵의 실제 PIE 월드에서 연사·물리 질의·반영 지연을 검증한다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 #include "Components/BreachableSurfaceComponent.h"
+#include "Settings/BreachSystemSettings.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -27,6 +28,7 @@ namespace
 			double RequestedAt;
 		};
 		FAutomationTestBase* Test;
+		TUniquePtr<TGuardValue<double>> Threshold;
 		TWeakObjectPtr<UBreachableSurfaceComponent> Surface;
 		TArray<FPendingShot> Pending;
 		TArray<double> Latencies;
@@ -50,7 +52,12 @@ namespace
 		}
 
 	public:
-		explicit FExerciseBreachPIE(FAutomationTestBase* InTest) : Test(InTest) {}
+		explicit FExerciseBreachPIE(FAutomationTestBase* InTest) : Test(InTest)
+		{
+			UBreachSystemSettings* Settings = GetMutableDefault<UBreachSystemSettings>();
+			check(Settings);
+			Threshold = MakeUnique<TGuardValue<double>>(Settings->ComplexHoleSizeThreshold, 500.0);
+		}
 		virtual bool Update() override
 		{
 			check(Test);
