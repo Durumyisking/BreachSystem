@@ -1,0 +1,37 @@
+{
+  "tool": "built-in image_gen",
+  "inputs": "Text descriptions only; no extracted R6 source pixels supplied or reused.",
+  "note": "Newly generated art is not a legal non-infringement certification.",
+  "assets": [
+    {
+      "key": "DecoWood",
+      "transparent_background": true,
+      "prompt": "Create an original production-ready square 2048x2048 game material BASE COLOR texture from scratch using this text only. Orthographic flat scan, uniform diffuse lighting, no directional shadows, no perspective, no vignette, no labels or text, no logos, no watermarks, no objects or scenery. Do not reproduce any game asset or identifiable source image. Fine realistic surface detail, neutral physically plausible colors. Subject: torn dry wood fibers for a thin procedural broken wood slab. A SINGLE full-field texture, never an atlas or multiple separated clusters. Warm straw and muted honey brown wood with long parallel grain predominantly vertical, many thin fractured angular fibers and splinters, occasional diagonal chips. Dense wood fibers fill almost the entire square all the way to all four edges. Small uneven transparent fissures and sparse transparent gaps occur THROUGHOUT the field between fibers, including the center, about 8 to 15 percent of area. No solid background. No big empty top/bottom bands, no root stripe, no circular burst, no central bullet hole. Genuine transparent alpha in the narrow gaps. Texture must feel like a dense fibrous torn wooden slab, not a pile of logs or a 3D rendered debris pile.",
+      "path": "C:\\Users\\csh\\.codex\\generated_images\\01a1cf98-f725-7750-9a94-69f545efdf93\\exec-b1b95621-8fb2-44f7-bdb7-babdece554e7.png"
+    },
+    {
+      "key": "WallBrick",
+      "transparent_background": false,
+      "prompt": "Create an original production-ready square 2048x2048 game material BASE COLOR texture from scratch using this text only. Orthographic flat scan, uniform diffuse lighting, no directional shadows, no perspective, no vignette, no labels or text, no logos, no watermarks, no objects or scenery. Do not reproduce any game asset or identifiable source image. Fine realistic surface detail, neutral physically plausible colors. Subject: seamless tileable weathered red clay brick wall in running bond, nine horizontal courses, roughly four irregular handmade bricks across each course, offset alternate rows. Varied muted terracotta, russet, and dusty brick-red rectangular bricks, shallow pits and worn chipped corners, thin warm pale-gray recessed lime mortar. Flat masonry surface with balanced fine texture. Invent unique brick imperfections. Continuous periodic layout at all four edges so it repeats. No plaster overlays or vegetation.",
+      "path": "C:\\Users\\csh\\.codex\\generated_images\\01a1cf98-f725-7750-9a94-69f545efdf93\\exec-ea63b5b1-2303-4d3d-9890-2597927753f2.png"
+    },
+    {
+      "key": "DecoConcrete",
+      "transparent_background": false,
+      "prompt": "Create an original production-ready square 2048x2048 game material BASE COLOR texture from scratch using this text only. Orthographic flat scan, uniform diffuse lighting, no directional shadows, no perspective, no vignette, no labels or text, no logos, no watermarks, no objects or scenery. Do not reproduce any game asset or identifiable source image. Fine realistic surface detail, neutral physically plausible colors. Subject: seamless full-field pale warm-gray fractured cement and plaster slab surface, for small broken thin concrete decorative plates. Irregular coarse matte cement matrix, scattered fine sand grains and pinholes, mottled patches of shallow peeling mineral surface with angular microchips and a few small darker exposed aggregate spots. Broad pale-gray areas mixed with shorter broken rough patches. Texture is FULLY OPAQUE without any alpha mask or transparent holes. No brick pattern, no board seams, no large gouges, no printed markings. Unique natural distribution and no recognizable preexisting pattern.",
+      "path": "C:\\Users\\csh\\.codex\\generated_images\\01a1cf98-f725-7750-9a94-69f545efdf93\\exec-a4fa8e62-e682-4a3e-98f3-2b42a8e1dcb5.png"
+    },
+    {
+      "key": "WallConcrete",
+      "transparent_background": false,
+      "prompt": "Create an original production-ready square 2048x2048 game material BASE COLOR texture from scratch using this text only. Orthographic flat scan, uniform diffuse lighting, no directional shadows, no perspective, no vignette, no labels or text, no logos, no watermarks, no objects or scenery. Do not reproduce any game asset or identifiable source image. Fine realistic surface detail, neutral physically plausible colors. Subject: seamless tileable construction gypsum/plasterboard wall facing. Pale neutral light-gray matte board paper with off-white joint compound vertical strips, two unequal panel widths per horizontal repeat, subtle trowel texture and tiny scuffs, a few small repaired screw dimples. Invent a new asymmetrical panel seam layout with slender vertical joint strips and a slim horizontal compound joint, subtle ragged feathering. No words, serial numbers, barcodes, brands, stamps, symbols, or red marks anywhere. Quiet clean off-white and gray construction wall surface, no dramatic damage. FULLY OPAQUE.",
+      "path": "C:\\Users\\csh\\.codex\\generated_images\\01a1cf98-f725-7750-9a94-69f545efdf93\\exec-af90f2a5-b9a3-4e45-b01f-025448f10dd3.png"
+    },
+    {
+      "key": "WallWood",
+      "transparent_background": false,
+      "prompt": "Create an original production-ready square 2048x2048 game material BASE COLOR texture from scratch using this text only. Orthographic flat scan, uniform diffuse lighting, no directional shadows, no perspective, no vignette, no labels or text, no logos, no watermarks, no objects or scenery. Do not reproduce any game asset or identifiable source image. Fine realistic surface detail, neutral physically plausible colors. Subject: seamless tileable full-field warm chestnut brown wood wall material, predominantly HORIZONTAL natural wood grain. A few broad very subtle flowing growth-ring bands, thin long irregular darker fibers, occasional tiny knots and worn scuffs, matte to softly worn finish. Moderate color variation, earthy brown not orange or red lacquer. This is a uniform wood surface with no board dividers, no decorative carving, no furniture, no metal, no nails, no text. Grain flows naturally across horizontal repeating edges. FULLY OPAQUE.",
+      "path": "C:\\Users\\csh\\.codex\\generated_images\\01a1cf98-f725-7750-9a94-69f545efdf93\\exec-e9385262-2553-4ed2-847a-2ffc6ac9f5a7.png"
+    }
+  ]
+}

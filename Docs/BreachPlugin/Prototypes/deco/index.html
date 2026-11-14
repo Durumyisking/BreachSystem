@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Deco · 절차적 테두리 실험</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="page-header">
+    <div><div class="eyebrow"><span></span> BREACH / MATERIAL STUDY 01</div><h1>절차적 테두리 실험</h1><p>조각은 기하로 만들고, 표면은 재질로 바꿉니다.</p></div>
+    <span class="prototype-label">DECO PROTOTYPE</span>
+  </header>
+  <main>
+    <aside class="controls" aria-label="조각 생성 설정">
+      <section>
+        <div class="section-heading"><h2>재질</h2><span>형상 유지</span></div>
+        <div class="segmented" aria-label="표면 재질">
+          <button type="button" id="material-concrete" aria-pressed="false"><i class="swatch concrete"></i>콘크리트</button>
+          <button type="button" class="active" id="material-wood" aria-pressed="true"><i class="swatch wood"></i>나무</button>
+        </div>
+        <label class="mask-option" id="mask-control"><input id="wood-mask" type="checkbox" checked> 나무 섬유 사이 비우기</label>
+        <p class="hint">재질은 색과 마스크를 바꿉니다. 조각의 정점과 배치는 그대로입니다.</p>
+      </section>
+      <section>
+        <div class="section-heading"><h2>형상</h2><span>cm 단위</span></div>
+        <div class="presets"><button type="button" id="shape-concrete">넓적한 판 조각</button><button type="button" id="shape-wood">길쭉한 나무 조각</button></div>
+        <div class="sliders">
+          <label for="width">조각 폭 <output id="width-value"></output><input id="width" type="range" min="1" max="35" step="0.5" value="22"></label>
+          <label for="length">돌출 길이 <output id="length-value"></output><input id="length" type="range" min="1" max="30" step="0.5" value="10"></label>
+          <label for="thickness">두께 <output id="thickness-value"></output><input id="thickness" type="range" min="0.1" max="6" step="0.1" value="1.4"></label>
+          <label for="spacing">평균 배치 간격 <output id="spacing-value"></output><input id="spacing" type="range" min="2" max="32" step="0.1" value="19"></label>
+          <label for="roughness">불규칙도 <output id="roughness-value"></output><input id="roughness" type="range" min="0" max="1" step="0.01" value="0.7"></label>
+        </div>
+      </section>
+      <section>
+        <div class="section-heading"><h2>난수 시드</h2><span>같은 값 = 같은 형상</span></div>
+        <div class="seed-row"><label class="sr-only" for="seed">난수 시드</label><input id="seed" type="number" min="0" max="4294967295" step="1" value="42"><button type="button" id="regenerate">다시 생성 ↻</button></div>
+      </section>
+      <div class="view-options"><label><input id="wireframe" type="checkbox"> 와이어프레임</label><button type="button" id="reset-camera">시점 초기화</button></div>
+    </aside>
+    <section class="preview" aria-label="3D 벽과 절차적으로 생성한 조각">
+      <div class="preview-header"><span id="material-label">WOOD</span><span id="model-info" aria-live="polite">형상을 준비하고 있어요</span></div>
+      <div id="viewport" tabindex="0" role="img" aria-label="드래그로 회전하고 휠로 확대하는 3D 미리보기. 방향키로 회전, 더하기와 빼기로 확대할 수 있습니다."></div>
+      <div class="preview-footer"><span>드래그 회전 · 휠 확대</span><div class="camera-buttons" aria-label="카메라 방향"><button id="view-front" type="button">정면</button><button id="view-side" type="button">측면</button><button id="view-back" type="button">뒷면</button></div></div>
+      <p id="error" role="alert" hidden></p>
+    </section>
+  </main>
+  <footer class="page-footer"><span>같은 기하, 다른 표면. 또는 같은 생성기, 다른 비율.</span><span>참고 사진에서 출발한 외형 실험이며, R6 내부 구현을 재현한 자료는 아닙니다.</span></footer>
+  <script type="module" src="app.mjs"></script>
+</body>
+</html>

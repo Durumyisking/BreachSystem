@@ -4,6 +4,7 @@
 #include "Engine/DataAsset.h"
 #include "Surface/BreachDamageAccumulator.h"
 #include "Surface/BreachAccumulationShape.h"
+#include "Surface/BreachDecorationOptions.h"
 #include "BreachSurfaceMaterial.generated.h"
 
 /** 여러 표면이 공유하는 파괴 규칙. 피격 기록과 남은 형상은 각 표면이 소유한다. */
@@ -18,6 +19,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Breach|Accumulation")
 	FBreachAccumulationShapeOptions AccumulationShape;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Breach|Decoration")
+	FBreachCutDecorationOptions CutDecoration;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Breach|Decoration")
+	FBreachFeatureDecorationOptions FeatureDecoration;
 
 #if WITH_EDITOR
 	virtual void PostLoad() override;

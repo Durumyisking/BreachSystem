@@ -9,11 +9,13 @@
 #include "Surface/BreachAccumulationShape.h"
 #include "Surface/BreachCellGrid.h"
 #include "Surface/BreachSimpleCollision.h"
+#include "Surface/BreachDecorationOptions.h"
 #include "BreachableSurfaceComponent.generated.h"
 
 
 class UBreachSurfaceProxy;
 class UBreachSimpleProxy;
+class UBreachDecorationComponent;
 class UBreachSurfaceMaterial;
 class UBreachSourceComponent;
 struct FBreachSimpleBuildJob;
@@ -66,7 +68,7 @@ public:
 	 * 표면 로컬 XZ의 단순 다각형을 빼고, 원본 경계와 변을 공유하지 않는 분리 영역도 제거한다.
 	 * 삼각분할·입체 메시·UV·충돌을 갱신한다. 실패 시 기존 표면을 유지하며, true가 실제 면적 감소를 뜻하지는 않는다.
 	 */
-	bool ApplyCutterPolygon(const UE::Geometry::FPolygon2d& Cutter);
+	bool ApplyCutterPolygon(const UE::Geometry::FPolygon2d& Cutter, EBreachSurfaceSide Side = EBreachSurfaceSide::Front);
 
 #if WITH_EDITOR
 	/** 실제 격자와 원본 경계를 조회한다. Proxy 생성이나 표면 변경은 하지 않는다. */
@@ -95,7 +97,7 @@ private:
 	bool CutPolygon(const UE::Geometry::FPolygon2d& Cutter, UE::Geometry::FDynamicMesh3& OutMesh);
 
 	/** 최종 메시와 충돌을 반영하고, 첫 갱신이면 원본에서 Proxy로 표시와 충돌을 전환한다. */
-	bool UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh);
+	bool UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh, EBreachSurfaceSide Side = EBreachSurfaceSide::Front);
 
 	FBreachSimpleBuildPolicy GetSimpleBuildPolicy() const;
 	void QueueSimpleCollision();
@@ -160,6 +162,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UBreachSimpleProxy> SimpleProxy;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBreachDecorationComponent> Decorations;
+
+	// 한 번의 피격에서 채택된 절삭만 모아 최종 메시 반영 뒤 한 번 처리한다.
+	TArray<UE::Geometry::FAxisAlignedBox2d> PendingDecorationCuts;
 
 	ECollisionEnabled::Type OriginalCollisionEnabled = ECollisionEnabled::QueryAndPhysics;
 	bool bOriginalVisible = true;

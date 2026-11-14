@@ -4,6 +4,7 @@
 #include "Components/BreachableSurfaceComponent.h"
 #include "Components/BreachSurfaceProxy.h"
 #include "Components/BreachSimpleProxy.h"
+#include "Components/BreachDecorationComponent.h"
 #include "Components/BreachSourceComponent.h"
 #include "Surface/BreachSurfaceMaterial.h"
 #include "Settings/BreachSystemSettings.h"
@@ -114,6 +115,11 @@ void UBreachableSurfaceComponent::PostEditChangeProperty(FPropertyChangedEvent& 
 void UBreachableSurfaceComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 	InvalidateSimpleCollisionJobs();
+	if (IsValid(Decorations))
+	{
+		Decorations->DestroyComponent();
+		Decorations = nullptr;
+	}
 	if (IsValid(SimpleProxy))
 	{
 		SimpleProxy->SetSurface(nullptr);
@@ -384,6 +390,10 @@ void UBreachableSurfaceComponent::InvalidateSimpleCollisionJobs()
 void UBreachableSurfaceComponent::OnUnregister()
 {
 	InvalidateSimpleCollisionJobs();
+	if (IsValid(Decorations))
+	{
+		Decorations->UnregisterComponent();
+	}
 	if (IsValid(SimpleProxy))
 	{
 		SimpleProxy->UnregisterComponent();
@@ -398,6 +408,10 @@ void UBreachableSurfaceComponent::OnUnregister()
 void UBreachableSurfaceComponent::OnRegister()
 {
 	Super::OnRegister();
+	if (IsValid(Decorations))
+	{
+		Decorations->RegisterComponent();
+	}
 	if (IsValid(DynamicMeshProxy) && IsValid(SimpleProxy))
 	{
 		DynamicMeshProxy->RegisterComponent();
@@ -576,7 +590,7 @@ void UBreachableSurfaceComponent::CompleteSimpleCook(const TSharedPtr<FBreachSim
 	}
 }
 
-bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh)
+bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh, EBreachSurfaceSide Side)
 {
 	if (!ensureMsgf(IsValid(DynamicMeshProxy) && IsValid(SimpleProxy), TEXT("%s requires both proxies to update its mesh."), *GetName()))
 	{
@@ -602,12 +616,41 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh)
 	}
 
 	QueueSimpleCollision();
+	if (!PendingDecorationCuts.IsEmpty())
+	{
+		const bool bHasMaterial = IsValid(SurfaceMaterial);
+		bool bConfigured = false;
+		if (bHasMaterial)
+		{
+			bConfigured = IsValid(SurfaceMaterial->CutDecoration.Material) || IsValid(SurfaceMaterial->FeatureDecoration.Material);
+		}
+		if (bConfigured && !IsValid(Decorations))
+		{
+			AActor* Owner = GetOwner();
+			if (ensureMsgf(IsValid(Owner), TEXT("%s requires an owner for Deco."), *GetName()))
+			{
+				Decorations = NewObject<UBreachDecorationComponent>(Owner);
+				Decorations->RegisterComponent();
+			}
+		}
+		if (IsValid(Decorations))
+		{
+			Decorations->Update(this, SurfaceMaterial, OriginalOuter, SurfaceState.RemainingRegions, OriginalDepthRange, PendingDecorationCuts, Side, bOriginalVisible, bOriginalHiddenInGame);
+		}
+	}
+	PendingDecorationCuts.Reset();
 	return true;
 }
 
 bool UBreachableSurfaceComponent::ResetSurface()
 {
 	InvalidateSimpleCollisionJobs();
+	PendingDecorationCuts.Reset();
+	if (IsValid(Decorations))
+	{
+		Decorations->DestroyComponent();
+		Decorations = nullptr;
+	}
 	// 처리: 누적 기록을 비우고 Proxy가 대신하던 원본 표시·충돌을 복구한다.
 	DamageAccumulator.Reset();
 	CachedMeshScaleXZ = FVector2d::ZeroVector;
@@ -643,6 +686,7 @@ bool UBreachableSurfaceComponent::ResetSurface()
 
 void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitComponent, const FDamageEvent& DamageEvent, AActor* DamageCauser, float DamageAmount)
 {
+	PendingDecorationCuts.Reset();
 	// 검증: 포인트 피해만 처리하며, 커터를 제공하는 BreachSource가 필요하다.
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
@@ -734,7 +778,11 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 
 		// Here
 
-		const bool bUpdated = UpdateMesh(MoveTemp(Mesh));
+		const FVector LocalImpact = GetComponentTransform().InverseTransformPosition(PointDamage.HitInfo.ImpactPoint);
+		const double FrontDistance = FMath::Abs(LocalImpact.Y - OriginalDepthRange.X);
+		const double BackDistance = FMath::Abs(LocalImpact.Y - OriginalDepthRange.Y);
+		const EBreachSurfaceSide Side = FrontDistance <= BackDistance ? EBreachSurfaceSide::Front : EBreachSurfaceSide::Back;
+		const bool bUpdated = UpdateMesh(MoveTemp(Mesh), Side);
 		if (!bUpdated)
 		{
 			return;
@@ -965,8 +1013,9 @@ void UBreachableSurfaceComponent::RemoveHitsInside(const FPolygon2d& LocalPolygo
 	DamageAccumulator.RemoveInside(MetricPolygon);
 }
 
-bool UBreachableSurfaceComponent::ApplyCutterPolygon(const FPolygon2d& InCutter)
+bool UBreachableSurfaceComponent::ApplyCutterPolygon(const FPolygon2d& InCutter, EBreachSurfaceSide Side)
 {
+	PendingDecorationCuts.Reset();
 	FDynamicMesh3 Mesh;
 	const bool bCut = CutPolygon(InCutter, Mesh);
 	if (!bCut)
@@ -974,7 +1023,7 @@ bool UBreachableSurfaceComponent::ApplyCutterPolygon(const FPolygon2d& InCutter)
 		return false;
 	}
 
-	const bool bUpdated = UpdateMesh(MoveTemp(Mesh));
+	const bool bUpdated = UpdateMesh(MoveTemp(Mesh), Side);
 	return bUpdated;
 }
 
@@ -1170,6 +1219,22 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 		}
 
 		UVOverlay->SetTriangle(TriangleID, UVElementIDs);
+	}
+
+	// 면적이 줄어든 절삭만 Deco 후보로 보관한다. 실패한 후보나 무변화 절삭은 흔적을 남기지 않는다.
+	double PreviousArea = 0;
+	for (const FGeneralPolygon2d& Region : SurfaceState.RemainingRegions)
+	{
+		PreviousArea += FMath::Abs(Region.SignedArea());
+	}
+	double NewArea = 0;
+	for (const FGeneralPolygon2d& Region : CandidateRegions)
+	{
+		NewArea += FMath::Abs(Region.SignedArea());
+	}
+	if (PreviousArea - NewArea > 1.e-8)
+	{
+		PendingDecorationCuts.Add(Cutter.Bounds());
 	}
 
 	// 계산 결과만 보관한다. 실제 메시와 충돌은 모든 절단이 끝난 뒤 반영한다.
