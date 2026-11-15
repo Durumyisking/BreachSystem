@@ -2,6 +2,7 @@
 #include "Components/BreachSurfaceProxy.h"
 #include "Components/DynamicMeshComponent.h"
 #include "Components/BreachSourceComponent.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
@@ -244,6 +245,24 @@ bool FBreachDecorationGeneratedTest::RunTest(const FString& Parameters)
 		}
 		TestTrue(TEXT("Material swap preserves feature vertices"), Before == After);
 		TestEqual(TEXT("Material swap updates the shader reference"), Feature->GetMaterial(0), F.Material->FeatureDecoration.Material.Get());
+	}
+	// 테스트 전용: UV 크기를 바꾸면 다음 성공한 절삭에서 기존 표시에도 새 밀도를 적용한다.
+	const FVector2f BeforeUV = Feature->GetMesh()->Attributes()->PrimaryUV()->GetElement(1);
+	F.Material->FeatureDecoration.TextureWorldSize *= 2;
+	TestTrue(TEXT("Texture world size change applies on the next successful cut"), F.Cut(32, 32, 0.5));
+	TInlineComponentArray<UDynamicMeshComponent*> Remapped(F.Wall);
+	UDynamicMeshComponent* RemappedFeature = nullptr;
+	for (UDynamicMeshComponent* Display : Remapped)
+	{
+		if (Display->GetMaterial(0) == F.Material->FeatureDecoration.Material)
+		{
+			RemappedFeature = Display;
+		}
+	}
+	if (TestNotNull(TEXT("Remapped feature exists"), RemappedFeature))
+	{
+		const FVector2f AfterUV = RemappedFeature->GetMesh()->Attributes()->PrimaryUV()->GetElement(1);
+		TestTrue(TEXT("Doubling texture world size halves existing plate UVs"), AfterUV.Equals(BeforeUV * 0.5f, 1.e-5f));
 	}
 	F.Surface->DestroyComponent();
 	TInlineComponentArray<UDynamicMeshComponent*> Destroyed(F.Wall);

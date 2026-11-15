@@ -33,6 +33,11 @@ namespace
 			Error = TEXT("Feature Deco requires finite positive dimensions/spacing, nonnegative area, roughness 0..1 and a positive atlas size.");
 			return false;
 		}
+		if (Options.TextureWorldSize.ContainsNaN() || Options.TextureWorldSize.X < 0.1 || Options.TextureWorldSize.Y < 0.1)
+		{
+			Error = TEXT("Feature Deco requires a finite texture world size of at least 0.1cm per axis.");
+			return false;
+		}
 		return true;
 	}
 
@@ -500,6 +505,7 @@ bool BreachDecoration::UpdateFeatureMesh(FFeatureState& State, const FBreachFeat
 	}
 	const FVector2d Metric(FMath::Abs(Scale.X), FMath::Abs(Scale.Z));
 	int32 Skipped = 0;
+	const double DepthCenter = (Depth.X + Depth.Y) * 0.5;
 	for (FBinding* PendingBinding : Pending)
 	{
 		FBinding& Binding = *PendingBinding;
@@ -512,21 +518,24 @@ bool BreachDecoration::UpdateFeatureMesh(FFeatureState& State, const FBreachFeat
 		TArray<FVector2d> Roots;
 		TArray<FVector2d> Normals;
 		SampleRoots(Support, Metric, Roots, Normals);
+		const FVector2d TextureU(Normals[0].Y, -Normals[0].X);
+		const FVector2d TextureV = Normals[0];
 		FRandomStream Random(Binding.Seed);
-		const double Bend = Random.FRandRange(-1.f, 1.f) * Options.Thickness;
-		const double Twist = Random.FRandRange(-0.75f, 0.75f) * Options.Thickness;
+		// 깊이 변형 제거 후에도 기존 외곽·아틀라스의 난수 순서는 보존한다.
+		Random.FRand();
+		Random.FRand();
 		const int32 Column = Random.RandHelper(Options.AtlasSize.X);
 		const int32 Row = Random.RandHelper(Options.AtlasSize.Y);
-		const double Lift = Random.FRandRange(0.04f, 0.14f);
+		Random.FRand();
 		const double Embed = FMath::Min(1.0, Support.Length * 0.18);
+		const FVector2d TextureOrigin = Roots[0] - TextureV * Embed;
 		double Profile[Samples];
-		double TipThickness[Samples];
 		for (int32 Index = 0; Index < Samples; ++Index)
 		{
 			const double T = static_cast<double>(Index) / (Samples - 1);
 			const double Shoulder = 0.3 + 0.7 * FMath::Pow(FMath::Sin(UE_DOUBLE_PI * T), 0.45);
 			Profile[Index] = Shoulder * (1 - Options.Roughness * Random.FRandRange(0.15f, 0.85f));
-			TipThickness[Index] = Options.Thickness * Random.FRandRange(0.18f, 0.48f);
+			Random.FRand();
 		}
 		TArray<FVector3d> Positions;
 		TArray<FVector2f> UVs;
@@ -542,14 +551,20 @@ bool BreachDecoration::UpdateFeatureMesh(FFeatureState& State, const FBreachFeat
 				{
 					const bool bTip = Layer % 2 == 1;
 					const bool bBack = Layer >= 2;
-					const double T = static_cast<double>(Index) / (Samples - 1);
 					const double Distance = bTip ? Length * Profile[Index] : -Embed;
-					const double Raised = bTip ? Bend * Profile[Index] + Twist * (T - 0.5) : 0;
-					const double Thickness = bTip ? TipThickness[Index] : Options.Thickness;
 					const FVector2d P = Roots[Index] + Normals[Index] * Distance;
-					const double Y = Depth.X - (Lift + Raised - (bBack ? Thickness : 0)) / FMath::Abs(Scale.Y);
+					const double Y = DepthCenter + (bBack ? 0.5 : -0.5) * Options.Thickness / FMath::Abs(Scale.Y);
 					Positions.Add(FVector3d(P.X / Metric.X, Y, P.Y / Metric.Y));
-					UVs.Add(FVector2f((Column + 0.01 + T * 0.98) / Options.AtlasSize.X, (Row + 0.01 + (Distance + Embed) / (Length + Embed) * 0.98) / Options.AtlasSize.Y));
+					if (Options.AtlasSize == FIntPoint(1, 1))
+					{
+						const FVector2d TextureDelta = P - TextureOrigin;
+						UVs.Add(FVector2f(TextureDelta.Dot(TextureU) / Options.TextureWorldSize.X, TextureDelta.Dot(TextureV) / Options.TextureWorldSize.Y));
+					}
+					else
+					{
+						const double T = static_cast<double>(Index) / (Samples - 1);
+						UVs.Add(FVector2f((Column + 0.01 + T * 0.98) / Options.AtlasSize.X, (Row + 0.01 + (Distance + Embed) / (Length + Embed) * 0.98) / Options.AtlasSize.Y));
+					}
 				}
 			}
 			bValid = true;

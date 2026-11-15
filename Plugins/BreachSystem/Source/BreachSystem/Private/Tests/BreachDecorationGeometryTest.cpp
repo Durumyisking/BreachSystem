@@ -543,6 +543,70 @@ bool FBreachDecorationPlateTest::RunTest(const FString& Parameters)
 	return !HasAnyErrors();
 }
 
+// 테스트 전용: 조각 크기·비균일 스케일에 독립적인 무늬 밀도와 깊이 중앙의 평평한 일정 두께를 검증한다.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachDecorationPlateMappingTest, "BreachSystem.Decoration.PlateWorldMapping", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FBreachDecorationPlateMappingTest::RunTest(const FString& Parameters)
+{
+	FBreachFeatureDecorationOptions Options;
+	const FVector Scales[] = {FVector::OneVector, FVector(2, 3, 4)};
+	for (const FVector& Scale : Scales)
+	{
+		for (double Width : {12.0, 44.0})
+		{
+			Options.TextureWorldSize = Width < 20 ? FVector2D(20, 20) : FVector2D(10, 40);
+			FFeatureState State;
+			FBinding Binding;
+			Binding.Support = {FVector2d(-Width * 0.5, 0), FVector2d(Width * 0.5, 0)};
+			Binding.Length = Width;
+			Binding.Seed = 42;
+			State.Holes.Add(1).Bindings.Add(Binding);
+			FDynamicMesh3 Mesh;
+			bool bChanged = false;
+			FString Error;
+			if (!TestTrue(TEXT("Mapping fixture generates"), UpdateFeatureMesh(State, Options, Scale, FVector2d(8, 28), Mesh, bChanged, Error)))
+			{
+				return false;
+			}
+			const auto* UVs = Mesh.Attributes()->PrimaryUV();
+			const FVector3d Origin = Mesh.GetVertex(0);
+			const FVector2f OriginUV = UVs->GetElement(0);
+			bool bFixedDensity = true;
+			bool bAlignedFaces = true;
+			bool bCenteredRoots = true;
+			for (int32 Index = 0; Index < 14; ++Index)
+			{
+				const FVector3d P = Mesh.GetVertex(Index);
+				const FVector2f UV = UVs->GetElement(Index);
+				bFixedDensity &= FMath::IsNearlyEqual(static_cast<double>(UV.X - OriginUV.X), (P.X - Origin.X) * Scale.X / Options.TextureWorldSize.X, 1.e-5);
+				bFixedDensity &= FMath::IsNearlyEqual(static_cast<double>(UV.Y - OriginUV.Y), (P.Z - Origin.Z) * Scale.Z / Options.TextureWorldSize.Y, 1.e-5);
+				bAlignedFaces &= UV == UVs->GetElement(Index + 14);
+				if (Index < 7)
+				{
+					bCenteredRoots &= FMath::IsNearlyEqual((P.Y + Mesh.GetVertex(Index + 14).Y) * 0.5, 18.0, 1.e-6);
+				}
+			}
+			TestTrue(TEXT("Texture world size sets density independently of plate width and length"), bFixedDensity);
+			TestTrue(TEXT("Front and back masks share the same coordinates"), bAlignedFaces);
+			TestTrue(TEXT("Root midplane stays at the middle of asymmetric wall depth"), bCenteredRoots);
+			bool bFlatFaces = true;
+			for (int32 Index = 0; Index < 28; ++Index)
+			{
+				const double ExpectedDepth = 18.0 + (Index < 14 ? -0.5 : 0.5) * Options.Thickness / FMath::Abs(Scale.Y);
+				bFlatFaces &= FMath::IsNearlyEqual(Mesh.GetVertex(Index).Y, ExpectedDepth, 1.e-6);
+			}
+			TestTrue(TEXT("Every front and back vertex lies on its constant-depth plane with uniform world thickness"), bFlatFaces);
+		}
+	}
+	FFeatureState InvalidState;
+	FDynamicMesh3 InvalidMesh;
+	bool bChanged = false;
+	FString Error;
+	Options.TextureWorldSize.X = 0;
+	TestFalse(TEXT("Zero texture world size is rejected"), UpdateFeatureMesh(InvalidState, Options, FVector::OneVector, FVector2d(8, 28), InvalidMesh, bChanged, Error));
+	TestFalse(TEXT("Invalid texture dimensions do not mutate the display"), bChanged);
+	return !HasAnyErrors();
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachDecorationClusterTest, "BreachSystem.Decoration.ClusteredBoundary", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FBreachDecorationClusterTest::RunTest(const FString& Parameters)
 {

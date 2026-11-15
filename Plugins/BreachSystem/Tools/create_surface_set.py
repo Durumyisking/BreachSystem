@@ -88,6 +88,8 @@ def main():
             for index, suffix in enumerate(("BaseColor", "Normal")):
                 node = unreal.MaterialEditingLibrary.create_material_expression(material, unreal.MaterialExpressionTextureSample, -500, index * 220)
                 node.set_editor_property("texture", textures[(kind, suffix)])
+                if kind.startswith("Deco"):
+                    node.set_editor_property("sampler_source", unreal.SamplerSourceMode.SSM_WRAP_WORLD_GROUP_SETTINGS)
                 node.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL if suffix == "Normal" else unreal.MaterialSamplerType.SAMPLERTYPE_COLOR)
                 prop = unreal.MaterialProperty.MP_NORMAL if suffix == "Normal" else unreal.MaterialProperty.MP_BASE_COLOR
                 require(unreal.MaterialEditingLibrary.connect_material_property(node, "RGB", prop), f"Connect failed: {kind}/{suffix}")

@@ -11,7 +11,7 @@ namespace
 {
 	bool SameSettings(const FBreachCutDecorationOptions& A, const FBreachCutDecorationOptions& B, const FBreachFeatureDecorationOptions& C, const FBreachFeatureDecorationOptions& D)
 	{
-		return A.Material == B.Material && A.Padding == B.Padding && A.SurfaceOffset == B.SurfaceOffset && C.MinHoleArea == D.MinHoleArea && C.Spacing == D.Spacing && C.Width == D.Width && C.Length == D.Length && C.Thickness == D.Thickness && C.Roughness == D.Roughness && C.Seed == D.Seed && C.AtlasSize == D.AtlasSize;
+		return A.Material == B.Material && A.Padding == B.Padding && A.SurfaceOffset == B.SurfaceOffset && C.MinHoleArea == D.MinHoleArea && C.Spacing == D.Spacing && C.Width == D.Width && C.Length == D.Length && C.Thickness == D.Thickness && C.Roughness == D.Roughness && C.Seed == D.Seed && C.TextureWorldSize == D.TextureWorldSize && C.AtlasSize == D.AtlasSize;
 	}
 
 	void ConfigureDisplay(UPrimitiveComponent* Display, UBreachableSurfaceComponent* Surface, bool bVisible, bool bHidden)

@@ -93,6 +93,7 @@ def main():
             for index, suffix in enumerate(("BaseColor", "Normal", "Masks")):
                 node = unreal.MaterialEditingLibrary.create_material_expression(material, unreal.MaterialExpressionTextureSample, -600, index * 230)
                 node.set_editor_property("texture", textures[(kind, suffix)])
+                node.set_editor_property("sampler_source", unreal.SamplerSourceMode.SSM_WRAP_WORLD_GROUP_SETTINGS)
                 sampler = {"BaseColor": unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, "Normal": unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL, "Masks": unreal.MaterialSamplerType.SAMPLERTYPE_MASKS}[suffix]
                 node.set_editor_property("sampler_type", sampler)
                 links = {"BaseColor": (("RGB", unreal.MaterialProperty.MP_BASE_COLOR),), "Normal": (("RGB", unreal.MaterialProperty.MP_NORMAL),), "Masks": (("R", unreal.MaterialProperty.MP_ROUGHNESS), ("G", unreal.MaterialProperty.MP_AMBIENT_OCCLUSION))}[suffix]

@@ -59,6 +59,10 @@ struct BREACHSYSTEM_API FBreachFeatureDecorationOptions
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Decoration")
 	int32 Seed = 42;
 
+	/** 단일 텍스처 한 장의 월드 가로·세로 크기(cm). Wrap 샘플링을 사용한다. 아틀라스는 기존 셀 맞춤을 유지한다. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Decoration", meta=(ClampMin="0.1", Units="cm"))
+	FVector2D TextureWorldSize = FVector2D(20, 20);
+
 	/** 아틀라스의 열·행 수. 각 셀의 V=0을 뿌리, V=1을 자유단으로 제작한다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Decoration", meta=(ClampMin="1"))
 	FIntPoint AtlasSize = FIntPoint(1, 1);
