@@ -97,6 +97,66 @@ namespace
 			Cookable.Add(CanCook(Parts.Last()));
 		}
 
+		// 변을 공유하는 두 조각의 합집합이 볼록이면 하나의 기둥으로 합친다. 삼각형마다 Convex를 두면 통로 몇 개에도 충돌체가 100개를 넘는다.
+		// 합친 결과가 두 조각의 면적을 그대로 보존하고 Chaos가 Cooking할 수 있을 때만 받아들인다. 구멍을 가로질러 덮지 않는다.
+		TMap<uint64, TArray<int32>> Owners;
+		TArray<uint64> Queue;
+		auto EdgeKey = [](int32 A, int32 B)
+		{
+			return (static_cast<uint64>(FMath::Min(A, B)) << 32) | static_cast<uint32>(FMath::Max(A, B));
+		};
+		auto AddEdges = [&](int32 PartIndex)
+		{
+			const TArray<int32>& Part = Parts[PartIndex];
+			for (int32 Index = 0; Index < Part.Num(); ++Index)
+			{
+				const uint64 Key = EdgeKey(Part[Index], Part[(Index + 1) % Part.Num()]);
+				TArray<int32>& EdgeOwners = Owners.FindOrAdd(Key);
+				EdgeOwners.Add(PartIndex);
+				if (EdgeOwners.Num() == 2)
+				{
+					Queue.Add(Key);
+				}
+			}
+		};
+		auto RemoveEdges = [&](int32 PartIndex)
+		{
+			const TArray<int32>& Part = Parts[PartIndex];
+			for (int32 Index = 0; Index < Part.Num(); ++Index)
+			{
+				Owners.FindChecked(EdgeKey(Part[Index], Part[(Index + 1) % Part.Num()])).Remove(PartIndex);
+			}
+		};
+		for (int32 PartIndex = 0; PartIndex < Parts.Num(); ++PartIndex)
+		{
+			AddEdges(PartIndex);
+		}
+		for (int32 QueueIndex = 0; QueueIndex < Queue.Num(); ++QueueIndex)
+		{
+			const TArray<int32> Pair = Owners.FindChecked(Queue[QueueIndex]);
+			if (Pair.Num() != 2)
+			{
+				continue;
+			}
+
+			TArray<int32> Merged;
+			if (!MergeConvex(Parts[Pair[0]], Parts[Pair[1]], Vertices, Merged))
+			{
+				continue;
+			}
+			if (!CanCook(Merged))
+			{
+				continue;
+			}
+
+			RemoveEdges(Pair[0]);
+			RemoveEdges(Pair[1]);
+			Parts[Pair[0]] = MoveTemp(Merged);
+			Parts[Pair[1]].Reset();
+			Cookable[Pair[0]] = true;
+			AddEdges(Pair[0]);
+		}
+
 		// Chaos가 평면으로 판정하는 조각만 인접한 볼록 합집합으로 복구한다. 벽 면적은 버리거나 추가하지 않는다.
 		for (int32 Index = 0; Index < Parts.Num(); ++Index)
 		{
@@ -298,6 +358,185 @@ namespace
 		Regions = MoveTemp(Result);
 	}
 
+	double DistanceToSegment(const FVector2d& Point, const FVector2d& A, const FVector2d& B)
+	{
+		const FVector2d Delta = B - A;
+		const double LengthSquared = Delta.SquaredLength();
+		if (LengthSquared <= 0)
+		{
+			return (Point - A).Length();
+		}
+		const double Alpha = FMath::Clamp((Point - A).Dot(Delta) / LengthSquared, 0.0, 1.0);
+		return (Point - A - Alpha * Delta).Length();
+	}
+
+	// 통로 외곽에서, 지워도 가장자리가 Tolerance 이내로만 통로 안쪽으로 움직이는 꼭짓점을 지운다.
+	// 벽 쪽으로 튀어나온 꼭짓점만 깎으므로 결과는 항상 원래 통로 안에 있고, 벽이 남은 곳을 열지 않는다.
+	// 통로 꼭짓점 하나하나가 벽에는 오목한 꼭짓점이어서, 꼭짓점이 줄면 벽을 덮는 볼록 조각도 줄어든다.
+	// Published는 이전에 공개한 통로의 꼭짓점이다. 그 통로를 다시 막게 되는 꼭짓점은 지우지 않는다.
+	FGeneralPolygon2d SimplifyPassage(const FGeneralPolygon2d& Passage, const FPolygon2d& Wall, double Tolerance, TConstArrayView<FVector2d> Published)
+	{
+		if (Tolerance <= 0 || Passage.GetOuter().VertexCount() <= 3)
+		{
+			return Passage;
+		}
+
+		FPolygon2d Outer = Passage.GetOuter();
+		if (Outer.IsClockwise())
+		{
+			Outer.Reverse();
+		}
+		const TArray<FVector2d>& Points = Outer.GetVertices();
+		const int32 Count = Points.Num();
+
+		// 벽 외곽선 위의 꼭짓점은 남긴다. 지우면 외곽선과 새 변 사이에 얇은 벽 조각이 따로 떨어져 생긴다.
+		TArray<bool> Locked;
+		Locked.Init(false, Count);
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			for (int32 Edge = 0; Edge < Wall.VertexCount(); ++Edge)
+			{
+				if (DistanceToSegment(Points[Index], Wall[Edge], Wall[(Edge + 1) % Wall.VertexCount()]) <= 1.e-6)
+				{
+					Locked[Index] = true;
+					break;
+				}
+			}
+		}
+
+		// 통로 안에 남은 벽 조각의 경계. 새 변이 이 조각을 가로지르면 안 된다.
+		TArray<FVector2d> Islands;
+		for (const FPolygon2d& Hole : Passage.GetHoles())
+		{
+			Islands.Append(Hole.GetVertices());
+		}
+
+		TArray<int32> Kept;
+		Kept.Reserve(Count);
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			Kept.Add(Index);
+		}
+
+		// 처리: 가장 적게 움직이는 꼭짓점부터 하나씩 지운다. 오차는 매번 원래 윤곽을 기준으로 재므로 누적되지 않는다.
+		while (Kept.Num() > 3)
+		{
+			const int32 KeptCount = Kept.Num();
+			int32 Best = INDEX_NONE;
+			double BestDeviation = Tolerance;
+			for (int32 Slot = 0; Slot < KeptCount; ++Slot)
+			{
+				const int32 PreviousIndex = Kept[(Slot + KeptCount - 1) % KeptCount];
+				const int32 CurrentIndex = Kept[Slot];
+				const int32 NextIndex = Kept[(Slot + 1) % KeptCount];
+				if (Locked[CurrentIndex])
+				{
+					continue;
+				}
+
+				// 반시계 외곽에서 오른쪽으로 꺾이는 꼭짓점은 통로가 파인 곳이다. 지우면 통로가 벽 쪽으로 넓어지므로 남긴다.
+				const FVector2d& Previous = Points[PreviousIndex];
+				const FVector2d& Current = Points[CurrentIndex];
+				const FVector2d& Next = Points[NextIndex];
+				const double Turn = ExactPredicates::Orient2(Previous, Current, Next);
+				if (Turn < 0)
+				{
+					continue;
+				}
+
+				// 새 변이 건너뛰는 원래 꼭짓점이 모두 Tolerance 안에 있어야 한다.
+				double Deviation = 0;
+				for (int32 Skipped = (PreviousIndex + 1) % Count; Skipped != NextIndex; Skipped = (Skipped + 1) % Count)
+				{
+					Deviation = FMath::Max(Deviation, DistanceToSegment(Points[Skipped], Previous, Next));
+				}
+				if (Deviation > BestDeviation)
+				{
+					continue;
+				}
+
+				// 한 번 열린 통로는 다시 막지 않는다. 잘려 나갈 부분은 새 변 바깥쪽으로 Deviation 이내의 띠 안에 있으므로,
+				// 이전에 공개한 통로의 꼭짓점이 그 띠에 있으면 이 꼭짓점은 남긴다.
+				bool bKeepsPublished = true;
+				if (Turn > 0)
+				{
+					const FVector2d Chord = Next - Previous;
+					const double ChordLength = Chord.Length();
+					for (const FVector2d& Point : Published)
+					{
+						const FVector2d Offset = Point - Previous;
+						const double Side = (Chord.X * Offset.Y - Chord.Y * Offset.X) / ChordLength;
+						if (Side < -1.e-7 && DistanceToSegment(Point, Previous, Next) <= Deviation + 1.e-7)
+						{
+							bKeepsPublished = false;
+							break;
+						}
+					}
+				}
+				if (!bKeepsPublished)
+				{
+					continue;
+				}
+
+				// 잘라 내는 삼각형 안에 다른 경계가 있으면 새 변이 통로 밖을 지난다. 일직선 위의 꼭짓점은 잘라 낼 면적이 없어 검사하지 않는다.
+				bool bClear = true;
+				for (int32 Other = 0; Turn > 0 && Other < KeptCount; ++Other)
+				{
+					const int32 OtherIndex = Kept[Other];
+					if (OtherIndex == PreviousIndex || OtherIndex == CurrentIndex || OtherIndex == NextIndex)
+					{
+						continue;
+					}
+					if (InsideTriangle(Previous, Current, Next, Points[OtherIndex]))
+					{
+						bClear = false;
+						break;
+					}
+				}
+				if (bClear && Turn > 0)
+				{
+					for (const FVector2d& Island : Islands)
+					{
+						if (InsideTriangle(Previous, Current, Next, Island))
+						{
+							bClear = false;
+							break;
+						}
+					}
+				}
+				if (!bClear)
+				{
+					continue;
+				}
+
+				Best = Slot;
+				BestDeviation = Deviation;
+			}
+			if (Best == INDEX_NONE)
+			{
+				break;
+			}
+			Kept.RemoveAt(Best);
+		}
+
+		if (Kept.Num() == Count)
+		{
+			return Passage;
+		}
+
+		FPolygon2d Simplified;
+		for (int32 Index : Kept)
+		{
+			Simplified.AppendVertex(Points[Index]);
+		}
+		FGeneralPolygon2d Result(Simplified);
+		for (const FPolygon2d& Hole : Passage.GetHoles())
+		{
+			Result.AddHole(Hole, false, false);
+		}
+		return Result;
+	}
+
 	bool SimplifyInside(const FGeneralPolygon2d& Region, const FPolygon2d& Wall, double MinArea, int32 MaxCount, TArray<FGeneralPolygon2d>& OutCuts, FString& OutError)
 	{
 		FBreachSimpleBuildStats Stats;
@@ -338,6 +577,7 @@ void FBreachSimpleCollision::Initialize(const FPolygon2d& Outer, const FVector2d
 	PassageState.Reset();
 	BuiltRevisions.Reset();
 	BuiltCollision = FKAggregateGeom();
+	BuiltPassages.Reset();
 	bBuiltCollisionValid = false;
 	NextHoleRevision = 1;
 	OriginalBounds = OriginalOuter.Bounds();
@@ -396,6 +636,7 @@ void FBreachSimpleCollision::InvalidateHoleCache()
 	PassageState.Reset();
 	BuiltRevisions.Reset();
 	BuiltCollision = FKAggregateGeom();
+	BuiltPassages.Reset();
 	bBuiltCollisionValid = false;
 }
 
@@ -602,22 +843,68 @@ bool FBreachSimpleCollision::ApplyCut(const FPolygon2d& Cutter, TConstArrayView<
 	return true;
 }
 
+bool FBreachSimpleCollision::RebuildHoleCache(TConstArrayView<FGeneralPolygon2d> RemainingRegions, FString& OutError)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | RebuildHoleCache");
+	OutError.Reset();
+
+	// 이전 추적 상태는 믿을 수 없다. 통로와 출력도 함께 버려 다음 빌드가 처음부터 계산하게 한다.
+	InvalidateHoleCache();
+	if (OriginalOuter.VertexCount() < 3)
+	{
+		OutError = TEXT("Hole cache requires an initialized wall.");
+		return false;
+	}
+
+	const TArray<FGeneralPolygon2d> Original = {FGeneralPolygon2d(OriginalOuter)};
+	TArray<FGeneralPolygon2d> Holes;
+	const bool bDerived = PolygonsDifference(Original, RemainingRegions, Holes);
+	if (!bDerived)
+	{
+		OutError = TEXT("Openings could not be derived from the remaining regions.");
+		return false;
+	}
+
+	for (FGeneralPolygon2d& Hole : Holes)
+	{
+		FHoleComponent& Component = HoleComponents.AddDefaulted_GetRef();
+		Component.Bounds = Hole.GetOuter().Bounds();
+		Component.SurfaceArea = FMath::Abs(Hole.SignedArea());
+		Component.Polygon = MoveTemp(Hole);
+		Component.Revision = NextHoleRevision++;
+	}
+
+	bHoleCacheValid = true;
+	return true;
+}
+
+void FBreachSimpleCollision::ForEachHole(TFunctionRef<void(uint64 Revision, const FGeneralPolygon2d& Polygon, const FAxisAlignedBox2d& Bounds)> Visit) const
+{
+	for (const FHoleComponent& Component : HoleComponents)
+	{
+		Visit(Component.Revision, Component.Polygon, Component.Bounds);
+	}
+}
+
 bool FBreachSimpleCollision::BuildMeshFromCuts(const double ComponentArea, FKAggregateGeom& OutCollision, FString& OutError)
 {
 	FBreachSimpleBuildPolicy Policy;
 	Policy.WorldScale = FVector2d(FMath::Sqrt(ComponentArea), FMath::Sqrt(ComponentArea));
 	Policy.AreaThreshold = UBreachSystemSettings::GetComplexHoleSizeThreshold();
 	Policy.MaxCount = UBreachSystemSettings::GetMaxSimpleConvexCount();
+	Policy.PassageTolerance = UBreachSystemSettings::GetSimplePassageToleranceCm();
 	return BuildMeshFromCuts(Policy, OutCollision, OutError);
 }
 
 void FBreachSimpleCollision::InitializeCollision(const FBreachSimpleBuildPolicy& Policy, const FKAggregateGeom& Collision)
 {
 	BuiltCollision = Collision;
+	BuiltPassages.Reset();
 	BuiltRevisions.Reset();
 	BuiltWorldScale = Policy.WorldScale;
 	BuiltAreaThreshold = Policy.AreaThreshold;
 	BuiltMaxConvexCount = Policy.MaxCount;
+	BuiltPassageTolerance = Policy.PassageTolerance;
 	bBuiltCollisionValid = true;
 	PassageState = MakeShared<FBreachPassageState, ESPMode::ThreadSafe>();
 }
@@ -646,10 +933,12 @@ void FBreachSimpleCollision::CommitBuild(const FBreachSimpleCollision& Completed
 	PassageState = Completed.PassageState;
 	BuiltRevisions = Completed.BuiltRevisions;
 	BuiltCollision = Completed.BuiltCollision;
+	BuiltPassages = Completed.BuiltPassages;
 	bBuiltCollisionValid = Completed.bBuiltCollisionValid;
 	BuiltWorldScale = Completed.BuiltWorldScale;
 	BuiltAreaThreshold = Completed.BuiltAreaThreshold;
 	BuiltMaxConvexCount = Completed.BuiltMaxConvexCount;
+	BuiltPassageTolerance = Completed.BuiltPassageTolerance;
 	LastBuildStats = Completed.LastBuildStats;
 }
 
@@ -674,9 +963,9 @@ bool FBreachSimpleCollision::BuildMeshFromCuts(const FBreachSimpleBuildPolicy& P
 	};
 	OutError.Reset();
 	const double AreaScale = Policy.WorldScale.X * Policy.WorldScale.Y;
-	if (OriginalOuter.VertexCount() < 3 || !FMath::IsFinite(AreaScale) || Policy.WorldScale.X <= 0 || Policy.WorldScale.Y <= 0 || !FMath::IsFinite(Policy.AreaThreshold) || Policy.AreaThreshold <= 0 || Policy.MaxCount < 1 || Policy.MaxCount > 16)
+	if (OriginalOuter.VertexCount() < 3 || !FMath::IsFinite(AreaScale) || Policy.WorldScale.X <= 0 || Policy.WorldScale.Y <= 0 || !FMath::IsFinite(Policy.AreaThreshold) || Policy.AreaThreshold <= 0 || Policy.MaxCount < 1 || Policy.MaxCount > 16 || !FMath::IsFinite(Policy.PassageTolerance) || Policy.PassageTolerance < 0)
 	{
-		OutError = TEXT("Simple collision requires an initialized wall, positive world scale and area threshold, and a convex count in [1,16].");
+		OutError = TEXT("Simple collision requires an initialized wall, positive world scale and area threshold, a convex count in [1,16] and a finite nonnegative passage tolerance.");
 		return false;
 	}
 	if (!bHoleCacheValid)
@@ -684,7 +973,7 @@ bool FBreachSimpleCollision::BuildMeshFromCuts(const FBreachSimpleBuildPolicy& P
 		OutError = TEXT("Hole cache is not available; previous collision is retained.");
 		return false;
 	}
-	const bool bSamePolicy = BuiltWorldScale == Policy.WorldScale && BuiltAreaThreshold == Policy.AreaThreshold && BuiltMaxConvexCount == Policy.MaxCount;
+	const bool bSamePolicy = BuiltWorldScale == Policy.WorldScale && BuiltAreaThreshold == Policy.AreaThreshold && BuiltMaxConvexCount == Policy.MaxCount && BuiltPassageTolerance == Policy.PassageTolerance;
 	if (!bSamePolicy)
 	{
 		// 개수 변경은 전처리와 확정 통로를 보존한다. 좌표·면적 기준만 재분류한다.
@@ -698,8 +987,19 @@ bool FBreachSimpleCollision::BuildMeshFromCuts(const FBreachSimpleBuildPolicy& P
 			bBuiltCollisionValid = false;
 		}
 		BuiltWorldScale = Policy.WorldScale;
+		// 허용 오차는 통로를 바꾸지 않고 충돌 도형만 바꾼다. 통로와 전처리는 보존하고 도형만 다시 만든다.
+		if (BuiltPassageTolerance != Policy.PassageTolerance)
+		{
+			bBuiltCollisionValid = false;
+		}
+		// 기준이 바뀌면 이전에 공개한 통로 윤곽은 새 기준의 보존 대상이 아니다.
+		if (!bBuiltCollisionValid)
+		{
+			BuiltPassages.Reset();
+		}
 		BuiltAreaThreshold = Policy.AreaThreshold;
 		BuiltMaxConvexCount = Policy.MaxCount;
+		BuiltPassageTolerance = Policy.PassageTolerance;
 	}
 	const double OriginalArea = FMath::Abs(OriginalOuter.SignedArea());
 	TArray<int32> Selected;
@@ -728,71 +1028,152 @@ bool FBreachSimpleCollision::BuildMeshFromCuts(const FBreachSimpleBuildPolicy& P
 	}
 	const double Radius = FMath::Sqrt(Policy.AreaThreshold / UE_DOUBLE_PI);
 	const FPolygon2d WorldWall = BreachPassageSolver::Transform(OriginalOuter, Policy.WorldScale);
-	auto NewState = MakeShared<FBreachPassageState, ESPMode::ThreadSafe>();
-	if (bFullRemoval)
+	const FBreachPassageState Empty;
+	const FBreachPassageState& Previous = PassageState.IsValid() ? *PassageState : Empty;
+
+	// 새 통로 후보가 없는 전처리 결과. 계산에 실패한 개구부를 이것으로 바꾸면 그 개구부는 이전 통로만 유지한다.
+	auto Freeze = [&](const FHoleComponent& Component)
 	{
-		NewState->Passages.Emplace(WorldWall);
-	}
-	else
+		auto Frozen = MakeShared<FBreachPreparedOpening, ESPMode::ThreadSafe>();
+		Frozen->Damage.Add(BreachPassageSolver::Transform(Component.Polygon, Policy.WorldScale));
+		return Frozen;
+	};
+
+	// 준비: 아직 전처리가 없는 개구부만 계산한다. 이번 빌드의 실패는 이 개구부들로 한정한다.
+	TArray<int32> Fresh;
+	if (!bFullRemoval)
 	{
-		TArray<TSharedPtr<const FBreachPreparedOpening, ESPMode::ThreadSafe>> Openings;
 		for (int32 Index : Selected)
 		{
 			FHoleComponent& Component = HoleComponents[Index];
-			if (!Component.PreparedOpening.IsValid())
+			if (Component.PreparedOpening.IsValid())
 			{
-				auto Prepared = MakeShared<FBreachPreparedOpening, ESPMode::ThreadSafe>();
-				const FGeneralPolygon2d WorldDamage = BreachPassageSolver::Transform(Component.Polygon, Policy.WorldScale);
-				if (!BreachPassageSolver::Prepare(WorldDamage, WorldWall, Radius, *Prepared, LastBuildStats, OutError))
+				continue;
+			}
+
+			auto Prepared = MakeShared<FBreachPreparedOpening, ESPMode::ThreadSafe>();
+			const FGeneralPolygon2d WorldDamage = BreachPassageSolver::Transform(Component.Polygon, Policy.WorldScale);
+			FString PrepareError;
+			bool bPrepared = BreachPassageSolver::Prepare(WorldDamage, WorldWall, Radius, *Prepared, LastBuildStats, PrepareError);
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+			// 테스트 전용: 지정한 개구부의 전처리 실패를 재현한다.
+			if (Policy.FailPrepareRevision != 0 && Policy.FailPrepareRevision == Component.Revision)
+			{
+				bPrepared = false;
+				PrepareError = TEXT("Test-only forced opening preparation failure.");
+			}
+#endif
+			if (bPrepared)
+			{
+				Component.PreparedOpening = Prepared;
+				Fresh.Add(Index);
+			}
+			else
+			{
+				// 같은 변경 번호로는 다시 시도하지 않는다. 구멍이 다시 바뀌면 새 번호로 전처리한다.
+				Component.PreparedOpening = Freeze(Component);
+				++LastBuildStats.FrozenOpenings;
+				if (OutError.IsEmpty())
 				{
+					OutError = PrepareError;
+				}
+			}
+		}
+	}
+
+	struct FDerived
+	{
+		TSharedPtr<FBreachPassageState, ESPMode::ThreadSafe> State;
+		FKAggregateGeom Collision;
+		// 이 충돌이 실제로 열어 둔 통로. 단순화한 윤곽이다.
+		TArray<FGeneralPolygon2d> Passages;
+		bool bChanged = false;
+	};
+
+	// 이전 충돌이 열어 둔 통로의 꼭짓점. 단순화가 이 통로를 다시 막지 않게 하는 기준이다.
+	TArray<FVector2d> Published;
+	for (const FGeneralPolygon2d& Passage : BuiltPassages)
+	{
+		Published.Append(Passage.GetOuter().GetVertices());
+	}
+
+	// 통로를 풀고 벽에서 빼 충돌 도형까지 만든다. Frozen에 든 개구부는 이전 통로만 유지한다.
+	auto Derive = [&](TConstArrayView<int32> Frozen, FDerived& Out, FString& Error)
+	{
+		Out.State = MakeShared<FBreachPassageState, ESPMode::ThreadSafe>();
+		if (bFullRemoval)
+		{
+			Out.State->Passages.Emplace(WorldWall);
+		}
+		else
+		{
+			TArray<TSharedPtr<const FBreachPreparedOpening, ESPMode::ThreadSafe>> Openings;
+			for (int32 Index : Selected)
+			{
+				const FHoleComponent& Component = HoleComponents[Index];
+				if (Frozen.Contains(Index))
+				{
+					Openings.Add(Freeze(Component));
+					continue;
+				}
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+				// 테스트 전용: 지정한 개구부가 고정되지 않은 통로 계산의 실패를 재현한다.
+				if (Policy.FailSolveRevision != 0 && Policy.FailSolveRevision == Component.Revision)
+				{
+					Error = TEXT("Test-only forced passage failure.");
 					return false;
 				}
-				Component.PreparedOpening = Prepared;
+#endif
+				Openings.Add(Component.PreparedOpening);
 			}
-			Openings.Add(Component.PreparedOpening);
+			if (!BreachPassageSolver::Solve(Openings, Previous, Policy.MaxCount, Radius, *Out.State, LastBuildStats, Error))
+			{
+				return false;
+			}
 		}
-		const FBreachPassageState Empty;
-		const FBreachPassageState& Previous = PassageState.IsValid() ? *PassageState : Empty;
-		if (!BreachPassageSolver::Solve(Openings, Previous, Policy.MaxCount, Radius, *NewState, LastBuildStats, OutError))
-		{
-			return false;
-		}
-	}
 
-	TArray<FGeneralPolygon2d> ChangedA, ChangedB;
-	if (bBuiltCollisionValid && PassageState.IsValid())
-	{
-		LastBuildStats.BooleanOperations += 2;
-		if (!PolygonsDifference(NewState->Passages, PassageState->Passages, ChangedA))
+		TArray<FGeneralPolygon2d> ChangedA, ChangedB;
+		if (bBuiltCollisionValid && PassageState.IsValid())
 		{
-			OutError = TEXT("New passage area could not be compared with published collision.");
-			return false;
+			LastBuildStats.BooleanOperations += 2;
+			if (!PolygonsDifference(Out.State->Passages, PassageState->Passages, ChangedA))
+			{
+				Error = TEXT("New passage area could not be compared with published collision.");
+				return false;
+			}
+			if (!PolygonsDifference(PassageState->Passages, Out.State->Passages, ChangedB))
+			{
+				Error = TEXT("Published passage area could not be compared with the new passages.");
+				return false;
+			}
 		}
-		if (!PolygonsDifference(PassageState->Passages, NewState->Passages, ChangedB))
+		double ChangedArea = 0;
+		for (const auto& Part : ChangedA)
 		{
-			OutError = TEXT("Published passage area could not be compared with the new passages.");
-			return false;
+			ChangedArea += FMath::Abs(Part.SignedArea());
 		}
-	}
-	double ChangedArea = 0;
-	for (const auto& Part : ChangedA)
-	{
-		ChangedArea += FMath::Abs(Part.SignedArea());
-	}
-	for (const auto& Part : ChangedB)
-	{
-		ChangedArea += FMath::Abs(Part.SignedArea());
-	}
-	LastBuildStats.bCollisionChanged = !bBuiltCollisionValid || !PassageState.IsValid() || ChangedArea > 1.e-6;
+		for (const auto& Part : ChangedB)
+		{
+			ChangedArea += FMath::Abs(Part.SignedArea());
+		}
+		Out.bChanged = !bBuiltCollisionValid || !PassageState.IsValid() || ChangedArea > 1.e-6;
 
-	FKAggregateGeom Collision;
-	if (LastBuildStats.bCollisionChanged)
-	{
+		Out.Collision = FKAggregateGeom();
+		Out.Passages.Reset();
+		if (!Out.bChanged)
+		{
+			Out.Collision = BuiltCollision;
+			Out.Passages = BuiltPassages;
+			return true;
+		}
+
 		TArray<FGeneralPolygon2d> Cuts;
 		const FVector2d InverseScale(1 / Policy.WorldScale.X, 1 / Policy.WorldScale.Y);
-		for (const auto& Passage : NewState->Passages)
+		for (const auto& Passage : Out.State->Passages)
 		{
-			Cuts.Add(BreachPassageSolver::Transform(Passage, InverseScale));
+			// 통로 상태는 그대로 두고 충돌 도형에 쓰는 사본만 단순화한다. 통로 보존 검사와 증분 계산은 영향받지 않는다.
+			Out.Passages.Add(SimplifyPassage(Passage, WorldWall, Policy.PassageTolerance, Published));
+			Cuts.Add(BreachPassageSolver::Transform(Out.Passages.Last(), InverseScale));
 		}
 		TArray<FGeneralPolygon2d> Regions = {FGeneralPolygon2d(OriginalOuter)};
 		if (!Cuts.IsEmpty())
@@ -800,11 +1181,11 @@ bool FBreachSimpleCollision::BuildMeshFromCuts(const FBreachSimpleBuildPolicy& P
 			++LastBuildStats.BooleanOperations;
 			if (!PolygonsDifference(TArray<FGeneralPolygon2d>{FGeneralPolygon2d(OriginalOuter)}, Cuts, Regions))
 			{
-				OutError = TEXT("Simple collision regions could not be built from the passages.");
+				Error = TEXT("Simple collision regions could not be built from the passages.");
 				return false;
 			}
 			RemoveRepeatedBoundaryVertices(Regions);
-			if (!BreachSurfaceGeometry::ResolveBoundaryOverlaps(Regions, OutError))
+			if (!BreachSurfaceGeometry::ResolveBoundaryOverlaps(Regions, Error))
 			{
 				return false;
 			}
@@ -813,25 +1194,71 @@ bool FBreachSimpleCollision::BuildMeshFromCuts(const FBreachSimpleBuildPolicy& P
 		{
 			TArray<FVector2d> Vertices;
 			TArray<FIndex3i> Triangles;
-			if (!BreachSurfaceGeometry::TriangulateRegion(Region, Vertices, Triangles, OutError))
+			if (!BreachSurfaceGeometry::TriangulateRegion(Region, Vertices, Triangles, Error))
 			{
 				return false;
 			}
-			if (!BuildPrisms(Vertices, Triangles, DepthRange, Collision, OutError, AreaScale, LastBuildStats.DiscardedWorldArea))
+			if (!BuildPrisms(Vertices, Triangles, DepthRange, Out.Collision, Error, AreaScale, LastBuildStats.DiscardedWorldArea))
 			{
 				return false;
 			}
 		}
-	}
-	else
+		return true;
+	};
+
+	FDerived Derived;
+	FString DeriveError;
+	bool bDerived = Derive(TConstArrayView<int32>(), Derived, DeriveError);
+	if (!bDerived)
 	{
-		Collision = BuiltCollision;
+		if (OutError.IsEmpty())
+		{
+			OutError = DeriveError;
+		}
+
+		// 실패를 이번에 바뀐 개구부로 한정한다. 하나씩 고정해 원인을 찾고, 찾지 못하면 바뀐 개구부를 모두 고정한다.
+		TArray<TArray<int32>> Trials;
+		if (!bFullRemoval)
+		{
+			if (Fresh.Num() > 1)
+			{
+				for (int32 Index : Fresh)
+				{
+					Trials.Add(TArray<int32>{Index});
+				}
+			}
+			if (!Fresh.IsEmpty())
+			{
+				Trials.Add(Fresh);
+			}
+		}
+
+		for (const TArray<int32>& Trial : Trials)
+		{
+			FString TrialError;
+			bDerived = Derive(Trial, Derived, TrialError);
+			if (bDerived)
+			{
+				for (int32 Index : Trial)
+				{
+					HoleComponents[Index].PreparedOpening = Freeze(HoleComponents[Index]);
+				}
+				LastBuildStats.FrozenOpenings += Trial.Num();
+				break;
+			}
+		}
+		if (!bDerived)
+		{
+			return false;
+		}
 	}
+	LastBuildStats.bCollisionChanged = Derived.bChanged;
 
 	// 확정된 파생 상태만 공개한다. 입력 구멍 도형은 변경하지 않는다.
-	PassageState = NewState;
+	PassageState = Derived.State;
 	BuiltRevisions = MoveTemp(Revisions);
-	BuiltCollision = MoveTemp(Collision);
+	BuiltCollision = MoveTemp(Derived.Collision);
+	BuiltPassages = MoveTemp(Derived.Passages);
 	bBuiltCollisionValid = true;
 	OutCollision = BuiltCollision;
 	bSucceeded = true;

@@ -94,7 +94,8 @@ bool FBreachSimpleProxyTest::RunTest(const FString& Parameters)
 	FCookBodySetupInfo SimpleInfo;
 	Active->GetCookInfo(SimpleInfo, static_cast<EPhysXMeshCookFlags>(0));
 	TestFalse(TEXT("Simple cook never includes Complex triangles"), SimpleInfo.bCookTriMesh);
-	TestTrue(TEXT("Mirrored Simple cooking is preserved"), SimpleInfo.bCookMirroredConvex);
+	TestTrue(TEXT("Simple cooks the convex set matching its positive scale"), SimpleInfo.bCookNonMirroredConvex);
+	TestFalse(TEXT("Simple does not cook an unused mirrored copy of every convex"), SimpleInfo.bCookMirroredConvex);
 	FCookBodySetupInfo ComplexInfo;
 	UBodySetup* ComplexBody = Complex->GetBodySetup();
 	check(ComplexBody);

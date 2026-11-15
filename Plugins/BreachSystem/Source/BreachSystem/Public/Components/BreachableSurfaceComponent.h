@@ -61,6 +61,7 @@ public:
 	/**
 	 * 원본과 Proxy의 포인트 피해를 처리한다. 누적 파손이 성공하면 총알 구멍을 생략한다.
 	 * 표시 메시와 Complex를 반영하고 Simple 비동기 갱신을 요청한 뒤 브리칭 이벤트를 알린다.
+	 * 이미 Proxy로 표시 중인 표면을 바꾸지 않은 피격은 아무것도 갱신하지 않고 이벤트도 알리지 않는다.
 	 */
 	void HandleBreachDamage(UPrimitiveComponent* HitComponent, const FDamageEvent& DamageEvent, AActor* DamageCauser, float DamageAmount);
 
@@ -93,8 +94,15 @@ private:
 	// 테스트 전용: 기존 동기 충돌 질의 테스트가 실제 작업 완료를 기다릴 수 있게 한다.
 	friend struct FBreachSimpleAsyncTestAccess;
 #endif
-	/** 절단 결과를 계산한다. 성공한 표면 상태와 메시만 보관하고 실제 반영은 미룬다. */
-	bool CutPolygon(const UE::Geometry::FPolygon2d& Cutter, UE::Geometry::FDynamicMesh3& OutMesh);
+	/**
+	 * 절단 결과를 계산한다. 성공한 표면 상태와 노멀·UV가 없는 메시만 보관하고 실제 반영은 미룬다.
+	 * 이미 Proxy로 표시 중인 표면에서 면적이 줄지 않은 절단은 true를 돌려주되 bOutChanged가 false이며, 표면·충돌·Deco 상태를 건드리지 않는다.
+	 * 아직 전환하지 않은 표면은 효과 없는 절단도 bOutChanged가 true여서 Proxy 표시로 전환된다.
+	 */
+	bool CutPolygon(const UE::Geometry::FPolygon2d& Cutter, UE::Geometry::FDynamicMesh3& OutMesh, bool& bOutChanged);
+
+	/** CutPolygon이 만든 메시에 노멀과 UV를 채운다. 여러 절단이 이어져도 최종 메시에 한 번만 실행한다. */
+	void BuildSurfaceAttributes(UE::Geometry::FDynamicMesh3& Mesh) const;
 
 	/** 최종 메시와 충돌을 반영하고, 첫 갱신이면 원본에서 Proxy로 표시와 충돌을 전환한다. */
 	bool UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh, EBreachSurfaceSide Side = EBreachSurfaceSide::Front);
@@ -108,15 +116,15 @@ private:
 
 	/** 총알 커터로 절단하고, 실패하면 모양이 다른 기본 커터로만 재시도한다. */
 	bool ApplyDirectCut(UBreachSourceComponent* Source, const FVector& ImpactPoint, UE::Geometry::FGeneralPolygon2d& InOutCutter,
-		UE::Geometry::FDynamicMesh3& OutMesh);
+		UE::Geometry::FDynamicMesh3& OutMesh, bool& bOutChanged);
 
 	/** 피격점에 남은 표면을 확인하고 누적 설정과 셀 좌표를 준비한다. 실패하면 누적을 건너뛴다. */
 	bool PrepareAccumulation(const FVector& ImpactPoint, double BreachDamage, const FBreachAccumulationOptions& Options,
 		FVector2d& OutGridHitPoint);
 
-	/** 셀 탄착을 누적하고 파손을 시도한다. 하나라도 성공하면 true와 최종 계산 메시를 돌려준다. */
+	/** 셀 탄착을 누적하고 파손을 시도한다. 하나라도 성공하면 true와 최종 계산 메시를 돌려준다. 표면이 실제로 바뀌었으면 bOutChanged가 true다. */
 	bool AccumulateHit(const FVector2d& GridHitPoint, double BreachDamage, const FBreachAccumulationShapeOptions& ShapeOptions,
-		UE::Geometry::FDynamicMesh3& OutMesh);
+		UE::Geometry::FDynamicMesh3& OutMesh, bool& bOutChanged);
 
 	/** 절단으로 사라진 영역의 누적 탄착 기록을 지운다. 입력은 표면 로컬 XZ 좌표다. */
 	void RemoveHitsInside(const UE::Geometry::FPolygon2d& LocalPolygon);
@@ -168,6 +176,8 @@ private:
 
 	// 한 번의 피격에서 채택된 절삭만 모아 최종 메시 반영 뒤 한 번 처리한다.
 	TArray<UE::Geometry::FAxisAlignedBox2d> PendingDecorationCuts;
+	// 같은 피격으로 사라진 도형(커터와 고립 조각의 외곽). Deco가 이 범위만 다시 계산한다.
+	TArray<UE::Geometry::FPolygon2d> PendingDecorationRemoved;
 
 	ECollisionEnabled::Type OriginalCollisionEnabled = ECollisionEnabled::QueryAndPhysics;
 	bool bOriginalVisible = true;

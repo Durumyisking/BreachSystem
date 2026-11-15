@@ -1,9 +1,9 @@
 #include "Surface/BreachDecorationGeometry.h"
-#include "Curve/PolygonIntersectionUtils.h"
+#include "Surface/BreachSimpleCollision.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Misc/AutomationTest.h"
 
-// 테스트 전용: 클리핑·UV·월드 면적과 부착 구간 보존을 독립된 수치로 검증한다.
+// 테스트 전용: 클리핑·UV·월드 면적과 부착 구간 보존, 그리고 변경 영역만 다시 계산하는지를 독립된 수치로 검증한다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 namespace
 {
@@ -20,17 +20,33 @@ namespace
 		return Polygon;
 	}
 
-	TArray<FGeneralPolygon2d> WallWithHole(const FPolygon2d& Hole)
+	// 표면 컴포넌트와 같은 순서로 구멍 캐시에 절단을 누적한다. Deco는 이 캐시에서 바뀐 구멍만 읽는다.
+	struct FDecoWall
 	{
-		TArray<FGeneralPolygon2d> Result;
-		PolygonsDifference(TArray<FGeneralPolygon2d>{FGeneralPolygon2d(Box(-50, -50, 50, 50))}, TArray<FGeneralPolygon2d>{FGeneralPolygon2d(Hole)}, Result);
-		return Result;
-	}
+		FBreachSimpleCollision Holes;
 
-	double PatchArea(const TArray<FPatch>& Patches)
+		explicit FDecoWall(const FPolygon2d& Outer)
+		{
+			Holes.Initialize(Outer, FVector2d(-5, 5));
+		}
+
+		bool Cut(const FPolygon2d& Cutter)
+		{
+			FString Error;
+			return Holes.ApplyCut(Cutter, TConstArrayView<FPolygon2d>(), Error);
+		}
+
+		// 가장 최근 절단이 만든 구멍의 변경 번호.
+		uint64 LastRevision() const
+		{
+			return Holes.GetRevision() - 1;
+		}
+	};
+
+	double PatchArea(const FCutState& State)
 	{
 		double Area = 0;
-		for (const FPatch& Patch : Patches)
+		for (const FPatch& Patch : State.Patches)
 		{
 			for (const FGeneralPolygon2d& Region : Patch.Regions)
 			{
@@ -39,34 +55,69 @@ namespace
 		}
 		return Area;
 	}
+
+	TArray<FBinding> AllBindings(const FFeatureState& State)
+	{
+		TArray<FBinding> Result;
+		for (const TPair<uint64, FFeatureHole>& Hole : State.Holes)
+		{
+			Result.Append(Hole.Value.Bindings);
+		}
+		return Result;
+	}
+
+	int32 MeshVertexTotal(const FFeatureState& State)
+	{
+		int32 Total = 0;
+		for (const TPair<uint64, FFeatureHole>& Hole : State.Holes)
+		{
+			for (const FBinding& Binding : Hole.Value.Bindings)
+			{
+				Total += Binding.MeshVertices.Num();
+			}
+		}
+		return Total;
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachDecorationPatchTest, "BreachSystem.Decoration.PatchGeometry", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FBreachDecorationPatchTest::RunTest(const FString& Parameters)
 {
-	TArray<FPatch> Patches;
+	FDecoWall Wall(Box(-50, -50, 50, 50));
+	FCutState State;
 	FString Error;
 	const FPolygon2d Small = Box(-5, -5, 5, 5);
+	const TArray<FPolygon2d> SmallRemoved = {Small};
 	const TArray<FAxisAlignedBox2d> Cuts = {Small.Bounds()};
-	TestTrue(TEXT("Initial patch clips"), ClipPatches(Patches, WallWithHole(Small), Cuts, EBreachSurfaceSide::Front, FVector::OneVector, 5, Error));
-	TestTrue(TEXT("20x20 footprint minus 10x10 hole is 300"), FMath::IsNearlyEqual(PatchArea(Patches), 300.0, 1.e-6));
-	if (!TestEqual(TEXT("One patch"), Patches.Num(), 1))
+	const TArray<FPolygon2d> NothingRemoved;
+	const TArray<FAxisAlignedBox2d> NoCuts;
+	TestTrue(TEXT("Small cut recorded"), Wall.Cut(Small));
+	TestTrue(TEXT("Initial patch clips"), ClipPatches(State, Wall.Holes, SmallRemoved, Cuts, EBreachSurfaceSide::Front, FVector::OneVector, 5, Error));
+	TestTrue(TEXT("20x20 footprint minus 10x10 hole is 300"), FMath::IsNearlyEqual(PatchArea(State), 300.0, 1.e-6));
+	if (!TestEqual(TEXT("One patch"), State.Patches.Num(), 1))
 	{
 		return false;
 	}
-	const FAxisAlignedBox2d OriginalUV = Patches[0].UVBounds;
-	TestTrue(TEXT("Re-cut clips old patch"), ClipPatches(Patches, WallWithHole(Box(-10, -5, 10, 5)), {}, EBreachSurfaceSide::Front, FVector::OneVector, 5, Error));
-	TestTrue(TEXT("Remaining old patch area is 200"), FMath::IsNearlyEqual(PatchArea(Patches), 200.0, 1.e-6));
-	TestTrue(TEXT("UV origin survives clipping"), Patches[0].UVBounds.Min == OriginalUV.Min);
-	TestTrue(TEXT("UV extent survives clipping"), Patches[0].UVBounds.Max == OriginalUV.Max);
+	const FAxisAlignedBox2d OriginalUV = State.Patches[0].UVBounds;
+	const FPolygon2d Wide = Box(-10, -5, 10, 5);
+	const TArray<FPolygon2d> WideRemoved = {Wide};
+	TestTrue(TEXT("Wider cut recorded"), Wall.Cut(Wide));
+	TestTrue(TEXT("Re-cut clips old patch"), ClipPatches(State, Wall.Holes, WideRemoved, NoCuts, EBreachSurfaceSide::Front, FVector::OneVector, 5, Error));
+	TestTrue(TEXT("Remaining old patch area is 200"), FMath::IsNearlyEqual(PatchArea(State), 200.0, 1.e-6));
+	TestTrue(TEXT("UV origin survives clipping"), State.Patches[0].UVBounds.Min == OriginalUV.Min);
+	TestTrue(TEXT("UV extent survives clipping"), State.Patches[0].UVBounds.Max == OriginalUV.Max);
 	FDynamicMesh3 Mesh;
-	TestTrue(TEXT("Clipped mesh triangulates"), BuildPatchMesh(Patches, EBreachSurfaceSide::Front, -50.05, Mesh, Error));
+	bool bChanged = false;
+	TestTrue(TEXT("Clipped mesh triangulates"), UpdatePatchMesh(State, EBreachSurfaceSide::Front, -50.05, Mesh, bChanged, Error));
+	TestTrue(TEXT("First mesh update reports a change"), bChanged);
 	const auto* UVs = Mesh.Attributes()->PrimaryUV();
+	const auto* Normals = Mesh.Attributes()->PrimaryNormals();
 	for (int32 ID : Mesh.TriangleIndicesItr())
 	{
 		const FIndex3i Triangle = Mesh.GetTriangle(ID);
 		const FIndex3i UVTriangle = UVs->GetTriangle(ID);
 		TestTrue(TEXT("Front faces point outward"), Mesh.GetTriNormal(ID).Y < -0.99);
+		TestTrue(TEXT("Each added triangle carries its own normal"), Normals->IsSetTriangle(ID));
 		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{
 			const FVector3d P = Mesh.GetVertex(Triangle[Corner]);
@@ -74,13 +125,24 @@ bool FBreachDecorationPatchTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("Original UV mapping remains unchanged"), UV.Equals(FVector2f((P.X + 10) / 20, (P.Z + 10) / 20), 1.e-5f));
 		}
 	}
-	const double Before = PatchArea(Patches);
-	TestTrue(TEXT("Duplicate footprint is accepted"), ClipPatches(Patches, WallWithHole(Box(-10, -5, 10, 5)), Cuts, EBreachSurfaceSide::Front, FVector::OneVector, 5, Error));
-	TestTrue(TEXT("Same-face patches never overlap"), FMath::IsNearlyEqual(PatchArea(Patches), Before, 1.e-6));
-	TestTrue(TEXT("Opposite face is independent"), ClipPatches(Patches, WallWithHole(Box(-10, -5, 10, 5)), Cuts, EBreachSurfaceSide::Back, FVector::OneVector, 5, Error));
-	TestTrue(TEXT("Opposite face adds its own patch"), FMath::IsNearlyEqual(PatchArea(Patches), Before * 2, 1.e-6));
-	TestTrue(TEXT("Full removal clears patches"), ClipPatches(Patches, {}, {}, EBreachSurfaceSide::Front, FVector::OneVector, 5, Error));
-	TestEqual(TEXT("No floating traces remain"), Patches.Num(), 0);
+	const double Before = PatchArea(State);
+	TestTrue(TEXT("Duplicate footprint is accepted"), ClipPatches(State, Wall.Holes, NothingRemoved, Cuts, EBreachSurfaceSide::Front, FVector::OneVector, 5, Error));
+	TestTrue(TEXT("Same-face patches never overlap"), FMath::IsNearlyEqual(PatchArea(State), Before, 1.e-6));
+	TestTrue(TEXT("Opposite face is independent"), ClipPatches(State, Wall.Holes, NothingRemoved, Cuts, EBreachSurfaceSide::Back, FVector::OneVector, 5, Error));
+	TestTrue(TEXT("Opposite face adds its own patch"), FMath::IsNearlyEqual(PatchArea(State), Before * 2, 1.e-6));
+	const FPolygon2d Everything = Box(-60, -60, 60, 60);
+	const TArray<FPolygon2d> EverythingRemoved = {Everything};
+	TestTrue(TEXT("Full removal recorded"), Wall.Cut(Everything));
+	TestTrue(TEXT("Full removal clears patches"), ClipPatches(State, Wall.Holes, EverythingRemoved, NoCuts, EBreachSurfaceSide::Front, FVector::OneVector, 5, Error));
+	TestEqual(TEXT("No floating traces remain"), State.Patches.Num(), 0);
+	TestTrue(TEXT("Mesh drops the removed patch"), UpdatePatchMesh(State, EBreachSurfaceSide::Front, -50.05, Mesh, bChanged, Error));
+	TestTrue(TEXT("Removing the last patch reports a change"), bChanged);
+	TestEqual(TEXT("No floating triangles remain"), Mesh.TriangleCount(), 0);
+	TestEqual(TEXT("No orphaned vertices remain"), Mesh.VertexCount(), 0);
+
+	FCutState Unavailable;
+	FBreachSimpleCollision Uninitialized;
+	TestFalse(TEXT("Missing hole cache is rejected instead of guessing the wall"), ClipPatches(Unavailable, Uninitialized, SmallRemoved, Cuts, EBreachSurfaceSide::Front, FVector::OneVector, 5, Error));
 	return !HasAnyErrors();
 }
 
@@ -97,11 +159,13 @@ bool FBreachDecorationPatchFailureTest::RunTest(const FString& Parameters)
 	Collapsed.AppendVertex(FVector2d(7, 0));
 	Patch.Regions.Add(FGeneralPolygon2d(Collapsed));
 	Patch.Regions.Add(FGeneralPolygon2d(Box(10, 10, 15, 15)));
-	const TArray<FPatch> Patches = {Patch};
+	FCutState State;
+	State.Patches.Add(Patch);
 	FDynamicMesh3 Mesh;
 	FString Error;
+	bool bChanged = false;
 	AddExpectedMessage(TEXT("Skipped unsafe cut decoration region"), EAutomationExpectedMessageFlags::Contains, 1);
-	TestTrue(TEXT("A failed region does not reject the face or trigger the owner's global clear"), BuildPatchMesh(Patches, EBreachSurfaceSide::Front, -50.05, Mesh, Error));
+	TestTrue(TEXT("A failed region does not reject the face or trigger the owner's global clear"), UpdatePatchMesh(State, EBreachSurfaceSide::Front, -50.05, Mesh, bChanged, Error));
 	double Area = 0;
 	for (int32 ID : Mesh.TriangleIndicesItr())
 	{
@@ -109,6 +173,128 @@ bool FBreachDecorationPatchFailureTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("Safe regions before and after the failure retain their full 125cm2"), FMath::IsNearlyEqual(Area, 125.0, 1.e-6));
 	TestTrue(TEXT("Skipped region leaves no fatal display error"), Error.IsEmpty());
+	TestTrue(TEXT("The failed region is not retried on the next update"), UpdatePatchMesh(State, EBreachSurfaceSide::Front, -50.05, Mesh, bChanged, Error));
+	TestFalse(TEXT("An already processed patch leaves the mesh untouched"), bChanged);
+	return !HasAnyErrors();
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachDecorationLocalUpdateTest, "BreachSystem.Decoration.LocalUpdate", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FBreachDecorationLocalUpdateTest::RunTest(const FString& Parameters)
+{
+	// 테스트 전용: 한 브리칭이 멀리 떨어진 패치·구멍·조각의 기록과 표시 정점을 건드리지 않는지 검증한다.
+	const TArray<FPolygon2d> NothingRemoved;
+	const TArray<FAxisAlignedBox2d> NoCuts;
+	FString Error;
+	bool bChanged = false;
+
+	// Cut 패치
+	{
+		FDecoWall Wall(Box(-50, -50, 50, 50));
+		FCutState State;
+		FDynamicMesh3 Mesh;
+		const FPolygon2d Left = Box(-32, -2, -28, 2);
+		const FPolygon2d Right = Box(28, -2, 32, 2);
+		for (const FPolygon2d& Cutter : {Left, Right})
+		{
+			const TArray<FPolygon2d> Removed = {Cutter};
+			const TArray<FAxisAlignedBox2d> Cuts = {Cutter.Bounds()};
+			TestTrue(TEXT("Independent cut recorded"), Wall.Cut(Cutter));
+			TestTrue(TEXT("Independent cut clips"), ClipPatches(State, Wall.Holes, Removed, Cuts, EBreachSurfaceSide::Front, FVector::OneVector, 5, Error));
+			TestTrue(TEXT("Independent cut meshes"), UpdatePatchMesh(State, EBreachSurfaceSide::Front, -50.05, Mesh, bChanged, Error));
+		}
+		if (!TestEqual(TEXT("Two separate patches"), State.Patches.Num(), 2))
+		{
+			return false;
+		}
+		const TArray<int32> LeftBefore = State.Patches[0].MeshVertices;
+		const TArray<int32> RightBefore = State.Patches[1].MeshVertices;
+		const TArray<FGeneralPolygon2d> RightRegions = State.Patches[1].Regions;
+
+		const FPolygon2d Widen = Box(-28, -2, -24, 2);
+		const TArray<FPolygon2d> Removed = {Widen};
+		const TArray<FAxisAlignedBox2d> Cuts = {Widen.Bounds()};
+		TestTrue(TEXT("Local widening recorded"), Wall.Cut(Widen));
+		TestTrue(TEXT("Local widening clips"), ClipPatches(State, Wall.Holes, Removed, Cuts, EBreachSurfaceSide::Front, FVector::OneVector, 5, Error));
+		TestTrue(TEXT("The distant patch keeps its display vertices through clipping"), State.Patches[1].bInMesh && State.Patches[1].MeshVertices == RightBefore);
+		TestFalse(TEXT("The clipped patch is queued for the display"), State.Patches[0].bInMesh);
+		TestTrue(TEXT("Local widening meshes"), UpdatePatchMesh(State, EBreachSurfaceSide::Front, -50.05, Mesh, bChanged, Error));
+		TestTrue(TEXT("Local widening changes the display"), bChanged);
+		TestTrue(TEXT("The distant patch regions are untouched"), State.Patches[1].Regions.Num() == RightRegions.Num() && FMath::IsNearlyEqual(FMath::Abs(State.Patches[1].Regions[0].SignedArea()), FMath::Abs(RightRegions[0].SignedArea()), 1.e-12));
+		TestTrue(TEXT("The distant patch still owns the same display vertices"), State.Patches[1].MeshVertices == RightBefore);
+		for (int32 VertexID : RightBefore)
+		{
+			TestTrue(TEXT("Distant display vertices survive the local update"), Mesh.IsVertex(VertexID));
+		}
+		int32 Owned = 0;
+		for (const FPatch& Patch : State.Patches)
+		{
+			Owned += Patch.MeshVertices.Num();
+		}
+		TestEqual(TEXT("Replaced vertices are removed instead of leaking"), Mesh.VertexCount(), Owned);
+		TestTrue(TEXT("A breach elsewhere on the other face clips nothing here"), ClipPatches(State, Wall.Holes, NothingRemoved, NoCuts, EBreachSurfaceSide::Back, FVector::OneVector, 5, Error));
+		TestTrue(TEXT("No-change update succeeds"), UpdatePatchMesh(State, EBreachSurfaceSide::Front, -50.05, Mesh, bChanged, Error));
+		TestFalse(TEXT("No-change update leaves the display mesh untouched"), bChanged);
+	}
+
+	// Feature 조각
+	{
+		FDecoWall Wall(Box(-300, -300, 300, 300));
+		FFeatureState State;
+		FBreachFeatureDecorationOptions Options;
+		FDynamicMesh3 Mesh;
+		const FPolygon2d Left = Box(-250, -100, -50, 100);
+		const FPolygon2d Right = Box(50, -100, 250, 100);
+		const TArray<FPolygon2d> LeftRemoved = {Left};
+		const TArray<FPolygon2d> RightRemoved = {Right};
+		TestTrue(TEXT("Left opening recorded"), Wall.Cut(Left));
+		const uint64 LeftRevision = Wall.LastRevision();
+		TestTrue(TEXT("Left opening evaluates"), UpdateBindings(State, Wall.Holes, LeftRemoved, FVector::OneVector, Options, Error));
+		TestTrue(TEXT("Right opening recorded"), Wall.Cut(Right));
+		TestTrue(TEXT("Right opening evaluates"), UpdateBindings(State, Wall.Holes, RightRemoved, FVector::OneVector, Options, Error));
+		TestTrue(TEXT("Both openings mesh"), UpdateFeatureMesh(State, Options, FVector::OneVector, FVector2d(-5, 5), Mesh, bChanged, Error));
+		const FFeatureHole* LeftHole = State.Holes.Find(LeftRevision);
+		if (!TestNotNull(TEXT("Left opening keeps its own record"), LeftHole))
+		{
+			return false;
+		}
+		TestTrue(TEXT("Left opening has plates"), LeftHole->Bindings.Num() > 0);
+		TArray<TArray<int32>> LeftVertices;
+		for (const FBinding& Binding : LeftHole->Bindings)
+		{
+			LeftVertices.Add(Binding.MeshVertices);
+		}
+		const int32 TotalBefore = AllBindings(State).Num();
+
+		const FPolygon2d Notch = Box(240, -10, 270, 10);
+		const TArray<FPolygon2d> NotchRemoved = {Notch};
+		TestTrue(TEXT("Notch on the right opening recorded"), Wall.Cut(Notch));
+		TestTrue(TEXT("Notch evaluates"), UpdateBindings(State, Wall.Holes, NotchRemoved, FVector::OneVector, Options, Error));
+		TestTrue(TEXT("Notch meshes"), UpdateFeatureMesh(State, Options, FVector::OneVector, FVector2d(-5, 5), Mesh, bChanged, Error));
+		TestTrue(TEXT("Notch changes the display"), bChanged);
+		LeftHole = State.Holes.Find(LeftRevision);
+		if (!TestNotNull(TEXT("The untouched opening keeps its revision record"), LeftHole))
+		{
+			return false;
+		}
+		if (TestEqual(TEXT("The untouched opening keeps every plate"), LeftHole->Bindings.Num(), LeftVertices.Num()))
+		{
+			for (int32 Index = 0; Index < LeftVertices.Num(); ++Index)
+			{
+				TestTrue(TEXT("Plates on the untouched opening keep their display vertices"), LeftHole->Bindings[Index].MeshVertices == LeftVertices[Index]);
+			}
+		}
+		TestTrue(TEXT("The notch adds plates on its new boundary"), AllBindings(State).Num() > TotalBefore - 4);
+		TestEqual(TEXT("Removed plates leave no orphaned vertices"), Mesh.VertexCount(), MeshVertexTotal(State));
+		TestTrue(TEXT("The display stays a set of closed plates"), Mesh.IsClosed());
+		for (int32 ID : Mesh.TriangleIndicesItr())
+		{
+			TestTrue(TEXT("Every remaining plate triangle keeps a normal"), Mesh.Attributes()->PrimaryNormals()->IsSetTriangle(ID));
+		}
+		const TArray<FPolygon2d> NothingChanged;
+		TestTrue(TEXT("Repeat evaluates"), UpdateBindings(State, Wall.Holes, NothingChanged, FVector::OneVector, Options, Error));
+		TestTrue(TEXT("Repeat meshes"), UpdateFeatureMesh(State, Options, FVector::OneVector, FVector2d(-5, 5), Mesh, bChanged, Error));
+		TestFalse(TEXT("An update without a breach leaves the feature display untouched"), bChanged);
+	}
 	return !HasAnyErrors();
 }
 
@@ -116,17 +302,15 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachDecorationLocalCutObservationTest, "Brea
 bool FBreachDecorationLocalCutObservationTest::RunTest(const FString& Parameters)
 {
 	// 테스트 전용: Cut 패치·표시·Clear 경로 없이 국소 절삭이 반대편 Feature 배치에 미치는 영향을 기록한다.
-	const FPolygon2d Original = Box(-300, -300, 300, 300);
-	const TArray<FGeneralPolygon2d> Source = {FGeneralPolygon2d(Original)};
-	TArray<FGeneralPolygon2d> Cutters = {FGeneralPolygon2d(Box(-100, -100, 100, 100))};
-	TArray<FGeneralPolygon2d> Remaining;
-	TArray<FBinding> Bindings;
-	TArray<FFeatureEdge> PreviousEdges;
+	FDecoWall Wall(Box(-300, -300, 300, 300));
+	FFeatureState State;
 	FBreachFeatureDecorationOptions Options;
 	FString Error;
-	TestTrue(TEXT("Initial opening difference succeeds"), PolygonsDifference(Source, Cutters, Remaining));
-	TestTrue(TEXT("Initial feature placement succeeds"), UpdateBindings(Bindings, PreviousEdges, Original, Remaining, FVector::OneVector, Options, Error));
-	const TArray<FBinding> Before = Bindings;
+	const FPolygon2d Opening = Box(-100, -100, 100, 100);
+	const TArray<FPolygon2d> OpeningRemoved = {Opening};
+	TestTrue(TEXT("Initial opening recorded"), Wall.Cut(Opening));
+	TestTrue(TEXT("Initial feature placement succeeds"), UpdateBindings(State, Wall.Holes, OpeningRemoved, FVector::OneVector, Options, Error));
+	const TArray<FBinding> Before = AllBindings(State);
 	auto IsRemote = [](const FBinding& Binding)
 	{
 		for (const FVector2d& Point : Binding.Support)
@@ -138,9 +322,11 @@ bool FBreachDecorationLocalCutObservationTest::RunTest(const FString& Parameters
 		}
 		return !Binding.Support.IsEmpty();
 	};
-	Cutters.Add(FGeneralPolygon2d(Box(-120, -15, -90, 15)));
-	TestTrue(TEXT("Local left-edge notch difference succeeds"), PolygonsDifference(Source, Cutters, Remaining));
-	TestTrue(TEXT("Feature-only update succeeds without a display failure"), UpdateBindings(Bindings, PreviousEdges, Original, Remaining, FVector::OneVector, Options, Error));
+	const FPolygon2d Notch = Box(-120, -15, -90, 15);
+	const TArray<FPolygon2d> NotchRemoved = {Notch};
+	TestTrue(TEXT("Local left-edge notch recorded"), Wall.Cut(Notch));
+	TestTrue(TEXT("Feature-only update succeeds without a display failure"), UpdateBindings(State, Wall.Holes, NotchRemoved, FVector::OneVector, Options, Error));
+	const TArray<FBinding> AfterNotch = AllBindings(State);
 	int32 RemoteBefore = 0;
 	int32 RemoteRetained = 0;
 	int32 RemoteAdded = 0;
@@ -149,13 +335,13 @@ bool FBreachDecorationLocalCutObservationTest::RunTest(const FString& Parameters
 		if (IsRemote(Old))
 		{
 			++RemoteBefore;
-			if (Bindings.ContainsByPredicate([&](const FBinding& Current) { return Current.Support == Old.Support && Current.Seed == Old.Seed && Current.Length == Old.Length; }))
+			if (AfterNotch.ContainsByPredicate([&](const FBinding& Current) { return Current.Support == Old.Support && Current.Seed == Old.Seed && Current.Length == Old.Length; }))
 			{
 				++RemoteRetained;
 			}
 		}
 	}
-	for (const FBinding& Current : Bindings)
+	for (const FBinding& Current : AfterNotch)
 	{
 		if (IsRemote(Current) && !Before.ContainsByPredicate([&](const FBinding& Old) { return Current.Support == Old.Support && Current.Seed == Old.Seed; }))
 		{
@@ -165,17 +351,29 @@ bool FBreachDecorationLocalCutObservationTest::RunTest(const FString& Parameters
 	TestTrue(TEXT("Probe has existing plates on the untouched right edge"), RemoteBefore > 0);
 	TestEqual(TEXT("Existing remote attachments retain their positions and shape seeds"), RemoteRetained, RemoteBefore);
 	TestEqual(TEXT("A local notch must not add plates to the untouched right edge"), RemoteAdded, 0);
+	TestTrue(TEXT("The notch boundary itself receives plates"), AfterNotch.ContainsByPredicate([](const FBinding& Binding)
+	{
+		for (const FVector2d& Point : Binding.Support)
+		{
+			if (Point.X < -100 - 1.e-6)
+			{
+				return true;
+			}
+		}
+		return false;
+	}));
 	AddInfo(FString::Printf(TEXT("LocalCutObservation: left edge extended from X=-100 to -120; untouched right-edge plates before=%d, retained=%d, newly added=%d; Cut decoration, display rebuild and Clear were never called."), RemoteBefore, RemoteRetained, RemoteAdded));
-	const int32 AfterNotch = Bindings.Num();
-	TestTrue(TEXT("Repeated post-notch geometry evaluates"), UpdateBindings(Bindings, PreviousEdges, Original, Remaining, FVector::OneVector, Options, Error));
-	TestEqual(TEXT("Repeated post-notch geometry does not refill old gaps"), Bindings.Num(), AfterNotch);
-	const TArray<FBinding> BeforeExtension = Bindings;
-	Cutters.Add(FGeneralPolygon2d(Box(-140, -100, -90, 100)));
-	TestTrue(TEXT("Collinear extension difference succeeds"), PolygonsDifference(Source, Cutters, Remaining));
-	TestTrue(TEXT("Collinear extension evaluates"), UpdateBindings(Bindings, PreviousEdges, Original, Remaining, FVector::OneVector, Options, Error));
+	const TArray<FPolygon2d> NothingRemoved;
+	TestTrue(TEXT("Repeated post-notch geometry evaluates"), UpdateBindings(State, Wall.Holes, NothingRemoved, FVector::OneVector, Options, Error));
+	TestEqual(TEXT("Repeated post-notch geometry does not refill old gaps"), AllBindings(State).Num(), AfterNotch.Num());
+	const TArray<FBinding> BeforeExtension = AllBindings(State);
+	const FPolygon2d Extension = Box(-140, -100, -90, 100);
+	const TArray<FPolygon2d> ExtensionRemoved = {Extension};
+	TestTrue(TEXT("Collinear extension recorded"), Wall.Cut(Extension));
+	TestTrue(TEXT("Collinear extension evaluates"), UpdateBindings(State, Wall.Holes, ExtensionRemoved, FVector::OneVector, Options, Error));
 	int32 NewOnOldBoundary = 0;
 	int32 NewOnExtension = 0;
-	for (const FBinding& Current : Bindings)
+	for (const FBinding& Current : AllBindings(State))
 	{
 		if (BeforeExtension.ContainsByPredicate([&](const FBinding& Old) { return Current.Support == Old.Support && Current.Seed == Old.Seed; }))
 		{
@@ -205,67 +403,96 @@ bool FBreachDecorationFeatureTest::RunTest(const FString& Parameters)
 {
 	const FPolygon2d Original = Box(-50, -50, 50, 50);
 	FBreachFeatureDecorationOptions Options;
-	TArray<FBinding> Bindings;
-	TArray<FFeatureEdge> PreviousEdges;
 	FString Error;
-	TestTrue(TEXT("Small hole evaluated"), UpdateBindings(Bindings, PreviousEdges, Original, WallWithHole(Box(-5, -5, 5, 5)), FVector::OneVector, Options, Error));
-	TestEqual(TEXT("100cm2 does not get chunks"), Bindings.Num(), 0);
-	TestTrue(TEXT("Threshold hole evaluated"), UpdateBindings(Bindings, PreviousEdges, Original, WallWithHole(Box(-10, -10, 10, 10)), FVector::OneVector, Options, Error));
-	TestTrue(TEXT("Exactly 400cm2 gets chunks"), Bindings.Num() > 0);
-	const TArray<FBinding> Previous = Bindings;
-	TestTrue(TEXT("Unchanged boundary evaluated"), UpdateBindings(Bindings, PreviousEdges, Original, WallWithHole(Box(-10, -10, 10, 10)), FVector::OneVector, Options, Error));
-	TestEqual(TEXT("No duplicated chunks"), Bindings.Num(), Previous.Num());
-	for (int32 I = 0; I < Previous.Num(); ++I)
+	const TArray<FPolygon2d> NothingRemoved;
+	const FPolygon2d Small = Box(-5, -5, 5, 5);
+	const TArray<FPolygon2d> SmallRemoved = {Small};
 	{
-		TestTrue(TEXT("Unchanged support keeps original anchor"), Bindings[I].Support == Previous[I].Support && Bindings[I].Seed == Previous[I].Seed);
-		const FVector2d Center = (Bindings[I].Support[0] + Bindings[I].Support.Last()) * 0.5;
-		const FVector2d Tangent = Bindings[I].Support.Last() - Bindings[I].Support[0];
-		const FVector2d IntoHole(-Tangent.Y, Tangent.X);
-		TestTrue(TEXT("Chunk points into the opening"), Center.Dot(IntoHole) < 0);
-	}
-	Bindings.Reset();
-	PreviousEdges.Reset();
-	TestTrue(TEXT("Nonuniform scale evaluated"), UpdateBindings(Bindings, PreviousEdges, Original, WallWithHole(Box(-5, -5, 5, 5)), FVector(2, 1, 3), Options, Error));
-	TestTrue(TEXT("100 local cm2 at 2x3 is 600 world cm2"), Bindings.Num() > 0);
-	Bindings.Reset();
-	PreviousEdges.Reset();
-	TestTrue(TEXT("Below scaled threshold evaluated"), UpdateBindings(Bindings, PreviousEdges, Original, WallWithHole(Box(-5, -5, 5, 5)), FVector(2, 1, 1), Options, Error));
-	TestEqual(TEXT("200 world cm2 remains below threshold"), Bindings.Num(), 0);
-	const TArray<FGeneralPolygon2d> Source = {FGeneralPolygon2d(Original)};
-	TArray<FGeneralPolygon2d> Cutters = {FGeneralPolygon2d(Box(-25, -5, -10, 10)), FGeneralPolygon2d(Box(0, -5, 15, 10))};
-	TArray<FGeneralPolygon2d> Remaining;
-	PolygonsDifference(Source, Cutters, Remaining);
-	TestTrue(TEXT("Separate holes evaluated"), UpdateBindings(Bindings, PreviousEdges, Original, Remaining, FVector::OneVector, Options, Error));
-	TestEqual(TEXT("Two independent 225cm2 holes do not qualify by their sum"), Bindings.Num(), 0);
-	Cutters.Add(FGeneralPolygon2d(Box(-10, 0, 0, 5)));
-	PolygonsDifference(Source, Cutters, Remaining);
-	TestTrue(TEXT("Connected holes evaluated"), UpdateBindings(Bindings, PreviousEdges, Original, Remaining, FVector::OneVector, Options, Error));
-	TestTrue(TEXT("Connected 500cm2 opening creates chunks on old boundaries too"), Bindings.Num() > 0);
-	TestTrue(TEXT("First threshold crossing decorates the preexisting hole edges"), Bindings.ContainsByPredicate([](const FBinding& Binding)
-	{
-		for (const FVector2d& Point : Binding.Support)
+		FDecoWall Wall(Original);
+		FFeatureState State;
+		TestTrue(TEXT("Small hole recorded"), Wall.Cut(Small));
+		TestTrue(TEXT("Small hole evaluated"), UpdateBindings(State, Wall.Holes, SmallRemoved, FVector::OneVector, Options, Error));
+		TestEqual(TEXT("100cm2 does not get chunks"), AllBindings(State).Num(), 0);
+		const FPolygon2d Threshold = Box(-10, -10, 10, 10);
+		const TArray<FPolygon2d> ThresholdRemoved = {Threshold};
+		TestTrue(TEXT("Threshold hole recorded"), Wall.Cut(Threshold));
+		TestTrue(TEXT("Threshold hole evaluated"), UpdateBindings(State, Wall.Holes, ThresholdRemoved, FVector::OneVector, Options, Error));
+		TestTrue(TEXT("Exactly 400cm2 gets chunks"), AllBindings(State).Num() > 0);
+		const TArray<FBinding> Previous = AllBindings(State);
+		TestTrue(TEXT("Unchanged boundary evaluated"), UpdateBindings(State, Wall.Holes, NothingRemoved, FVector::OneVector, Options, Error));
+		const TArray<FBinding> Bindings = AllBindings(State);
+		if (TestEqual(TEXT("No duplicated chunks"), Bindings.Num(), Previous.Num()))
 		{
-			if (Point.X < -20 || Point.X > 10)
+			for (int32 I = 0; I < Previous.Num(); ++I)
 			{
-				return true;
+				TestTrue(TEXT("Unchanged support keeps original anchor"), Bindings[I].Support == Previous[I].Support && Bindings[I].Seed == Previous[I].Seed);
+				const FVector2d Center = (Bindings[I].Support[0] + Bindings[I].Support.Last()) * 0.5;
+				const FVector2d Tangent = Bindings[I].Support.Last() - Bindings[I].Support[0];
+				const FVector2d IntoHole(-Tangent.Y, Tangent.X);
+				TestTrue(TEXT("Chunk points into the opening"), Center.Dot(IntoHole) < 0);
 			}
 		}
-		return false;
-	}));
-	if (!Bindings.IsEmpty())
-	{
-		const FBinding Old = Bindings[0];
-		const FVector2d End = Old.Support.Last();
-		Cutters.Add(FGeneralPolygon2d(Box(End.X - 0.1, End.Y - 0.1, End.X + 0.1, End.Y + 0.1)));
-		PolygonsDifference(Source, Cutters, Remaining);
-		TestTrue(TEXT("Partial attachment cut evaluated"), UpdateBindings(Bindings, PreviousEdges, Original, Remaining, FVector::OneVector, Options, Error));
-		TestFalse(TEXT("Losing part of support removes the original chunk"), Bindings.ContainsByPredicate([&](const FBinding& B) { return B.Support == Old.Support && B.Seed == Old.Seed; }));
+		const FPolygon2d Everything = Box(-60, -60, 60, 60);
+		const TArray<FPolygon2d> EverythingRemoved = {Everything};
+		TestTrue(TEXT("Full wall removal recorded"), Wall.Cut(Everything));
+		TestTrue(TEXT("Full wall removal evaluated"), UpdateBindings(State, Wall.Holes, EverythingRemoved, FVector::OneVector, Options, Error));
+		TestEqual(TEXT("Original outside border gets no chunks"), AllBindings(State).Num(), 0);
+		TestFalse(TEXT("Zero scale rejected without invalid geometry"), UpdateBindings(State, Wall.Holes, NothingRemoved, FVector(0, 1, 1), Options, Error));
 	}
-	TestTrue(TEXT("Full wall removal evaluated"), UpdateBindings(Bindings, PreviousEdges, Original, {}, FVector::OneVector, Options, Error));
-	TestEqual(TEXT("Original outside border gets no chunks"), Bindings.Num(), 0);
-	TestFalse(TEXT("Zero scale rejected without invalid geometry"), UpdateBindings(Bindings, PreviousEdges, Original, {}, FVector(0, 1, 1), Options, Error));
+	{
+		FDecoWall Wall(Original);
+		FFeatureState State;
+		TestTrue(TEXT("Scaled hole recorded"), Wall.Cut(Small));
+		TestTrue(TEXT("Nonuniform scale evaluated"), UpdateBindings(State, Wall.Holes, SmallRemoved, FVector(2, 1, 3), Options, Error));
+		TestTrue(TEXT("100 local cm2 at 2x3 is 600 world cm2"), AllBindings(State).Num() > 0);
+		FFeatureState Below;
+		TestTrue(TEXT("Below scaled threshold evaluated"), UpdateBindings(Below, Wall.Holes, SmallRemoved, FVector(2, 1, 1), Options, Error));
+		TestEqual(TEXT("200 world cm2 remains below threshold"), AllBindings(Below).Num(), 0);
+	}
+	{
+		FDecoWall Wall(Original);
+		FFeatureState State;
+		const FPolygon2d Left = Box(-25, -5, -10, 10);
+		const FPolygon2d Right = Box(0, -5, 15, 10);
+		const TArray<FPolygon2d> BothRemoved = {Left, Right};
+		TestTrue(TEXT("Left hole recorded"), Wall.Cut(Left));
+		TestTrue(TEXT("Right hole recorded"), Wall.Cut(Right));
+		TestTrue(TEXT("Separate holes evaluated"), UpdateBindings(State, Wall.Holes, BothRemoved, FVector::OneVector, Options, Error));
+		TestEqual(TEXT("Two independent 225cm2 holes do not qualify by their sum"), AllBindings(State).Num(), 0);
+		const FPolygon2d Bridge = Box(-10, 0, 0, 5);
+		const TArray<FPolygon2d> BridgeRemoved = {Bridge};
+		TestTrue(TEXT("Bridge recorded"), Wall.Cut(Bridge));
+		TestTrue(TEXT("Connected holes evaluated"), UpdateBindings(State, Wall.Holes, BridgeRemoved, FVector::OneVector, Options, Error));
+		TArray<FBinding> Bindings = AllBindings(State);
+		TestTrue(TEXT("Connected 500cm2 opening creates chunks on old boundaries too"), Bindings.Num() > 0);
+		TestTrue(TEXT("First threshold crossing decorates the preexisting hole edges"), Bindings.ContainsByPredicate([](const FBinding& Binding)
+		{
+			for (const FVector2d& Point : Binding.Support)
+			{
+				if (Point.X < -20 || Point.X > 10)
+				{
+					return true;
+				}
+			}
+			return false;
+		}));
+		if (!Bindings.IsEmpty())
+		{
+			const FBinding Old = Bindings[0];
+			const FVector2d End = Old.Support.Last();
+			const FPolygon2d Nick = Box(End.X - 0.1, End.Y - 0.1, End.X + 0.1, End.Y + 0.1);
+			const TArray<FPolygon2d> NickRemoved = {Nick};
+			TestTrue(TEXT("Partial attachment cut recorded"), Wall.Cut(Nick));
+			TestTrue(TEXT("Partial attachment cut evaluated"), UpdateBindings(State, Wall.Holes, NickRemoved, FVector::OneVector, Options, Error));
+			TestFalse(TEXT("Losing part of support removes the original chunk"), AllBindings(State).ContainsByPredicate([&](const FBinding& B) { return B.Support == Old.Support && B.Seed == Old.Seed; }));
+		}
+	}
+	FFeatureState Unavailable;
+	FBreachSimpleCollision Uninitialized;
+	TestFalse(TEXT("Missing hole cache is rejected instead of keeping stale plates"), UpdateBindings(Unavailable, Uninitialized, NothingRemoved, FVector::OneVector, Options, Error));
 	return !HasAnyErrors();
 }
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachDecorationPlateTest, "BreachSystem.Decoration.ProceduralPlate", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FBreachDecorationPlateTest::RunTest(const FString& Parameters)
 {
@@ -275,14 +502,20 @@ bool FBreachDecorationPlateTest::RunTest(const FString& Parameters)
 	Binding.Support = {FVector2d(-11, 0), FVector2d(11, 0)};
 	Binding.Length = 10;
 	Binding.Seed = 42;
-	const TArray<FBinding> Bindings = {Binding};
 	FString Error;
+	auto Build = [&](const FVector& Scale, FDynamicMesh3& Mesh)
+	{
+		FFeatureState State;
+		State.Holes.Add(1).Bindings.Add(Binding);
+		bool bChanged = false;
+		return UpdateFeatureMesh(State, Options, Scale, FVector2d(-5, 5), Mesh, bChanged, Error) && bChanged;
+	};
 	FDynamicMesh3 Unit;
 	FDynamicMesh3 Scaled;
 	FDynamicMesh3 Repeated;
-	TestTrue(TEXT("Plate generates"), BuildFeatureMesh(Bindings, Options, FVector::OneVector, FVector2d(-5, 5), Unit, Error));
-	TestTrue(TEXT("Nonuniform plate generates"), BuildFeatureMesh(Bindings, Options, FVector(2, 3, 4), FVector2d(-5, 5), Scaled, Error));
-	TestTrue(TEXT("Seed repeats"), BuildFeatureMesh(Bindings, Options, FVector::OneVector, FVector2d(-5, 5), Repeated, Error));
+	TestTrue(TEXT("Plate generates"), Build(FVector::OneVector, Unit));
+	TestTrue(TEXT("Nonuniform plate generates"), Build(FVector(2, 3, 4), Scaled));
+	TestTrue(TEXT("Seed repeats"), Build(FVector::OneVector, Repeated));
 	TestTrue(TEXT("Plate has closed solid thickness"), Unit.IsClosed());
 	TestEqual(TEXT("One plate has seven samples in four rows"), Unit.VertexCount(), 28);
 	TestEqual(TEXT("All six surfaces are present"), Unit.TriangleCount(), 52);
@@ -313,7 +546,7 @@ bool FBreachDecorationPlateTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachDecorationClusterTest, "BreachSystem.Decoration.ClusteredBoundary", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FBreachDecorationClusterTest::RunTest(const FString& Parameters)
 {
-	const FPolygon2d Original = Box(-600, -600, 600, 600);
+	FDecoWall Wall(Box(-600, -600, 600, 600));
 	FPolygon2d Hole;
 	// Many small edges must still share one arc-length placement stream.
 	for (int32 I = 0; I < 200; ++I)
@@ -323,15 +556,15 @@ bool FBreachDecorationClusterTest::RunTest(const FString& Parameters)
 	Hole.AppendVertex(FVector2d(500, -100));
 	Hole.AppendVertex(FVector2d(500, 100));
 	Hole.AppendVertex(FVector2d(-500, 100));
-	TArray<FGeneralPolygon2d> Remaining;
-	PolygonsDifference(TArray<FGeneralPolygon2d>{FGeneralPolygon2d(Original)}, TArray<FGeneralPolygon2d>{FGeneralPolygon2d(Hole)}, Remaining);
-	TArray<FBinding> Bindings;
-	TArray<FFeatureEdge> PreviousEdges;
+	const TArray<FPolygon2d> HoleRemoved = {Hole};
+	const TArray<FPolygon2d> NothingRemoved;
+	FFeatureState State;
 	FBreachFeatureDecorationOptions Options;
 	FString Error;
-	TestTrue(TEXT("Subdivided boundary evaluates"), UpdateBindings(Bindings, PreviousEdges, Original, Remaining, FVector::OneVector, Options, Error));
+	TestTrue(TEXT("Subdivided opening recorded"), Wall.Cut(Hole));
+	TestTrue(TEXT("Subdivided boundary evaluates"), UpdateBindings(State, Wall.Holes, HoleRemoved, FVector::OneVector, Options, Error));
 	TArray<double> Centers;
-	for (const FBinding& B : Bindings)
+	for (const FBinding& B : AllBindings(State))
 	{
 		if (B.Support[0].Y == -100 && B.Support.Last().Y == -100)
 		{
@@ -349,12 +582,13 @@ bool FBreachDecorationClusterTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Long boundary has many plates"), Centers.Num() > 20);
 	TestTrue(TEXT("Clusters contain close neighbors"), Minimum < Options.Spacing * 0.6);
 	TestTrue(TEXT("Clusters leave large empty gaps"), Maximum > Options.Spacing * 1.8);
-	const int32 Count = Bindings.Num();
-	TestTrue(TEXT("Repeat evaluates"), UpdateBindings(Bindings, PreviousEdges, Original, Remaining, FVector::OneVector, Options, Error));
-	TestEqual(TEXT("Repeat adds no duplicate plates"), Bindings.Num(), Count);
+	const int32 Count = AllBindings(State).Num();
+	TestTrue(TEXT("Repeat evaluates"), UpdateBindings(State, Wall.Holes, NothingRemoved, FVector::OneVector, Options, Error));
+	TestEqual(TEXT("Repeat adds no duplicate plates"), AllBindings(State).Num(), Count);
 	FDynamicMesh3 Mesh;
-	TestTrue(TEXT("Subdivided supports build real plates"), BuildFeatureMesh(Bindings, Options, FVector::OneVector, FVector2d(-5, 5), Mesh, Error));
-	TestTrue(TEXT("All accepted supports produce closed plates"), Mesh.IsClosed() && Mesh.VertexCount() == Bindings.Num() * 28);
+	bool bChanged = false;
+	TestTrue(TEXT("Subdivided supports build real plates"), UpdateFeatureMesh(State, Options, FVector::OneVector, FVector2d(-5, 5), Mesh, bChanged, Error));
+	TestTrue(TEXT("All accepted supports produce closed plates"), Mesh.IsClosed() && Mesh.VertexCount() == Count * 28);
 	return !HasAnyErrors();
 }
 #endif

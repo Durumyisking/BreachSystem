@@ -87,4 +87,28 @@ bool FBreachHoleAreaSettingsTest::RunTest(const FString& Parameters)
 	return !HasAnyErrors();
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachPassageToleranceSettingsTest, "BreachSystem.Settings.SimplePassageTolerance",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FBreachPassageToleranceSettingsTest::RunTest(const FString& Parameters)
+{
+	UBreachSystemSettings* Settings = GetMutableDefault<UBreachSystemSettings>();
+	if (!TestNotNull(TEXT("Passage tolerance settings"), Settings))
+	{
+		return false;
+	}
+	TestNotNull(TEXT("Passage tolerance is a whole-centimeter setting"), FindFProperty<FIntProperty>(UBreachSystemSettings::StaticClass(), TEXT("SimplePassageToleranceCm")));
+	TestEqual(TEXT("Passage tolerance defaults to 1 cm"), NewObject<UBreachSystemSettings>()->SimplePassageToleranceCm, 1);
+	TGuardValue<int32> ToleranceGuard(Settings->SimplePassageToleranceCm, 1);
+	for (int32 Valid : {0, 1, 5})
+	{
+		Settings->SimplePassageToleranceCm = Valid;
+		TestEqual(TEXT("A nonnegative tolerance reaches the getter unchanged"), UBreachSystemSettings::GetSimplePassageToleranceCm(), Valid);
+	}
+	Settings->SimplePassageToleranceCm = -3;
+	AddExpectedError(TEXT("Invalid SimplePassageToleranceCm"), EAutomationExpectedErrorFlags::Contains, 1);
+	TestEqual(TEXT("A negative tolerance uses the 1 cm default"), UBreachSystemSettings::GetSimplePassageToleranceCm(), 1);
+	return !HasAnyErrors();
+}
+
 #endif

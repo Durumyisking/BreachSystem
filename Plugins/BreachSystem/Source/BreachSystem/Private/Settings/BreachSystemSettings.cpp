@@ -20,6 +20,25 @@ int32 UBreachSystemSettings::GetMaxSimpleConvexCount()
 	return Settings->MaxSimpleConvexCount;
 }
 
+int32 UBreachSystemSettings::GetSimplePassageToleranceCm()
+{
+	const UBreachSystemSettings* Settings = GetDefault<UBreachSystemSettings>();
+	checkf(Settings, TEXT("BreachSystemSettings default object is required to read SimplePassageToleranceCm."));
+	if (Settings->SimplePassageToleranceCm < 0)
+	{
+		UE_LOG(LogBreachSystemSettings, Warning, TEXT("Invalid SimplePassageToleranceCm (%d). Set 0 or a positive value in Project Settings > Plugins > Breach System. Using 1 cm."), Settings->SimplePassageToleranceCm);
+		return 1;
+	}
+	return Settings->SimplePassageToleranceCm;
+}
+
+bool UBreachSystemSettings::IsComplexCollisionAsync()
+{
+	const UBreachSystemSettings* Settings = GetDefault<UBreachSystemSettings>();
+	checkf(Settings, TEXT("BreachSystemSettings default object is required to read bAsyncComplexCollision."));
+	return Settings->bAsyncComplexCollision;
+}
+
 float UBreachSystemSettings::GetCellSizeCm()
 {
 	const UBreachSystemSettings* Settings = GetDefault<UBreachSystemSettings>();

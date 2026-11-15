@@ -44,6 +44,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachSimpleConvexTest, "BreachSystem.Surface.
 
 bool FBreachSimpleConvexTest::RunTest(const FString& Parameters)
 {
+	// 이 테스트는 솔버가 고른 통로와 충돌 면적이 정확히 일치하는지 본다. 윤곽 단순화는 SimpleHoleCache.Simplified가 따로 검증한다.
+	TGuardValue<int32> ToleranceGuard(GetMutableDefault<UBreachSystemSettings>()->SimplePassageToleranceCm, 0);
 	UBreachSystemSettings* Settings = GetMutableDefault<UBreachSystemSettings>();
 	if (!TestNotNull(TEXT("Convex opening settings"), Settings))
 	{

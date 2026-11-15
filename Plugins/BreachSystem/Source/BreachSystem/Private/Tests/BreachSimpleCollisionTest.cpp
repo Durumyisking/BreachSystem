@@ -411,7 +411,8 @@ bool FBreachSimpleCollisionThresholdTest::RunTest(const FString& Parameters)
 	}
 	else if (Parameters == TEXT("Above"))
 	{
-		Cutter = Rectangle(-5, -26, 5, 26);
+		// 면적 기준을 넘고, 기준 면적의 원(지름 약 25.2cm)이 들어갈 폭도 갖춘 구멍이어야 실제로 열린다.
+		Cutter = Rectangle(-13, -26, 13, 26);
 	}
 	else if (Parameters == TEXT("Detached"))
 	{
@@ -436,6 +437,7 @@ bool FBreachSimpleCollisionThresholdTest::RunTest(const FString& Parameters)
 	else if (bShouldOpen)
 	{
 		TestTrue(TEXT("Large opening leaves multiple wall pieces"), Shapes.ConvexElems.Num() > 1);
+		TestTrue(TEXT("Large opening removes movement collision"), RetainedArea(Shapes) < 10000.0 - 1.0);
 	}
 	else
 	{

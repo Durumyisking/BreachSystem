@@ -30,6 +30,28 @@ struct FBreachSimpleAsyncTestAccess
 		check(Surface);
 		return Surface->SimpleBuildJob.IsValid() || Surface->bSimpleBuildPending;
 	}
+	static bool HasHoleCache(const UBreachableSurfaceComponent* Surface)
+	{
+		check(Surface);
+		return Surface->SimpleCollision.HasHoleCache();
+	}
+	// 구멍 캐시가 설명할 수 없는 고립 조각을 넣어 추적 실패를 재현한다. 표면 상태는 바꾸지 않는다.
+	static void BreakHoleCache(UBreachableSurfaceComponent* Surface)
+	{
+		check(Surface);
+		UE::Geometry::FPolygon2d Cutter;
+		for (const FVector2d Point : {FVector2d(-49, -49), FVector2d(-48, -49), FVector2d(-48, -48), FVector2d(-49, -48)})
+		{
+			Cutter.AppendVertex(Point);
+		}
+		UE::Geometry::FPolygon2d Unmatched;
+		for (const FVector2d Point : {FVector2d(40, 40), FVector2d(45, 40), FVector2d(45, 45), FVector2d(40, 45)})
+		{
+			Unmatched.AppendVertex(Point);
+		}
+		FString Error;
+		Surface->SimpleCollision.ApplyCut(Cutter, MakeArrayView(&Unmatched, 1), Error);
+	}
 	static uint32 CookCount(const UBreachSimpleProxy* Proxy)
 	{
 		check(Proxy);

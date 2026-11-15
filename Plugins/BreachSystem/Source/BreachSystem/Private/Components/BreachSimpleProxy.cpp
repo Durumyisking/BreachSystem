@@ -28,7 +28,17 @@ UBodySetup* UBreachSimpleProxy::CreateBodySetup()
 	check(Setup);
 	Setup->BodySetupGuid = FGuid::NewGuid();
 	Setup->CollisionTraceFlag = CTF_UseSimpleAndComplex;
-	Setup->bGenerateMirroredCollision = true;
+
+	// 엔진 기본값은 Convex마다 원본과 X 반전본을 모두 Cooking한다. 실제 스케일 부호에 맞는 한 벌만 만든다.
+	// 엔진은 부호가 맞지 않는 BodySetup으로 바디를 만들지 않으므로 음수 스케일 벽은 반전본을 쓴다.
+	const UBreachableSurfaceComponent* Current = Surface.Get();
+	bool bMirrored = GetComponentTransform().GetDeterminant() < 0;
+	if (IsValid(Current))
+	{
+		bMirrored = Current->GetComponentTransform().GetDeterminant() < 0;
+	}
+	Setup->bGenerateMirroredCollision = bMirrored;
+	Setup->bGenerateNonMirroredCollision = !bMirrored;
 	Setup->bSupportUVsAndFaceRemap = false;
 	return Setup;
 }

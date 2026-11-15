@@ -1,8 +1,8 @@
 #include "Surface/BreachDecorationGeometry.h"
+#include "Surface/BreachSimpleCollision.h"
 #include "Surface/BreachSurfaceGeometry.h"
 #include "Curve/PolygonIntersectionUtils.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
-#include "DynamicMesh/MeshNormals.h"
 
 using namespace UE::Geometry;
 
@@ -25,29 +25,134 @@ namespace
 		return !Scale.ContainsNaN() && FMath::Abs(Scale.X) > UE_DOUBLE_SMALL_NUMBER && FMath::Abs(Scale.Y) > UE_DOUBLE_SMALL_NUMBER && FMath::Abs(Scale.Z) > UE_DOUBLE_SMALL_NUMBER;
 	}
 
+	double RegionArea(TConstArrayView<FGeneralPolygon2d> Regions)
+	{
+		double Area = 0;
+		for (const FGeneralPolygon2d& Region : Regions)
+		{
+			Area += FMath::Abs(Region.SignedArea());
+		}
+		return Area;
+	}
+
+	int32 FaceIndex(EBreachSurfaceSide Side)
+	{
+		return Side == EBreachSurfaceSide::Front ? 0 : 1;
+	}
+
+	// Boolean 연산은 호출마다 좌표 격자가 달라, 완전히 덮인 영역도 면적 없는 띠로 남을 수 있다. 그런 조각은 패치가 아니다.
+	void RemoveEmptyRegions(TArray<FGeneralPolygon2d>& Regions)
+	{
+		Regions.RemoveAll([](const FGeneralPolygon2d& Region)
+		{
+			return FMath::Abs(Region.SignedArea()) <= 1.e-8;
+		});
+	}
 }
 
-bool BreachDecoration::ClipPatches(TArray<FPatch>& Patches, TConstArrayView<FGeneralPolygon2d> Remaining, TConstArrayView<FAxisAlignedBox2d> Cuts, EBreachSurfaceSide Side, const FVector& Scale, double Padding, FString& Error)
+void BreachDecoration::PrepareDisplayMesh(FDynamicMesh3& Mesh)
+{
+	if (!Mesh.HasAttributes())
+	{
+		Mesh.EnableAttributes();
+	}
+	if (Mesh.Attributes()->NumUVLayers() < 1)
+	{
+		Mesh.Attributes()->SetNumUVLayers(1);
+	}
+	if (Mesh.Attributes()->NumNormalLayers() < 1)
+	{
+		Mesh.Attributes()->SetNumNormalLayers(1);
+	}
+}
+
+void BreachDecoration::SetFlatNormal(FDynamicMesh3& Mesh, int32 TriangleID)
+{
+	check(Mesh.HasAttributes());
+	FDynamicMeshNormalOverlay* Normals = Mesh.Attributes()->PrimaryNormals();
+	check(Normals);
+	const FVector3f Normal(Mesh.GetTriNormal(TriangleID));
+	FIndex3i Elements;
+	for (int32 Corner = 0; Corner < 3; ++Corner)
+	{
+		Elements[Corner] = Normals->AppendElement(Normal);
+	}
+	Normals->SetTriangle(TriangleID, Elements);
+}
+
+bool BreachDecoration::ClipPatches(FCutState& State, const FBreachSimpleCollision& Holes, TConstArrayView<FPolygon2d> Removed, TConstArrayView<FAxisAlignedBox2d> Cuts, EBreachSurfaceSide Side, const FVector& Scale, double Padding, FString& Error)
 {
 	if (!ValidScale(Scale) || !FMath::IsFinite(Padding) || Padding < 0)
 	{
 		Error = TEXT("Deco requires a finite nonzero surface scale and nonnegative padding.");
 		return false;
 	}
-	TArray<FPatch> Updated;
-	for (const FPatch& Patch : Patches)
+	if (!Holes.HasHoleCache())
 	{
-		FPatch Clipped = Patch;
-		if (!PolygonsIntersection(Patch.Regions, Remaining, Clipped.Regions))
+		Error = TEXT("Cut decoration requires the tracked openings of its surface.");
+		return false;
+	}
+
+	// 준비: 이번 브리칭으로 사라진 도형과 그 경계.
+	TArray<FGeneralPolygon2d> RemovedRegions;
+	TArray<FAxisAlignedBox2d> RemovedBounds;
+	for (const FPolygon2d& Polygon : Removed)
+	{
+		if (Polygon.VertexCount() < 3)
+		{
+			continue;
+		}
+		FPolygon2d Oriented = Polygon;
+		if (Oriented.IsClockwise())
+		{
+			Oriented.Reverse();
+		}
+		RemovedBounds.Add(Oriented.Bounds());
+		RemovedRegions.Emplace(MoveTemp(Oriented));
+	}
+
+	// 처리: 사라진 도형과 경계가 겹치는 기존 패치만 다시 자른다. 나머지는 도형 연산 없이 그대로 둔다.
+	for (int32 Index = 0; Index < State.Patches.Num(); ++Index)
+	{
+		FPatch& Patch = State.Patches[Index];
+		bool bTouched = false;
+		for (const FAxisAlignedBox2d& Bounds : RemovedBounds)
+		{
+			if (Bounds.Intersects(Patch.UVBounds))
+			{
+				bTouched = true;
+				break;
+			}
+		}
+		if (!bTouched)
+		{
+			continue;
+		}
+
+		TArray<FGeneralPolygon2d> Clipped;
+		if (!PolygonsDifference(Patch.Regions, RemovedRegions, Clipped))
 		{
 			Error = TEXT("Existing cut decoration clipping failed.");
 			return false;
 		}
-		if (!Clipped.Regions.IsEmpty())
+		RemoveEmptyRegions(Clipped);
+
+		// 경계만 겹치고 실제로 잘리지 않은 패치는 표시 메시도 그대로 둔다.
+		const double Before = RegionArea(Patch.Regions);
+		if (FMath::Abs(Before - RegionArea(Clipped)) <= FMath::Max(1.e-9, Before * 1.e-12))
 		{
-			Updated.Add(MoveTemp(Clipped));
+			continue;
 		}
+
+		State.StaleVertices[FaceIndex(Patch.Side)].Append(Patch.MeshVertices);
+		Patch.MeshVertices.Reset();
+		Patch.bInMesh = false;
+		Patch.Regions = MoveTemp(Clipped);
 	}
+	State.Patches.RemoveAll([](const FPatch& Patch) { return Patch.Regions.IsEmpty(); });
+
+	// 처리: 새 패치는 발자국에서 벽 밖, 발자국에 걸친 구멍, 같은 면의 주변 패치를 뺀다.
+	const TArray<FGeneralPolygon2d> Wall = {FGeneralPolygon2d(Holes.GetOuter())};
 	for (const FAxisAlignedBox2d& Cut : Cuts)
 	{
 		FPatch Patch;
@@ -55,47 +160,69 @@ bool BreachDecoration::ClipPatches(TArray<FPatch>& Patches, TConstArrayView<FGen
 		const FVector2d Margin(Padding / FMath::Abs(Scale.X), Padding / FMath::Abs(Scale.Z));
 		Patch.UVBounds = FAxisAlignedBox2d(Cut.Min - Margin, Cut.Max + Margin);
 		const TArray<FGeneralPolygon2d> Footprint = {FGeneralPolygon2d(Rectangle(Patch.UVBounds))};
-		if (!PolygonsIntersection(Footprint, Remaining, Patch.Regions))
+		if (!PolygonsIntersection(Footprint, Wall, Patch.Regions))
 		{
 			Error = TEXT("New cut decoration clipping failed.");
 			return false;
 		}
-		TArray<FGeneralPolygon2d> Occupied;
-		for (const FPatch& Existing : Updated)
+
+		TArray<FGeneralPolygon2d> Blocked;
+		Holes.ForEachHole([&](uint64 Revision, const FGeneralPolygon2d& Polygon, const FAxisAlignedBox2d& Bounds)
 		{
-			if (Existing.Side == Side)
+			if (Bounds.Intersects(Patch.UVBounds))
 			{
-				Occupied.Append(Existing.Regions);
+				Blocked.Add(Polygon);
+			}
+		});
+		for (const FPatch& Existing : State.Patches)
+		{
+			if (Existing.Side == Side && Existing.UVBounds.Intersects(Patch.UVBounds))
+			{
+				Blocked.Append(Existing.Regions);
 			}
 		}
-		if (!Occupied.IsEmpty())
+		if (!Blocked.IsEmpty() && !Patch.Regions.IsEmpty())
 		{
 			TArray<FGeneralPolygon2d> Uncovered;
-			if (!PolygonsDifference(Patch.Regions, Occupied, Uncovered))
+			if (!PolygonsDifference(Patch.Regions, Blocked, Uncovered))
 			{
 				Error = TEXT("Cut decoration overlap removal failed.");
 				return false;
 			}
 			Patch.Regions = MoveTemp(Uncovered);
 		}
+		RemoveEmptyRegions(Patch.Regions);
 		if (!Patch.Regions.IsEmpty())
 		{
-			Updated.Add(MoveTemp(Patch));
+			State.Patches.Add(MoveTemp(Patch));
 		}
 	}
-	Patches = MoveTemp(Updated);
 	return true;
 }
 
-bool BreachDecoration::BuildPatchMesh(TConstArrayView<FPatch> Patches, EBreachSurfaceSide Side, double Depth, FDynamicMesh3& OutMesh, FString& Error)
+bool BreachDecoration::UpdatePatchMesh(FCutState& State, EBreachSurfaceSide Side, double Depth, FDynamicMesh3& Mesh, bool& bOutChanged, FString& Error)
 {
-	FDynamicMesh3 Mesh;
-	Mesh.EnableAttributes();
-	Mesh.Attributes()->SetNumUVLayers(1);
-	auto* UVs = Mesh.Attributes()->PrimaryUV();
-	for (const FPatch& Patch : Patches)
+	bOutChanged = false;
+	PrepareDisplayMesh(Mesh);
+	FDynamicMeshUVOverlay* UVs = Mesh.Attributes()->PrimaryUV();
+	check(UVs);
+
+	// 처리: 바뀌었거나 사라진 패치의 정점만 지운다. 정점에 붙은 삼각형과 UV·노멀도 함께 지워진다.
+	TArray<int32>& Stale = State.StaleVertices[FaceIndex(Side)];
+	for (int32 VertexID : Stale)
 	{
-		if (Patch.Side != Side)
+		if (Mesh.IsVertex(VertexID))
+		{
+			Mesh.RemoveVertex(VertexID);
+			bOutChanged = true;
+		}
+	}
+	Stale.Reset();
+
+	// 처리: 아직 메시에 없는 패치만 삼각분할해 추가한다.
+	for (FPatch& Patch : State.Patches)
+	{
+		if (Patch.Side != Side || Patch.bInMesh)
 		{
 			continue;
 		}
@@ -105,6 +232,9 @@ bool BreachDecoration::BuildPatchMesh(TConstArrayView<FPatch> Patches, EBreachSu
 			Error = TEXT("Cut decoration has an empty UV footprint.");
 			return false;
 		}
+
+		Patch.bInMesh = true;
+		bOutChanged = true;
 		for (const FGeneralPolygon2d& Region : Patch.Regions)
 		{
 			TArray<FVector2d> Vertices;
@@ -119,7 +249,9 @@ bool BreachDecoration::BuildPatchMesh(TConstArrayView<FPatch> Patches, EBreachSu
 			TArray<int32> IDs;
 			for (const FVector2d& P : Vertices)
 			{
-				IDs.Add(Mesh.AppendVertex(FVector3d(P.X, Depth, P.Y)));
+				const int32 VertexID = Mesh.AppendVertex(FVector3d(P.X, Depth, P.Y));
+				IDs.Add(VertexID);
+				Patch.MeshVertices.Add(VertexID);
 			}
 			for (FIndex3i Triangle : Triangles)
 			{
@@ -140,10 +272,9 @@ bool BreachDecoration::BuildPatchMesh(TConstArrayView<FPatch> Patches, EBreachSu
 					UVIndices[Corner] = UVs->AppendElement(FVector2f((P.X - Patch.UVBounds.Min.X) / Size.X, (P.Y - Patch.UVBounds.Min.Y) / Size.Y));
 				}
 				UVs->SetTriangle(ID, UVIndices);
+				SetFlatNormal(Mesh, ID);
 			}
 		}
 	}
-	FMeshNormals::InitializeMeshToPerTriangleNormals(&Mesh);
-	OutMesh = MoveTemp(Mesh);
 	return true;
 }

@@ -25,7 +25,26 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Collision", meta = (ClampMin = "1", ClampMax = "16"))
 	int32 MaxSimpleConvexCount = 3;
 
+	/**
+	 * 끄면 피격한 프레임에 총알·트레이스용 Complex 충돌까지 갱신한다.
+	 * 켜면 Cooking을 작업 스레드로 넘겨 게임 스레드 비용을 줄이지만, 구멍이 보인 뒤 몇 프레임 동안 이전 충돌이 남는다.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Collision", meta = (DisplayName = "Async Complex Collision"))
+	bool bAsyncComplexCollision = false;
+
+	/**
+	 * 이동용 Simple 충돌을 만들 때 통로 가장자리에서 지울 꼭짓점의 기준(월드 cm).
+	 * 지워도 가장자리가 이 값 이내로만 통로 안쪽으로 움직이는 꼭짓점을 지워 벽 충돌체 수를 줄인다. 통로는 그만큼 좁아질 수 있다.
+	 * 0이면 지우지 않는다. 표시 메시와 총알용 Complex 충돌에는 영향이 없다.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Collision", meta = (DisplayName = "Simple Passage Tolerance (cm)", ClampMin = "0", UIMax = "10"))
+	int32 SimplePassageToleranceCm = 1;
+
 	static int32 GetMaxSimpleConvexCount();
+
+	static int32 GetSimplePassageToleranceCm();
+
+	static bool IsComplexCollisionAsync();
 
 	/** 전역 셀 크기를 읽는다. 잘못된 Config 값은 경고를 남기고 기본값 10cm를 반환한다. */
 	UFUNCTION(BlueprintPure, Category="Breach|Settings", meta=(DisplayName="Get Breach Cell Size (cm)"))

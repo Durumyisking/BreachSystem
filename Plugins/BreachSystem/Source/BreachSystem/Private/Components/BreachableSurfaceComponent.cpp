@@ -328,9 +328,6 @@ bool UBreachableSurfaceComponent::CreateDynamicMeshProxy(UE::Geometry::FDynamicM
 	DynamicMeshProxy->bEnableComplexCollision = true;
 	DynamicMeshProxy->CollisionType = CTF_UseSimpleAndComplex;
 	DynamicMeshProxy->BodyInstance.bAutoWeld = false;
-	UBodySetup* ComplexBody = DynamicMeshProxy->GetBodySetup();
-	check(ComplexBody);
-	ComplexBody->bGenerateMirroredCollision = true;
 
 	SimpleProxy = NewObject<UBreachSimpleProxy>(Owner);
 	SimpleProxy->SetSurface(this);
@@ -375,6 +372,7 @@ FBreachSimpleBuildPolicy UBreachableSurfaceComponent::GetSimpleBuildPolicy() con
 	Policy.WorldScale = FVector2d(FMath::Abs(Scale.X), FMath::Abs(Scale.Z));
 	Policy.AreaThreshold = UBreachSystemSettings::GetComplexHoleSizeThreshold();
 	Policy.MaxCount = UBreachSystemSettings::GetMaxSimpleConvexCount();
+	Policy.PassageTolerance = UBreachSystemSettings::GetSimplePassageToleranceCm();
 	return Policy;
 }
 
@@ -555,6 +553,10 @@ void UBreachableSurfaceComponent::CompleteSimpleCook(const TSharedPtr<FBreachSim
 				const double LatencyMs = (FPlatformTime::Seconds() - Job->RequestedAt) * 1000;
 				const double CookLatencyMs = Job->CookStarted > 0 ? (ApplyStarted - Job->CookStarted) * 1000 : 0;
 				UE_LOG(LogBreachableSurface, Verbose, TEXT("[BreachSimpleAsync] %s revision=%llu geometry=%.3fms cookLatency=%.3fms apply=%.3fms latency=%.3fms prepared=%d reused=%d changed=%d"), *GetName(), Job->Revision, Stats.GeometryMs, CookLatencyMs, ApplyMs, LatencyMs, Stats.PreparedOpenings, Stats.ReusedBodies, Stats.bCollisionChanged);
+				if (Stats.FrozenOpenings > 0)
+				{
+					UE_LOG(LogBreachableSurface, Warning, TEXT("%s updated its Simple collision but kept the previous passages of %d opening(s) whose calculation failed: %s"), *GetName(), Stats.FrozenOpenings, *Job->Error);
+				}
 			}
 		}
 		else
@@ -597,6 +599,17 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh,
 		return false;
 	}
 
+	BuildSurfaceAttributes(Mesh);
+
+	// 기본은 피격한 프레임에 Complex까지 굽는다. 설정으로 비동기를 고르면 완료될 때까지 이전 충돌이 남는다.
+	// 첫 전환은 원본 충돌을 끄는 시점이므로 항상 동기로 굽는다. 비동기로 두면 그 사이 총알이 벽 전체를 통과한다.
+	bool bAsyncCook = false;
+	if (DynamicMeshProxy->IsRegistered())
+	{
+		bAsyncCook = UBreachSystemSettings::IsComplexCollisionAsync();
+	}
+	DynamicMeshProxy->bUseAsyncCooking = bAsyncCook;
+
 	DynamicMeshProxy->SetMesh(MoveTemp(Mesh));
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | ComplexCollisionCook");
@@ -635,10 +648,11 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh,
 		}
 		if (IsValid(Decorations))
 		{
-			Decorations->Update(this, SurfaceMaterial, OriginalOuter, SurfaceState.RemainingRegions, OriginalDepthRange, PendingDecorationCuts, Side, bOriginalVisible, bOriginalHiddenInGame);
+			Decorations->Update(this, SurfaceMaterial, SimpleCollision, OriginalDepthRange, PendingDecorationCuts, PendingDecorationRemoved, Side, bOriginalVisible, bOriginalHiddenInGame);
 		}
 	}
 	PendingDecorationCuts.Reset();
+	PendingDecorationRemoved.Reset();
 	return true;
 }
 
@@ -646,6 +660,7 @@ bool UBreachableSurfaceComponent::ResetSurface()
 {
 	InvalidateSimpleCollisionJobs();
 	PendingDecorationCuts.Reset();
+	PendingDecorationRemoved.Reset();
 	if (IsValid(Decorations))
 	{
 		Decorations->DestroyComponent();
@@ -687,6 +702,7 @@ bool UBreachableSurfaceComponent::ResetSurface()
 void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitComponent, const FDamageEvent& DamageEvent, AActor* DamageCauser, float DamageAmount)
 {
 	PendingDecorationCuts.Reset();
+	PendingDecorationRemoved.Reset();
 	// 검증: 포인트 피해만 처리하며, 커터를 제공하는 BreachSource가 필요하다.
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
@@ -745,13 +761,14 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		// 누적 파손처리
 		bool bPrepared = false;
 		bool bBreached = false;
+		bool bChanged = false;
 		if (bAccumulate)
 		{
 			FVector2d GridHitPoint;
 			bPrepared = PrepareAccumulation(PointDamage.HitInfo.ImpactPoint, Source->BreachDamage, Material->Accumulation, GridHitPoint);
 			if (bPrepared)
 			{
-				bBreached = AccumulateHit(GridHitPoint, Source->BreachDamage, Material->AccumulationShape, Mesh);
+				bBreached = AccumulateHit(GridHitPoint, Source->BreachDamage, Material->AccumulationShape, Mesh, bChanged);
 			}
 		}
 
@@ -759,7 +776,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		if (!bBreached)
 		{
 			FGeneralPolygon2d Cutter;
-			const bool bCut = ApplyDirectCut(Source, PointDamage.HitInfo.ImpactPoint, Cutter, Mesh);
+			const bool bCut = ApplyDirectCut(Source, PointDamage.HitInfo.ImpactPoint, Cutter, Mesh, bChanged);
 			if (!bCut)
 			{
 				if (!bHadProxy)
@@ -777,6 +794,12 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		}
 
 		// Here
+
+		// 표시 중인 표면을 바꾸지 않은 피격은 메시·충돌·Deco를 갱신하지 않고 브리칭 이벤트도 알리지 않는다.
+		if (!bChanged)
+		{
+			return;
+		}
 
 		const FVector LocalImpact = GetComponentTransform().InverseTransformPosition(PointDamage.HitInfo.ImpactPoint);
 		const double FrontDistance = FMath::Abs(LocalImpact.Y - OriginalDepthRange.X);
@@ -868,8 +891,9 @@ bool UBreachableSurfaceComponent::PrepareAccumulation(const FVector& ImpactPoint
 
 
 bool UBreachableSurfaceComponent::ApplyDirectCut(UBreachSourceComponent* Source, const FVector& ImpactPoint,
-	FGeneralPolygon2d& InOutCutter, FDynamicMesh3& OutMesh)
+	FGeneralPolygon2d& InOutCutter, FDynamicMesh3& OutMesh, bool& bOutChanged)
 {
+	bOutChanged = false;
 	if (!ensureMsgf(IsValid(Source), TEXT("%s requires a valid BreachSourceComponent to apply a direct cut."), *GetName()))
 	{
 		return false;
@@ -883,7 +907,7 @@ bool UBreachableSurfaceComponent::ApplyDirectCut(UBreachSourceComponent* Source,
 	}
 
 	// PolygonCut!
-	const bool bCut = CutPolygon(InOutCutter.GetOuter(), OutMesh);
+	const bool bCut = CutPolygon(InOutCutter.GetOuter(), OutMesh, bOutChanged);
 	if (bCut)
 	{
 		return true;
@@ -902,7 +926,7 @@ bool UBreachableSurfaceComponent::ApplyDirectCut(UBreachSourceComponent* Source,
 		return false;
 	}
 	UE_LOG(LogBreachableSurface, Warning, TEXT("%s is retrying the breach with its base cutter."), *GetName());
-	const bool bBaseCut = CutPolygon(BaseCutter.GetOuter(), OutMesh);
+	const bool bBaseCut = CutPolygon(BaseCutter.GetOuter(), OutMesh, bOutChanged);
 	if (!bBaseCut)
 	{
 		UE_LOG(LogBreachableSurface, Error, TEXT("%s could not apply even the base cutter."), *GetName());
@@ -914,8 +938,10 @@ bool UBreachableSurfaceComponent::ApplyDirectCut(UBreachSourceComponent* Source,
 }
 
 bool UBreachableSurfaceComponent::AccumulateHit(const FVector2d& GridHitPoint, double BreachDamage,
-	const FBreachAccumulationShapeOptions& ShapeOptions, FDynamicMesh3& OutMesh)
+	const FBreachAccumulationShapeOptions& ShapeOptions, FDynamicMesh3& OutMesh, bool& bOutChanged)
 {
+	bOutChanged = false;
+
 	// 기록: 유효한 탄착을 추가한 뒤 임계값을 만족하는 후보를 한 번에 조회한다.
 	FString Error;
 	const int32 RecordID = DamageAccumulator.AddHit(GridHitPoint, BreachDamage, Error);
@@ -974,17 +1000,22 @@ bool UBreachableSurfaceComponent::AccumulateHit(const FVector2d& GridHitPoint, d
 		};
 
 		// 처리: 변형 윤곽 적용에 실패하면 기본 윤곽으로 재시도한다.
-		bool bApplied = CutPolygon(ToLocal(MetricCutter), OutMesh);
+		bool bCutChanged = false;
+		bool bApplied = CutPolygon(ToLocal(MetricCutter), OutMesh, bCutChanged);
 		if (!bApplied && ContourOptions.bEnabled)
 		{
 			MetricCutter = BaseMetric;
-			bApplied = CutPolygon(ToLocal(BaseMetric), OutMesh);
+			bApplied = CutPolygon(ToLocal(BaseMetric), OutMesh, bCutChanged);
 		}
 
 		// 결과 반영: 성공한 커터 내부 기록만 제거하고, 실패한 후보의 기록은 남긴다.
 		if (bApplied)
 		{
 			bBreached = true;
+			if (bCutChanged)
+			{
+				bOutChanged = true;
+			}
 			DamageAccumulator.RemoveInside(MetricCutter);
 		}
 		else
@@ -1016,19 +1047,29 @@ void UBreachableSurfaceComponent::RemoveHitsInside(const FPolygon2d& LocalPolygo
 bool UBreachableSurfaceComponent::ApplyCutterPolygon(const FPolygon2d& InCutter, EBreachSurfaceSide Side)
 {
 	PendingDecorationCuts.Reset();
+	PendingDecorationRemoved.Reset();
 	FDynamicMesh3 Mesh;
-	const bool bCut = CutPolygon(InCutter, Mesh);
+	bool bChanged = false;
+	const bool bCut = CutPolygon(InCutter, Mesh, bChanged);
 	if (!bCut)
 	{
 		return false;
+	}
+
+	// 표시 중인 표면을 바꾸지 않은 절단은 반영할 것이 없다.
+	if (!bChanged)
+	{
+		return true;
 	}
 
 	const bool bUpdated = UpdateMesh(MoveTemp(Mesh), Side);
 	return bUpdated;
 }
 
-bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynamicMesh3& OutMesh)
+bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynamicMesh3& OutMesh, bool& bOutChanged)
 {
+	bOutChanged = false;
+
 	// 검증: 잘못된 커터는 표면을 초기화하거나 변경하기 전에 거부한다.
 	FString Error;
 	if (!BreachContour::Validate(InCutter, Error))
@@ -1091,6 +1132,27 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 		}
 		return false;
 	});
+
+	// 이미 Proxy로 표시 중인 표면에서 면적이 줄지 않은 절단은 아무것도 바꾸지 않는다. 메시·충돌·구멍 캐시·Deco를 다시 만들지 않고 끝낸다.
+	// 아직 전환하지 않은 표면은 효과 없는 절단이라도 계속 진행해, 기존처럼 Proxy 표시로 전환한다.
+	double PreviousArea = 0;
+	for (const FGeneralPolygon2d& Region : SurfaceState.RemainingRegions)
+	{
+		PreviousArea += FMath::Abs(Region.SignedArea());
+	}
+	double NewArea = 0;
+	for (const FGeneralPolygon2d& Region : CandidateRegions)
+	{
+		NewArea += FMath::Abs(Region.SignedArea());
+	}
+	const bool bAreaReduced = PreviousArea - NewArea > 1.e-8;
+	if (!bAreaReduced)
+	{
+		if (DynamicMeshProxy->IsRegistered())
+		{
+			return true;
+		}
+	}
 
 	// 메시 생성: 후보 영역으로 새 메시를 만든다. 검증이 끝날 때까지 SurfaceState는 유지한다.
 	FDynamicMesh3 RenewedMesh;
@@ -1185,26 +1247,78 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 		}
 	}
 
+	// 면적이 줄어든 절삭만 Deco에 알린다. 사라진 도형은 Deco가 다시 계산할 범위를 정한다.
+	if (bAreaReduced)
+	{
+		PendingDecorationCuts.Add(Cutter.Bounds());
+		PendingDecorationRemoved.Add(Cutter);
+		PendingDecorationRemoved.Append(DetachedRegions);
+	}
+
+	// 계산 결과만 보관한다. 실제 메시와 충돌은 모든 절단이 끝난 뒤 반영한다.
+	SurfaceState.RemainingRegions = MoveTemp(CandidateRegions);
+	OutMesh = MoveTemp(RenewedMesh);
+	bOutChanged = true;
+
+	// 확정된 절단을 이동 충돌용 구멍 캐시에 알린다. 벽을 줄이지 않은 절단은 구멍이 아니므로 알리지 않는다.
+	// 추적에 실패했거나 이전 절단에서 캐시를 잃었으면 남은 영역에서 캐시를 다시 만든다. 그대로 두면 이동 충돌이 더는 갱신되지 않는다.
+	FString CacheError;
+	bool bTracked = !bAreaReduced;
+	if (bAreaReduced)
+	{
+		if (SimpleCollision.HasHoleCache())
+		{
+			bTracked = SimpleCollision.ApplyCut(Cutter, DetachedRegions, CacheError);
+		}
+		else
+		{
+			CacheError = TEXT("The hole cache was lost by an earlier cut.");
+		}
+	}
+	if (!bTracked)
+	{
+		FString RebuildError;
+		const bool bRebuilt = SimpleCollision.RebuildHoleCache(SurfaceState.RemainingRegions, RebuildError);
+		if (bRebuilt)
+		{
+			UE_LOG(LogBreachableSurface, Warning, TEXT("%s rebuilt its movement openings from the remaining regions after tracking failed: %s"), *GetName(), *CacheError);
+		}
+		else
+		{
+			UE_LOG(LogBreachableSurface, Warning, TEXT("%s could not rebuild its movement openings and keeps its previous Simple collision until a later cut succeeds: %s / %s"), *GetName(), *CacheError, *RebuildError);
+		}
+	}
+
+	for (const FPolygon2d& Detached : DetachedRegions)
+	{
+		RemoveHitsInside(Detached);
+	}
+
+	return true;
+}
+
+void UBreachableSurfaceComponent::BuildSurfaceAttributes(FDynamicMesh3& Mesh) const
+{
 	// 처리: 검증된 메시의 노멀과 UV를 구성한다.
-	UE::Geometry::FMeshNormals::InitializeMeshToPerTriangleNormals(&RenewedMesh);
+	UE::Geometry::FMeshNormals::InitializeMeshToPerTriangleNormals(&Mesh);
 
 	// 새 메시의 각 삼각형에 UV 좌표를 만들어 연결
 	// Attribute : 노멀, UV 등의 부가 데이터에 접근
-	RenewedMesh.Attributes()->SetNumUVLayers(1); // UV 채널을 1개로 설정
-	auto* UVOverlay = RenewedMesh.Attributes()->PrimaryUV();  // 첫 번째 UV 채널에 접근 (기존 UV 포인터)
+	Mesh.Attributes()->SetNumUVLayers(1); // UV 채널을 1개로 설정
+	auto* UVOverlay = Mesh.Attributes()->PrimaryUV();  // 첫 번째 UV 채널에 접근 (기존 UV 포인터)
 
 	const FVector2d Min = OriginBounds.Min;
 	const FVector2d Size = OriginBounds.Max - Min;
 
-	for (int32 TriangleID : RenewedMesh.TriangleIndicesItr())
+	for (int32 TriangleID : Mesh.TriangleIndicesItr())
 	{
-		const FIndex3i Triangle = RenewedMesh.GetTriangle(TriangleID);
-		const FVector3d Normal = RenewedMesh.GetTriNormal(TriangleID);
+		const FIndex3i Triangle = Mesh.GetTriangle(TriangleID);
+		const FVector3d Normal = Mesh.GetTriNormal(TriangleID);
 		FIndex3i UVElementIDs;
 
 		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{
-			const FVector3d Position = RenewedMesh.GetVertex(Triangle[Corner]);
+			const FVector3d Position = Mesh.GetVertex(Triangle[Corner]);
 
 			// 벽의 좌표를 0~1 범위로 바꾼다.
 			FVector2f UV(static_cast<float>((Position.X - Min.X) / Size.X),
@@ -1220,44 +1334,6 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 
 		UVOverlay->SetTriangle(TriangleID, UVElementIDs);
 	}
-
-	// 면적이 줄어든 절삭만 Deco 후보로 보관한다. 실패한 후보나 무변화 절삭은 흔적을 남기지 않는다.
-	double PreviousArea = 0;
-	for (const FGeneralPolygon2d& Region : SurfaceState.RemainingRegions)
-	{
-		PreviousArea += FMath::Abs(Region.SignedArea());
-	}
-	double NewArea = 0;
-	for (const FGeneralPolygon2d& Region : CandidateRegions)
-	{
-		NewArea += FMath::Abs(Region.SignedArea());
-	}
-	if (PreviousArea - NewArea > 1.e-8)
-	{
-		PendingDecorationCuts.Add(Cutter.Bounds());
-	}
-
-	// 계산 결과만 보관한다. 실제 메시와 충돌은 모든 절단이 끝난 뒤 반영한다.
-	SurfaceState.RemainingRegions = MoveTemp(CandidateRegions);
-	OutMesh = MoveTemp(RenewedMesh);
-
-	// 확정된 절단을 이동 충돌용 구멍 캐시에 알린다. 실패하면 캐시만 무효화되고 UpdateMesh가 RemainingRegions에서 충돌을 파생한다.
-	if (SimpleCollision.HasHoleCache())
-	{
-		FString CacheError;
-		const bool bTracked = SimpleCollision.ApplyCut(Cutter, DetachedRegions, CacheError);
-		if (!bTracked)
-		{
-			UE_LOG(LogBreachableSurface, Warning, TEXT("%s stopped tracking movement openings and now derives them from the remaining regions: %s"), *GetName(), *CacheError);
-		}
-	}
-
-	for (const FPolygon2d& Detached : DetachedRegions)
-	{
-		RemoveHitsInside(Detached);
-	}
-
-	return true;
 }
 
 #if WITH_EDITOR
