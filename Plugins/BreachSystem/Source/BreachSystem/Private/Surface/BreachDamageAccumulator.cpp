@@ -312,6 +312,19 @@ void FBreachDamageAccumulator::RemoveInside(const UE::Geometry::FPolygon2d& Poly
 #endif
 	)
 {
+	RemoveInside(UE::Geometry::FGeneralPolygon2d(Polygon)
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+		, OutStats
+#endif
+		);
+}
+
+void FBreachDamageAccumulator::RemoveInside(const UE::Geometry::FGeneralPolygon2d& Polygon
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+	, FBreachAccumulationQueryStats* OutStats
+#endif
+	)
+{
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 	// 테스트 전용: 삭제할 기록이 없어도 조회 통계는 초기화한다.
 	if (OutStats)
@@ -319,7 +332,7 @@ void FBreachDamageAccumulator::RemoveInside(const UE::Geometry::FPolygon2d& Poly
 		*OutStats = {};
 	}
 #endif
-	if (Records.IsEmpty() || Polygon.VertexCount() < 3)
+	if (Records.IsEmpty() || Polygon.GetOuter().VertexCount() < 3)
 	{
 		return;
 	}
@@ -331,7 +344,16 @@ void FBreachDamageAccumulator::RemoveInside(const UE::Geometry::FPolygon2d& Poly
 		);
 	for (const FBreachDamageRecord& Record : Nearby)
 	{
-		if (Polygon.Contains(Record.Point) || Polygon.DistanceSquared(Record.Point) <= UE_DOUBLE_SMALL_NUMBER)
+		bool bInside = Polygon.Contains(Record.Point) || Polygon.GetOuter().DistanceSquared(Record.Point) <= UE_DOUBLE_SMALL_NUMBER;
+		for (const UE::Geometry::FPolygon2d& Hole : Polygon.GetHoles())
+		{
+			if (Hole.Contains(Record.Point) || Hole.DistanceSquared(Record.Point) <= UE_DOUBLE_SMALL_NUMBER)
+			{
+				bInside = false;
+				break;
+			}
+		}
+		if (bInside)
 		{
 			const FIntPoint Cell = CellFor(Record.Point);
 			FColumn& Column = Columns.FindChecked(Cell.X);

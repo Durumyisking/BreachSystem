@@ -7,6 +7,8 @@
 #include "Components/BreachDecorationComponent.h"
 #include "Components/BreachSourceComponent.h"
 #include "Surface/BreachSurfaceMaterial.h"
+#include "Surface/BreachPattern.h"
+#include "Surface/BreachPatternGeometry.h"
 #include "Settings/BreachSystemSettings.h"
 #include "Shape/BreachContour.h"
 #include "GameFramework/Actor.h"
@@ -14,6 +16,7 @@
 #include "Engine/StaticMesh.h"
 #include "Generators/MinimalBoxMeshGenerator.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "StaticMeshLODResourcesToDynamicMesh.h"
 #include "StaticMeshResources.h"
 #include "Engine/DamageEvents.h"
@@ -108,6 +111,7 @@ UBreachableSurfaceComponent::UBreachableSurfaceComponent()
 void UBreachableSurfaceComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	DebugSourceMesh.Reset();
+	RefreshDisplayMaterial();
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
@@ -406,6 +410,7 @@ void UBreachableSurfaceComponent::OnUnregister()
 void UBreachableSurfaceComponent::OnRegister()
 {
 	Super::OnRegister();
+	RefreshDisplayMaterial();
 	if (IsValid(Decorations))
 	{
 		Decorations->RegisterComponent();
@@ -758,6 +763,11 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 			}
 		}
 
+		const FVector LocalImpact = GetComponentTransform().InverseTransformPosition(PointDamage.HitInfo.ImpactPoint);
+		const double FrontDistance = FMath::Abs(LocalImpact.Y - OriginalDepthRange.X);
+		const double BackDistance = FMath::Abs(LocalImpact.Y - OriginalDepthRange.Y);
+		const EBreachSurfaceSide Side = FrontDistance <= BackDistance ? EBreachSurfaceSide::Front : EBreachSurfaceSide::Back;
+
 		// 누적 파손처리
 		bool bPrepared = false;
 		bool bBreached = false;
@@ -768,7 +778,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 			bPrepared = PrepareAccumulation(PointDamage.HitInfo.ImpactPoint, Source->BreachDamage, Material->Accumulation, GridHitPoint);
 			if (bPrepared)
 			{
-				bBreached = AccumulateHit(GridHitPoint, Source->BreachDamage, Material->AccumulationShape, Mesh, bChanged);
+				bBreached = AccumulateHit(GridHitPoint, Source->BreachDamage, Material->AccumulationShape, Mesh, bChanged, Side);
 			}
 		}
 
@@ -801,10 +811,6 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 			return;
 		}
 
-		const FVector LocalImpact = GetComponentTransform().InverseTransformPosition(PointDamage.HitInfo.ImpactPoint);
-		const double FrontDistance = FMath::Abs(LocalImpact.Y - OriginalDepthRange.X);
-		const double BackDistance = FMath::Abs(LocalImpact.Y - OriginalDepthRange.Y);
-		const EBreachSurfaceSide Side = FrontDistance <= BackDistance ? EBreachSurfaceSide::Front : EBreachSurfaceSide::Back;
 		const bool bUpdated = UpdateMesh(MoveTemp(Mesh), Side);
 		if (!bUpdated)
 		{
@@ -938,9 +944,14 @@ bool UBreachableSurfaceComponent::ApplyDirectCut(UBreachSourceComponent* Source,
 }
 
 bool UBreachableSurfaceComponent::AccumulateHit(const FVector2d& GridHitPoint, double BreachDamage,
-	const FBreachAccumulationShapeOptions& ShapeOptions, FDynamicMesh3& OutMesh, bool& bOutChanged)
+	const FBreachAccumulationShapeOptions& ShapeOptions, FDynamicMesh3& OutMesh, bool& bOutChanged, EBreachSurfaceSide Side)
 {
 	bOutChanged = false;
+	const UBreachSurfaceMaterial* Material = SurfaceMaterial.Get();
+	if (!ensureMsgf(IsValid(Material), TEXT("%s requires a surface material for accumulation."), *GetName()))
+	{
+		return false;
+	}
 
 	// 기록: 유효한 탄착을 추가한 뒤 임계값을 만족하는 후보를 한 번에 조회한다.
 	FString Error;
@@ -964,6 +975,76 @@ bool UBreachableSurfaceComponent::AccumulateHit(const FVector2d& GridHitPoint, d
 		if (!bGeneratedBase)
 		{
 			UE_LOG(LogBreachableSurface, Warning, TEXT("%s retained damage after its accumulation footprint failed: %s"), *GetName(), *Error);
+			continue;
+		}
+
+		const UBreachPattern* Pattern = Material->Pattern.Get();
+		if (IsValid(Pattern) && Pattern->Mode != EBreachPatternMode::None)
+		{
+			FPlanarUVMapping UV = SurfaceUVs[Side == EBreachSurfaceSide::Back ? 1 : 0];
+			if (Material->bUseWorldSizeUV)
+			{
+				if (!BreachSurfaceUV::MakeWorldSizeMapping(GetComponentScale(), Material->TileSizeCm, UV, Error))
+				{
+					UE_LOG(LogBreachableSurface, Warning, TEXT("%s retained damage after invalid world-size pattern mapping: %s"), *GetName(), *Error);
+					continue;
+				}
+			}
+			auto UVAtMetric = [this, &UV](const FVector2d& Metric)
+			{
+				const FVector2d Local = CellGrid.ToLocal(Metric);
+				return UV.Offset + UV.PerX * Local.X + UV.PerZ * Local.Y;
+			};
+			FBreachPatternMapping Mapping;
+			Mapping.UVOffset = UVAtMetric(FVector2d::ZeroVector);
+			Mapping.UVPerX = UVAtMetric(FVector2d(1, 0)) - Mapping.UVOffset;
+			Mapping.UVPerY = UVAtMetric(FVector2d(0, 1)) - Mapping.UVOffset;
+
+			TArray<FGeneralPolygon2d> MetricRegions;
+			if (!BreachPatternGeometry::Generate(*Pattern, BaseMetric, Mapping, ShapeOptions.Contour, Material->GrainInfluence, MetricRegions, Error))
+			{
+				UE_LOG(LogBreachableSurface, Warning, TEXT("%s retained damage after its configured pattern failed: %s"), *GetName(), *Error);
+				continue;
+			}
+			if (MetricRegions.IsEmpty())
+			{
+				continue;
+			}
+
+			TArray<FGeneralPolygon2d> LocalRegions;
+			for (const FGeneralPolygon2d& Region : MetricRegions)
+			{
+				auto ToLocalLoop = [this](const FPolygon2d& Loop)
+				{
+					FPolygon2d Local;
+					for (const FVector2d& Point : Loop.GetVertices())
+					{
+						Local.AppendVertex(CellGrid.ToLocal(Point));
+					}
+					return Local;
+				};
+				FGeneralPolygon2d Local(ToLocalLoop(Region.GetOuter()));
+				for (const FPolygon2d& Hole : Region.GetHoles())
+				{
+					Local.AddHole(ToLocalLoop(Hole), false, false);
+				}
+				LocalRegions.Add(MoveTemp(Local));
+			}
+
+			bool bCutChanged = false;
+			if (CutRegions(LocalRegions, OutMesh, bCutChanged))
+			{
+				bBreached = true;
+				bOutChanged |= bCutChanged;
+				for (const FGeneralPolygon2d& Region : MetricRegions)
+				{
+					DamageAccumulator.RemoveInside(Region);
+				}
+			}
+			else
+			{
+				UE_LOG(LogBreachableSurface, Warning, TEXT("%s retained damage after its configured pattern could not be cut."), *GetName());
+			}
 			continue;
 		}
 
@@ -1068,21 +1149,38 @@ bool UBreachableSurfaceComponent::ApplyCutterPolygon(const FPolygon2d& InCutter,
 
 bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynamicMesh3& OutMesh, bool& bOutChanged)
 {
-	bOutChanged = false;
+	const TArray<FGeneralPolygon2d> Cutters{FGeneralPolygon2d(InCutter)};
+	return CutRegions(Cutters, OutMesh, bOutChanged);
+}
 
-	// 검증: 잘못된 커터는 표면을 초기화하거나 변경하기 전에 거부한다.
+bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> InCutters, FDynamicMesh3& OutMesh, bool& bOutChanged)
+{
+	bOutChanged = false;
 	FString Error;
-	if (!BreachContour::Validate(InCutter, Error))
+	if (!BreachPatternGeometry::ValidateRegions(InCutters, Error))
 	{
-		UE_LOG(LogBreachableSurface, Warning, TEXT("%s rejected cutter: %s"), *GetName(), *Error);
+		UE_LOG(LogBreachableSurface, Warning, TEXT("%s rejected cutters: %s"), *GetName(), *Error);
 		return false;
 	}
 
-	// 준비: 커터 방향을 통일하고 필요할 때 원본에서 Proxy를 초기화한다.
-	FPolygon2d Cutter = InCutter;
-	if (Cutter.IsClockwise()) 
+	TArray<FGeneralPolygon2d> Cutters;
+	for (const FGeneralPolygon2d& Region : InCutters)
 	{
-		Cutter.Reverse(); 
+		FPolygon2d Outer = Region.GetOuter();
+		if (Outer.IsClockwise())
+		{
+			Outer.Reverse();
+		}
+		FGeneralPolygon2d Normalized(Outer);
+		for (FPolygon2d Hole : Region.GetHoles())
+		{
+			if (!Hole.IsClockwise())
+			{
+				Hole.Reverse();
+			}
+			Normalized.AddHole(Hole, false, false);
+		}
+		Cutters.Add(MoveTemp(Normalized));
 	}
 
 	// Ensure DynamicMeshProxy
@@ -1110,8 +1208,6 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 	// 주요로직 시작
 
 	// 처리: 현재 영역에서 커터를 빼되 결과는 아직 후보 상태로 보관한다.
-	TArray<FGeneralPolygon2d> Cutters;
-	Cutters.Add(FGeneralPolygon2d(Cutter));
 
 	TArray<FGeneralPolygon2d> CandidateRegions;
 
@@ -1250,9 +1346,52 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 	// 면적이 줄어든 절삭만 Deco에 알린다. 사라진 도형은 Deco가 다시 계산할 범위를 정한다.
 	if (bAreaReduced)
 	{
-		PendingDecorationCuts.Add(Cutter.Bounds());
-		PendingDecorationRemoved.Add(Cutter);
-		PendingDecorationRemoved.Append(DetachedRegions);
+		bool bHasCutterHoles = false;
+		for (const FGeneralPolygon2d& Region : Cutters)
+		{
+			bHasCutterHoles |= !Region.GetHoles().IsEmpty();
+		}
+		if (bHasCutterHoles)
+		{
+			TArray<FGeneralPolygon2d> Removed;
+			if (!PolygonsDifference(SurfaceState.RemainingRegions, CandidateRegions, Removed))
+			{
+				return Reject(TEXT("Could not resolve hole-aware removal boundaries."));
+			}
+			TArray<FPolygon2d> RemovedPieces;
+			for (const FGeneralPolygon2d& Region : Removed)
+			{
+				TArray<FVector2d> Vertices;
+				TArray<FIndex3i> Triangles;
+				if (!BreachSurfaceGeometry::TriangulateRegion(Region, Vertices, Triangles, Error))
+				{
+					return Reject(*Error);
+				}
+				for (const FIndex3i& Triangle : Triangles)
+				{
+					FPolygon2d Piece;
+					Piece.AppendVertex(Vertices[Triangle.A]);
+					Piece.AppendVertex(Vertices[Triangle.B]);
+					Piece.AppendVertex(Vertices[Triangle.C]);
+					RemovedPieces.Add(MoveTemp(Piece));
+				}
+			}
+			// 기존 장식 입력은 구멍 없는 다각형이다. 실제 제거 영역만 전달해 남은 구멍 안의 장식을 보존한다.
+			for (const FGeneralPolygon2d& Region : Removed)
+			{
+				PendingDecorationCuts.Add(Region.Bounds());
+			}
+			PendingDecorationRemoved.Append(RemovedPieces);
+		}
+		else
+		{
+			for (const FGeneralPolygon2d& Region : Cutters)
+			{
+				PendingDecorationCuts.Add(Region.Bounds());
+				PendingDecorationRemoved.Add(Region.GetOuter());
+			}
+			PendingDecorationRemoved.Append(DetachedRegions);
+		}
 	}
 
 	// 계산 결과만 보관한다. 실제 메시와 충돌은 모든 절단이 끝난 뒤 반영한다.
@@ -1266,9 +1405,14 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 	bool bTracked = !bAreaReduced;
 	if (bAreaReduced)
 	{
-		if (SimpleCollision.HasHoleCache())
+		const bool bSingleSimpleCutter = Cutters.Num() == 1 && Cutters[0].GetHoles().IsEmpty();
+		if (!bSingleSimpleCutter)
 		{
-			bTracked = SimpleCollision.ApplyCut(Cutter, DetachedRegions, CacheError);
+			bTracked = SimpleCollision.RebuildHoleCache(SurfaceState.RemainingRegions, CacheError);
+		}
+		else if (SimpleCollision.HasHoleCache())
+		{
+			bTracked = SimpleCollision.ApplyCut(Cutters[0].GetOuter(), DetachedRegions, CacheError);
 		}
 		else
 		{
@@ -1439,5 +1583,64 @@ UBreachSurfaceMaterial* UBreachableSurfaceComponent::GetSurfaceMaterial() const
 void UBreachableSurfaceComponent::SetSurfaceMaterial(UBreachSurfaceMaterial* InSurfaceMaterial)
 {
 	SurfaceMaterial = InSurfaceMaterial;
+	RefreshDisplayMaterial();
+}
+
+void UBreachableSurfaceComponent::RefreshDisplayMaterial()
+{
+	const UBreachSurfaceMaterial* Rules = SurfaceMaterial.Get();
+	if (!Rules || !Rules->DisplayMaterial)
+	{
+		DisplayMaterialInstance = nullptr;
+		if (bDisplayOverridesCaptured)
+		{
+			OverrideMaterials = OriginalDisplayOverrides;
+			bDisplayOverridesCaptured = false;
+			OriginalDisplayOverrides.Reset();
+		}
+		if (IsValid(DynamicMeshProxy))
+		{
+			for (int32 Index = 0; Index < FMath::Max(1, GetNumMaterials()); ++Index)
+			{
+				DynamicMeshProxy->SetMaterial(Index, GetMaterial(Index));
+			}
+		}
+		MarkRenderStateDirty();
+		return;
+	}
+	if (Rules->bUseWorldSizeUV && (!FMath::IsFinite(Rules->TileSizeCm.X) || !FMath::IsFinite(Rules->TileSizeCm.Y) || Rules->TileSizeCm.X <= 0 || Rules->TileSizeCm.Y <= 0))
+	{
+		UE_LOG(LogBreachableSurface, Warning, TEXT("%s cannot display its configured world-size material: invalid tile dimensions."), *GetName());
+		DisplayMaterialInstance = nullptr;
+		return;
+	}
+	if (!bDisplayOverridesCaptured)
+	{
+		OriginalDisplayOverrides = OverrideMaterials;
+		bDisplayOverridesCaptured = true;
+	}
+	UMaterialInterface* Applied = Rules->DisplayMaterial;
+	// 에디터에는 저장 가능한 인스턴스만 연결하고 게임 중 파라미터만 MID가 소유한다.
+	if (GetWorld() && GetWorld()->IsGameWorld())
+	{
+		DisplayMaterialInstance = UMaterialInstanceDynamic::Create(Rules->DisplayMaterial, this);
+		if (!ensureMsgf(DisplayMaterialInstance, TEXT("%s could not create the configured display material."), *GetName()))
+		{
+			return;
+		}
+		DisplayMaterialInstance->SetScalarParameterValue(TEXT("BreachUseWorldSizeUV"), Rules->bUseWorldSizeUV ? 1.f : 0.f);
+		DisplayMaterialInstance->SetScalarParameterValue(TEXT("BreachTileSizeU"), Rules->TileSizeCm.X);
+		DisplayMaterialInstance->SetScalarParameterValue(TEXT("BreachTileSizeV"), Rules->TileSizeCm.Y);
+		Applied = DisplayMaterialInstance;
+	}
+	for (int32 Index = 0; Index < FMath::Max(1, GetNumMaterials()); ++Index)
+	{
+		SetMaterial(Index, Applied);
+		if (IsValid(DynamicMeshProxy))
+		{
+			DynamicMeshProxy->SetMaterial(Index, Applied);
+		}
+	}
+	MarkRenderStateDirty();
 }
 

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Polygon2.h"
+#include "Curve/GeneralPolygon2.h"
 #include "BreachDamageAccumulator.generated.h"
 
 USTRUCT(BlueprintType)
@@ -75,6 +76,12 @@ public:
 		);
 	/** 모든 기록·공간 인덱스·다음 ID를 초기화한다. 설정한 창 크기와 임계값은 유지한다. */
 	void Reset();
+	/** 최종 절단 영역에서 내부 구멍을 제외한 기록만 제거한다. */
+	void RemoveInside(const UE::Geometry::FGeneralPolygon2d& Region
+#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
+		, FBreachAccumulationQueryStats* OutStats = nullptr
+#endif
+		);
 	/** 현재 보관 중인 피격 기록 수를 반환한다. */
 	int32 Num() const;
 

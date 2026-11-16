@@ -10,6 +10,7 @@
 #include "Surface/BreachCellGrid.h"
 #include "Surface/BreachSimpleCollision.h"
 #include "Surface/BreachDecorationOptions.h"
+#include "Surface/BreachSurfaceUV.h"
 #include "BreachableSurfaceComponent.generated.h"
 
 
@@ -18,19 +19,11 @@ class UBreachSimpleProxy;
 class UBreachDecorationComponent;
 class UBreachSurfaceMaterial;
 class UBreachSourceComponent;
+class UMaterialInstanceDynamic;
 struct FBreachSimpleBuildJob;
 namespace UE::Geometry { class FDynamicMesh3; }
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBreachedDelegate, const FHitResult&, HitInfo, UPrimitiveComponent*, BreachedMesh);
-
-// 벽의 로컬 XZ 위치를 텍스처 UV로 바꾸는 규칙을 저장하는 구조체
-// UV = Offset + X * PerX + Z * PerZ;
-struct FPlanarUVMapping
-{
-	FVector2d Offset; // X=0, Z=0에서의 UV
-	FVector2d PerX;   // X가 1 증가할 때 UV 변화량
-	FVector2d PerZ;   // Z가 1 증가할 때 UV 변화량
-};
 
 /** 원본 StaticMesh 또는 입력한 치수로 초기화하는 사각형 파괴 표면. */
 UCLASS(ClassGroup=(Breach), meta=(BlueprintSpawnableComponent))
@@ -93,6 +86,8 @@ private:
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 	// 테스트 전용: 기존 동기 충돌 질의 테스트가 실제 작업 완료를 기다릴 수 있게 한다.
 	friend struct FBreachSimpleAsyncTestAccess;
+	// 테스트 전용: 일괄 절단의 원자성과 재질별 누적 경로를 검증한다.
+	friend struct FBreachPatternSurfaceTestAccess;
 #endif
 	/**
 	 * 절단 결과를 계산한다. 성공한 표면 상태와 노멀·UV가 없는 메시만 보관하고 실제 반영은 미룬다.
@@ -100,6 +95,7 @@ private:
 	 * 아직 전환하지 않은 표면은 효과 없는 절단도 bOutChanged가 true여서 Proxy 표시로 전환된다.
 	 */
 	bool CutPolygon(const UE::Geometry::FPolygon2d& Cutter, UE::Geometry::FDynamicMesh3& OutMesh, bool& bOutChanged);
+	bool CutRegions(TConstArrayView<UE::Geometry::FGeneralPolygon2d> Cutters, UE::Geometry::FDynamicMesh3& OutMesh, bool& bOutChanged);
 
 	/** CutPolygon이 만든 메시에 노멀과 UV를 채운다. 여러 절단이 이어져도 최종 메시에 한 번만 실행한다. */
 	void BuildSurfaceAttributes(UE::Geometry::FDynamicMesh3& Mesh) const;
@@ -124,7 +120,7 @@ private:
 
 	/** 셀 탄착을 누적하고 파손을 시도한다. 하나라도 성공하면 true와 최종 계산 메시를 돌려준다. 표면이 실제로 바뀌었으면 bOutChanged가 true다. */
 	bool AccumulateHit(const FVector2d& GridHitPoint, double BreachDamage, const FBreachAccumulationShapeOptions& ShapeOptions,
-		UE::Geometry::FDynamicMesh3& OutMesh, bool& bOutChanged);
+		UE::Geometry::FDynamicMesh3& OutMesh, bool& bOutChanged, EBreachSurfaceSide Side = EBreachSurfaceSide::Front);
 
 	/** 절단으로 사라진 영역의 누적 탄착 기록을 지운다. 입력은 표면 로컬 XZ 좌표다. */
 	void RemoveHitsInside(const UE::Geometry::FPolygon2d& LocalPolygon);
@@ -150,6 +146,12 @@ private:
 	double CapturedCellSize = 0;
 
 	FPlanarUVMapping SurfaceUVs[2]; // -Y 면, +Y 면 순서
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> DisplayMaterialInstance;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInterface>> OriginalDisplayOverrides;
+	bool bDisplayOverridesCaptured = false;
+	void RefreshDisplayMaterial();
 
 	/** 초기화와 표시 조회가 동일한 LOD0/UV 검증을 사용한다. 원본은 수정하지 않는다. */
 	bool ReadSourceSurface(UE::Geometry::FDynamicMesh3& Mesh, FPlanarUVMapping (&OutUVs)[2]) const;
