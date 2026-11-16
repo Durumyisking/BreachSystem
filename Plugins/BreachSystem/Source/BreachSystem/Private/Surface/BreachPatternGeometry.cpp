@@ -8,7 +8,7 @@ namespace
 	constexpr double GeometryTolerance = 1.e-10;
 	constexpr int64 MaxTileCandidates = 65536;
 
-	double Cross(const FVector2d& A, const FVector2d& B)
+	double PatternCross(const FVector2d& A, const FVector2d& B)
 	{
 		return A.X * B.Y - A.Y * B.X;
 	}
@@ -21,17 +21,17 @@ namespace
 	bool OnSegment(const FVector2d& Point, const FVector2d& A, const FVector2d& B)
 	{
 		const double Tolerance = GeometryTolerance * (B - A).Length();
-		return FMath::Abs(Cross(B - A, Point - A)) <= Tolerance
+		return FMath::Abs(PatternCross(B - A, Point - A)) <= Tolerance
 			&& Point.X >= FMath::Min(A.X, B.X) - GeometryTolerance && Point.X <= FMath::Max(A.X, B.X) + GeometryTolerance
 			&& Point.Y >= FMath::Min(A.Y, B.Y) - GeometryTolerance && Point.Y <= FMath::Max(A.Y, B.Y) + GeometryTolerance;
 	}
 
 	bool SegmentsTouch(const FVector2d& A, const FVector2d& B, const FVector2d& C, const FVector2d& D)
 	{
-		const double AB_C = Cross(B - A, C - A);
-		const double AB_D = Cross(B - A, D - A);
-		const double CD_A = Cross(D - C, A - C);
-		const double CD_B = Cross(D - C, B - C);
+		const double AB_C = PatternCross(B - A, C - A);
+		const double AB_D = PatternCross(B - A, D - A);
+		const double CD_A = PatternCross(D - C, A - C);
+		const double CD_B = PatternCross(D - C, B - C);
 		if (((AB_C > 0 && AB_D < 0) || (AB_C < 0 && AB_D > 0))
 			&& ((CD_A > 0 && CD_B < 0) || (CD_A < 0 && CD_B > 0)))
 		{
@@ -92,7 +92,7 @@ namespace
 			double Area = 0;
 			for (int32 Index = 0; Index < Points.Num(); ++Index)
 			{
-				Area += Cross(Points[Index] - Points[0], Points[(Index + 1) % Points.Num()] - Points[0]);
+				Area += PatternCross(Points[Index] - Points[0], Points[(Index + 1) % Points.Num()] - Points[0]);
 			}
 			if (!FMath::IsFinite(Area) || FMath::Abs(Area) <= GeometryTolerance * GeometryTolerance)
 			{
@@ -151,7 +151,7 @@ namespace
 		FVector2d ToMetric(const FVector2d& Point) const
 		{
 			const FVector2d Relative = Point - UV.UVOffset;
-			return FVector2d(Cross(Relative, UV.UVPerY), Cross(UV.UVPerX, Relative)) / Determinant;
+			return FVector2d(PatternCross(Relative, UV.UVPerY), PatternCross(UV.UVPerX, Relative)) / Determinant;
 		}
 	};
 
@@ -432,14 +432,14 @@ namespace
 				auto Project = [&](const FGuideSegment& Guide)
 				{
 					const FVector2d Edge = Guide.B - Guide.A;
-					const double Denominator = Cross(Sample.Normal, Edge);
+					const double Denominator = PatternCross(Sample.Normal, Edge);
 					if (FMath::Abs(Denominator) <= GeometryTolerance)
 					{
 						return;
 					}
 					const FVector2d Relative = Guide.A - Origin;
-					const double T = Cross(Relative, Sample.Normal) / Denominator;
-					const double Distance = Cross(Relative, Edge) / Denominator;
+					const double T = PatternCross(Relative, Sample.Normal) / Denominator;
+					const double Distance = PatternCross(Relative, Edge) / Denominator;
 					if (T >= -GeometryTolerance && T <= 1 + GeometryTolerance && FMath::Abs(Distance) <= Radius && FMath::Abs(Distance) < FMath::Abs(Target))
 					{
 						Target = Distance;
@@ -692,7 +692,7 @@ bool BreachPatternGeometry::Generate(const UBreachPattern& Pattern, const UE::Ge
 	}
 	FMapping Transform;
 	Transform.UV = Mapping;
-	Transform.Determinant = Cross(Mapping.UVPerX, Mapping.UVPerY);
+	Transform.Determinant = PatternCross(Mapping.UVPerX, Mapping.UVPerY);
 	const double AxisProduct = Mapping.UVPerX.Length() * Mapping.UVPerY.Length();
 	if (!Finite(Mapping.UVOffset) || !Finite(Mapping.UVPerX) || !Finite(Mapping.UVPerY) || !FMath::IsFinite(Transform.Determinant) || !FMath::IsFinite(AxisProduct) || AxisProduct <= 0 || FMath::Abs(Transform.Determinant) <= AxisProduct * 1.e-12)
 	{

@@ -3,7 +3,7 @@
 
 namespace
 {
-	bool SamePeriodicPoint(FVector2D A, FVector2D B)
+	bool SameGraphPeriodicPoint(FVector2D A, FVector2D B)
 	{
 		const FVector2D D = A - B;
 		return FMath::IsNearlyEqual(D.X, FMath::RoundToDouble(D.X), 1.e-7) && FMath::IsNearlyEqual(D.Y, FMath::RoundToDouble(D.Y), 1.e-7);
@@ -143,7 +143,7 @@ bool FBreachPatternEditGraph::ApplyMove(TConstArrayView<int32> SelectedNodes, FV
 	{
 		for (int32 Node : SelectedNodes)
 		{
-			if (SamePeriodicPoint(Vertices[I], Vertices[Node]))
+			if (SameGraphPeriodicPoint(Vertices[I], Vertices[Node]))
 			{
 				OutVertices[I] += Delta;
 				break;
