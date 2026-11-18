@@ -19,12 +19,6 @@ public:
 	virtual void PostRedo(bool bSuccess) override;
 	virtual void SaveAsset_Execute() override;
 private:
-#if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
-	// 테스트 전용: 실제 에디터 설정 변경의 패턴 소유권과 Undo를 검증한다.
-	friend class FBreachPatternEndSharpnessEditorTest;
-#endif
-	void SetEndSharpness(float Value);
-	void SetMaxEndSplinters(int32 Value);
 	TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args);
 	FReply SetAuthoring(bool bTexture);
 	bool ApplyTexture();

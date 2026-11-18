@@ -1,8 +1,9 @@
 #include "Misc/AutomationTest.h"
 
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
-// 테스트 전용: 실제 나무 에셋과 동일한 에디터 프리뷰 경로의 결 방향 형태를 검증하고 좌표를 내보낸다.
+// 테스트 전용: 실제 나무 에셋을 에디터 프리뷰 경로로 잘라 판 옆면이 결선 위에 놓이는지 검증하고, 시안 비교용 좌표를 내보낸다.
 #include "BreachPatternEditing.h"
+#include "Surface/BreachPattern.h"
 #include "Surface/BreachSurfaceMaterial.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
@@ -27,59 +28,105 @@ bool FBreachPatternWoodPreviewTest::RunTest(const FString& Parameters)
 		return false;
 	}
 	UBreachSurfaceMaterial* Material = DuplicateObject<UBreachSurfaceMaterial>(Source, GetTransientPackage());
-	FString Export = FString::Printf(TEXT("{\"padding\":%.4f,\"vertices\":%d,\"sourceInfluence\":%.4f,\"tile\":[%.4f,%.4f],\"guides\":["), Source->AccumulationShape.Padding, Source->AccumulationShape.Contour.VertexCount, Source->GrainInfluence, Source->TileSizeCm.X, Source->TileSizeCm.Y);
-	auto Points = [](TConstArrayView<FVector2d> Path)
+
+	// Unit tangent (cm space) of the tiled guide nearest to a UV point.
+	const FVector2d Tile(Material->TileSizeCm);
+	const auto GuideTangent = [&](const FVector2d& UV)
+	{
+		double Nearest = TNumericLimits<double>::Max();
+		FVector2d Tangent = FVector2d::ZeroVector;
+		for (int32 Y = -1; Y <= 1; ++Y)
+		{
+			for (int32 X = -1; X <= 1; ++X)
+			{
+				const FVector2d Point = (UV - FVector2d(FMath::FloorToDouble(UV.X) + X, FMath::FloorToDouble(UV.Y) + Y)) * Tile;
+				for (const FBreachPatternGuide& Guide : Pattern->Guides)
+				{
+					for (int32 I = 0; I + 1 < Guide.Points.Num(); ++I)
+					{
+						const FVector2d A = FVector2d(Guide.Points[I]) * Tile;
+						const FVector2d Edge = FVector2d(Guide.Points[I + 1]) * Tile - A;
+						const double T = FMath::Clamp((Point - A).Dot(Edge) / Edge.SquaredLength(), 0., 1.);
+						const double Distance = (Point - A - Edge * T).Length();
+						if (Distance < Nearest)
+						{
+							Nearest = Distance;
+							Tangent = Edge.GetSafeNormal();
+						}
+					}
+				}
+			}
+		}
+		return Tangent;
+	};
+	const auto Points = [](TConstArrayView<FVector2d> Path)
 	{
 		FString Text = TEXT("[");
 		for (int32 I = 0; I < Path.Num(); ++I)
 		{
-			Text += FString::Printf(TEXT("%s[%.10f,%.10f]"), I ? TEXT(",") : TEXT(""), Path[I].X, Path[I].Y);
+			Text += FString::Printf(TEXT("%s[%.8f,%.8f]"), I ? TEXT(",") : TEXT(""), Path[I].X, Path[I].Y);
 		}
 		return Text + TEXT("]");
 	};
+
+	FString Export = FString::Printf(TEXT("{\"padding\":%.4f,\"sourceInfluence\":%.4f,\"tile\":[%.4f,%.4f],\"guides\":["), Source->AccumulationShape.Padding, Source->GrainInfluence, Tile.X, Tile.Y);
 	for (int32 I = 0; I < Pattern->Guides.Num(); ++I)
 	{
-		Export += (I ? TEXT(",") : TEXT("")) + Points(Pattern->Guides[I].Points);
+		TArray<FVector2d> Guide;
+		for (const FVector2D& Point : Pattern->Guides[I].Points)
+		{
+			Guide.Add(Point);
+		}
+		Export += (I ? TEXT(",") : TEXT("")) + Points(Guide);
 	}
 	Export += TEXT("],\"cases\":[");
 	int32 Case = 0;
 	for (FVector2D Center : {FVector2D(.3,.3), FVector2D(.5,.5), FVector2D(.7,.6)})
 	{
-		for (double Influence : {0., .6, 1.})
+		for (int32 Seed : {1, 2, 3})
 		{
-			Material->GrainInfluence = Influence;
-			TArray<FGeneralPolygon2d> Preview;
-			FString Error;
-			if (!TestTrue(TEXT("Actual Wood editor preview generates"), BreachPatternEditing::GeneratePreview(*Pattern, Material, Center, Preview, Error)) || Preview.Num() != 1)
+			for (double Influence : {0., .5, 1.})
 			{
-				AddError(Error);
-				continue;
-			}
-			const FPolygon2d& Polygon = Preview[0].GetOuter();
-			double Run = 0, Longest = 0;
-			for (int32 I = 0; I < Polygon.VertexCount() * 2; ++I)
-			{
-				const FVector2d Edge = (Polygon[(I + 1) % Polygon.VertexCount()] - Polygon[I % Polygon.VertexCount()]) * FVector2d(Material->TileSizeCm);
-				const double Length = Edge.Length();
-				if (Length > 1.e-8 && FMath::Abs(Edge.X) >= Length * FMath::Cos(FMath::DegreesToRadians(10.)))
+				Material->GrainInfluence = Influence;
+				Material->AccumulationShape.Contour.Seed = Seed;
+				TArray<FGeneralPolygon2d> Preview;
+				FString Error;
+				if (!TestTrue(TEXT("Actual Wood editor preview generates"), BreachPatternEditing::GeneratePreview(*Pattern, Material, Center, Preview, Error)) || Preview.IsEmpty())
 				{
-					Run += Length;
-					Longest = FMath::Max(Longest, Run);
+					AddError(Error);
+					continue;
 				}
-				else
+				// Plank sides and steps run along the grain; the plain contour does not.
+				double Perimeter = 0;
+				double Aligned = 0;
+				FString Regions = TEXT("[");
+				for (int32 R = 0; R < Preview.Num(); ++R)
 				{
-					Run = 0;
+					const FPolygon2d& Outer = Preview[R].GetOuter();
+					for (int32 I = 0; I < Outer.VertexCount(); ++I)
+					{
+						const FVector2d A = Outer[I];
+						const FVector2d B = Outer[(I + 1) % Outer.VertexCount()];
+						const FVector2d Edge = (B - A) * Tile;
+						const double Length = Edge.Length();
+						Perimeter += Length;
+						if (FMath::Abs(Edge.Dot(GuideTangent((A + B) * .5))) >= Length * FMath::Cos(FMath::DegreesToRadians(10.)))
+						{
+							Aligned += Length;
+						}
+					}
+					Regions += (R ? TEXT(",") : TEXT("")) + Points(Outer.GetVertices());
 				}
+				const double Fraction = Aligned / Perimeter;
+				if (Influence == 1.)
+				{
+					TestTrue(TEXT("Most of the wood cut outline runs along the authored grain"), Fraction >= .6);
+				}
+				Export += FString::Printf(TEXT("%s{\"center\":[%.2f,%.2f],\"seed\":%d,\"influence\":%.2f,\"aligned\":%.3f,\"regions\":%s]}"), Case++ ? TEXT(",") : TEXT(""), Center.X, Center.Y, Seed, Influence, Fraction, *Regions);
 			}
-			AddInfo(FString::Printf(TEXT("Actual preview center %.2f,%.2f influence %.1f: longest run %.3f cm"), Center.X, Center.Y, Influence, Longest));
-			if (Influence == 1.)
-			{
-				TestTrue(TEXT("Actual Wood preview contains a visible long fiber tear"), Longest >= Material->AccumulationShape.Padding * .6);
-			}
-			Export += FString::Printf(TEXT("%s{\"center\":[%.2f,%.2f],\"influence\":%.1f,\"run\":%.5f,\"points\":%s}"), Case++ ? TEXT(",") : TEXT(""), Center.X, Center.Y, Influence, Longest, *Points(Polygon.GetVertices()));
 		}
 	}
-	const FString Directory = FPaths::ProjectSavedDir() / TEXT("Automation/PatternGrainRuns");
+	const FString Directory = FPaths::ProjectSavedDir() / TEXT("Automation/LineTear");
 	IFileManager::Get().MakeDirectory(*Directory, true);
 	TestTrue(TEXT("Export actual project preview"), FFileHelper::SaveStringToFile(Export + TEXT("]}"), *(Directory / TEXT("project-preview.json"))));
 	return !HasAnyErrors();

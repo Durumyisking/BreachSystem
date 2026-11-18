@@ -29,6 +29,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Breach|Pattern")
 	TObjectPtr<UBreachPattern> Pattern;
 
+	/** 패턴의 "선 따라 찢기" 강도. 찢김 길이와 가시 길이에 곱해지며, 0이면 선을 무시하고 맞은 영역만 자른다. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Breach|Pattern", meta=(ClampMin="0", ClampMax="1"))
 	float GrainInfluence = 0.6f;
 

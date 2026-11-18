@@ -313,203 +313,12 @@ namespace
 		return true;
 	}
 
-	void ApplyGrainRuns(const BreachContour::FPreparedContour& Prepared, const FPolygon2d& Noisy, TConstArrayView<FGuideSegment> Guides, double Radius, double Influence, TArray<FVector2d>& Displacements)
+	bool GenerateContour(const FPolygon2d& Base, const FBreachContourOptions& Options, TArray<FGeneralPolygon2d>& Out, FString& OutError)
 	{
-		struct FSampleGuide
-		{
-			int32 Segment = INDEX_NONE;
-			double Distance = 0;
-			double Alignment = 0;
-			FVector2d Direction = FVector2d::ZeroVector;
-		};
-		const int32 Count = Prepared.Samples.Num();
-		TArray<FSampleGuide> Nearest;
-		Nearest.SetNum(Count);
-		Displacements.SetNum(Count);
-		for (int32 I = 0; I < Count; ++I)
-		{
-			const auto& Sample = Prepared.Samples[I];
-			Displacements[I] = Noisy[I] - Sample.Point;
-			auto& Hit = Nearest[I];
-			Hit.Distance = Radius;
-			FVector2d Tangent = Prepared.Samples[(I + 1) % Count].Point - Prepared.Samples[(I + Count - 1) % Count].Point;
-			const double TangentLength = Tangent.Length();
-			if (TangentLength <= GeometryTolerance)
-			{
-				continue;
-			}
-			Tangent /= TangentLength;
-			for (int32 G = 0; G < Guides.Num(); ++G)
-			{
-				const FVector2d Edge = Guides[G].B - Guides[G].A;
-				const double SquaredLength = Edge.SquaredLength();
-				if (SquaredLength <= GeometryTolerance * GeometryTolerance)
-				{
-					continue;
-				}
-				const double T = FMath::Clamp((Sample.Point - Guides[G].A).Dot(Edge) / SquaredLength, 0., 1.);
-				const double Distance = (Sample.Point - Guides[G].A - Edge * T).Length();
-				if (Distance < Hit.Distance)
-				{
-					Hit.Segment = G;
-					Hit.Distance = Distance;
-					Hit.Direction = Edge / FMath::Sqrt(SquaredLength);
-					Hit.Alignment = FMath::Square(Tangent.Dot(Hit.Direction));
-				}
-			}
-			if (Hit.Segment != INDEX_NONE)
-			{
-				const double Weight = Influence * FMath::Square(1 - Hit.Distance / Radius);
-				Displacements[I] += Sample.Normal * (Displacements[I].Dot(Sample.Normal) * Weight * 1.5 * (1 - Hit.Alignment));
-			}
-		}
-		// A run owns one guide instance. Neighboring samples cannot independently jump to different fibers.
-		auto FollowsGrain = [&Nearest](int32 I) { return Nearest[I].Segment != INDEX_NONE && Nearest[I].Alignment > .5; };
-		int32 Start = 0;
-		for (int32 I = 0; I < Count; ++I)
-		{
-			if (!FollowsGrain(I))
-			{
-				Start = (I + 1) % Count;
-				break;
-			}
-		}
-		int32 Visited = 0;
-		while (Visited < Count)
-		{
-			const int32 First = (Start + Visited) % Count;
-			if (!FollowsGrain(First))
-			{
-				++Visited;
-				continue;
-			}
-			TArray<int32> Run;
-			int32 Anchor = First;
-			while (Visited < Count)
-			{
-				const int32 I = (Start + Visited) % Count;
-				if (!FollowsGrain(I) || FMath::Abs(Nearest[I].Direction.Dot(Nearest[First].Direction)) < .707)
-				{
-					break;
-				}
-				Run.Add(I);
-				if (Nearest[I].Alignment > Nearest[Anchor].Alignment)
-				{
-					Anchor = I;
-				}
-				++Visited;
-			}
-			if (Run.Num() < 2)
-			{
-				continue;
-			}
-			int32 CurrentPath = Guides[Nearest[Anchor].Segment].PathIndex;
-			FVector2d Across(-Nearest[Anchor].Direction.Y, Nearest[Anchor].Direction.X);
-			if (Across.Dot(Prepared.Samples[Anchor].Normal) < 0)
-			{
-				Across = -Across;
-			}
-			double Offset = 0;
-			for (int32 I : Run)
-			{
-				Offset += (Noisy[I] - Prepared.Samples[I].Point).Dot(Across);
-			}
-			// A coherent offset allows cuts between guides, instead of quantizing wood into closed strips.
-			Offset = FMath::Clamp(Offset / Run.Num() * .35, -Prepared.CutterSize * .04, Prepared.CutterSize * .04);
-			for (int32 I : Run)
-			{
-				const auto& Sample = Prepared.Samples[I];
-				const FVector2d Noise = Noisy[I] - Sample.Point;
-				const double NormalNoise = Noise.Dot(Sample.Normal);
-				const FVector2d TangentNoise = Noise - Sample.Normal * NormalNoise;
-				const FVector2d Origin = Sample.Point + TangentNoise - Across * Offset;
-				double Target = TNumericLimits<double>::Max();
-				int32 TargetPath = CurrentPath;
-				auto Project = [&](const FGuideSegment& Guide)
-				{
-					const FVector2d Edge = Guide.B - Guide.A;
-					const double Denominator = PatternCross(Sample.Normal, Edge);
-					if (FMath::Abs(Denominator) <= GeometryTolerance)
-					{
-						return;
-					}
-					const FVector2d Relative = Guide.A - Origin;
-					const double T = PatternCross(Relative, Sample.Normal) / Denominator;
-					const double Distance = PatternCross(Relative, Edge) / Denominator;
-					if (T >= -GeometryTolerance && T <= 1 + GeometryTolerance && FMath::Abs(Distance) <= Radius && FMath::Abs(Distance) < FMath::Abs(Target))
-					{
-						Target = Distance;
-						TargetPath = Guide.PathIndex;
-					}
-				};
-				for (const FGuideSegment& Guide : Guides)
-				{
-					if (Guide.PathIndex == CurrentPath)
-					{
-						Project(Guide);
-					}
-				}
-				if (Target == TNumericLimits<double>::Max())
-				{
-					// At an authored endpoint use only the nearest local fiber cohort, including tied seam endpoints.
-					// A distant repeated row must not fill an intentionally un-guided gap.
-					auto DistanceSquared = [&](const FGuideSegment& Guide)
-					{
-						const FVector2d Edge = Guide.B - Guide.A;
-						const double SquaredLength = Edge.SquaredLength();
-						if (SquaredLength <= GeometryTolerance * GeometryTolerance)
-						{
-							return TNumericLimits<double>::Max();
-						}
-						const double T = FMath::Clamp((Origin - Guide.A).Dot(Edge) / SquaredLength, 0., 1.);
-						return (Origin - Guide.A - Edge * T).SquaredLength();
-					};
-					double Closest = Radius * Radius;
-					for (const FGuideSegment& Guide : Guides)
-					{
-						Closest = FMath::Min(Closest, DistanceSquared(Guide));
-					}
-					for (const FGuideSegment& Guide : Guides)
-					{
-						if (DistanceSquared(Guide) <= Closest + GeometryTolerance)
-						{
-							Project(Guide);
-						}
-					}
-				}
-				CurrentPath = TargetPath;
-				if (Target == TNumericLimits<double>::Max())
-				{
-					continue;
-				}
-				double Along = FMath::Clamp((Nearest[I].Alignment - .5) / .25, 0., 1.);
-				Along = Along * Along * (3 - 2 * Along);
-				// Keep the authored 0.6 default visibly directional while retaining an exact zero-effect endpoint.
-				const double Follow = Influence * (2 - Influence) * Along;
-				const double NormalDisplacement = Target * Follow + NormalNoise * FMath::Pow(1 - Follow, 3);
-				Displacements[I] = Noise + Sample.Normal * (NormalDisplacement - NormalNoise);
-			}
-		}
-	}
-
-	bool GenerateContour(const UBreachPattern& Pattern, const FPolygon2d& Base, const FMapping& Mapping, const FBreachContourOptions& Options, double Influence, TArray<FGeneralPolygon2d>& Out, FString& OutError)
-	{
-		check(IsValid(&Pattern));
 		FBreachContourOptions Deterministic = Options;
 		if (Deterministic.Seed == 0)
 		{
 			Deterministic.Seed = 1;
-		}
-		const bool bGuideOnly = Pattern.Mode == EBreachPatternMode::GrainGuides && Influence > 0
-			&& (!Options.bEnabled || (Options.MacroDepthRatio == 0 && Options.MediumDepthRatio == 0 && Options.MicroDepthRatio == 0));
-		if (bGuideOnly)
-		{
-			// Prepare still owns sampling and clearance; the temporary depth only enables its sampling path.
-			Deterministic.bEnabled = true;
-			Deterministic.bRandomizeVertexSpacing = false;
-			Deterministic.MacroDepthRatio = Options.MaxDisplacementFraction;
-			Deterministic.MediumDepthRatio = 0;
-			Deterministic.MicroDepthRatio = 0;
 		}
 		BreachContour::FPreparedContour Prepared;
 		if (!BreachContour::Prepare(Base, Deterministic, Prepared, OutError))
@@ -521,69 +330,17 @@ namespace
 			Out.Emplace(Prepared.Base);
 			return true;
 		}
-		if (bGuideOnly)
-		{
-			Prepared.Options.MacroDepthRatio = 0;
-		}
 		FPolygon2d Noisy;
 		BreachContour::Generate(Prepared, Noisy);
-		const double Radius = Prepared.CutterSize * 0.75;
-		TArray<FGuideSegment> Guides;
-		if (Pattern.Mode == EBreachPatternMode::GrainGuides && Influence > 0)
-		{
-			if (!GatherGuides(Pattern, Base, Mapping, Radius, Guides, OutError))
-			{
-				return false;
-			}
-		}
-		TArray<BreachGrainFracture::FVertex> Vertices;
-		if (!Guides.IsEmpty())
-		{
-			if (!BreachGrainFracture::Build(Prepared,Noisy,Guides,Influence,Pattern.GrainEndSharpness,Pattern.GrainMaxEndSplinters,Vertices,OutError))
-			{
-				return false;
-			}
-		}
-		if (Vertices.IsEmpty())
-		{
-			TArray<FVector2d> Displacements;
-			if (Guides.IsEmpty())
-			{
-				for (int32 I = 0; I < Prepared.Samples.Num(); ++I)
-				{
-					Displacements.Add(Noisy[I] - Prepared.Samples[I].Point);
-				}
-			}
-			else
-			{
-				ApplyGrainRuns(Prepared,Noisy,Guides,Radius,Influence,Displacements);
-				for (int32 I = 0; I < Prepared.Samples.Num(); ++I)
-				{
-					const auto& Sample = Prepared.Samples[I];
-					FVector2d& Delta = Displacements[I];
-					const double NormalDisplacement = Delta.Dot(Sample.Normal);
-					Delta += Sample.Normal * (FMath::Clamp(NormalDisplacement,-Sample.MaxDisplacement,Sample.MaxDisplacement) - NormalDisplacement);
-					const double Cap = Prepared.CutterSize * Options.MaxDisplacementFraction;
-					const double Length = Delta.Length();
-					if (Length > Cap)
-					{
-						Delta *= Cap / Length;
-					}
-				}
-			}
-			for (int32 I = 0; I < Prepared.Samples.Num(); ++I)
-			{
-				Vertices.Add({Prepared.Samples[I].Point,Prepared.Samples[I].Point + Displacements[I],false});
-			}
-		}
 
 		for (int32 Attempt = 0; Attempt <= 4; ++Attempt)
 		{
 			FPolygon2d Candidate;
 			const double Scale = FMath::Pow(0.5, Attempt);
-			for (const auto& Vertex : Vertices)
+			for (int32 Index = 0; Index < Prepared.Samples.Num(); ++Index)
 			{
-				Candidate.AppendVertex(Vertex.Reference + (Vertex.Position - Vertex.Reference) * Scale);
+				const FVector2d& Reference = Prepared.Samples[Index].Point;
+				Candidate.AppendVertex(Reference + (Noisy[Index] - Reference) * Scale);
 			}
 			if (SimplePath(Candidate.GetVertices(), true, OutError))
 			{
@@ -628,25 +385,26 @@ bool BreachPatternGeometry::Validate(const UBreachPattern& Pattern, FString& Out
 	}
 	if (Pattern.Mode == EBreachPatternMode::GrainGuides)
 	{
-		const FBreachImpactGrainOptions& Impact = Pattern.ImpactGrain;
-		if (Impact.bEnabled)
+		const FBreachLineTearOptions& Tear = Pattern.LineTear;
+		const auto InRange = [](float Value, float Min, float Max) { return FMath::IsFinite(Value) && Value >= Min && Value <= Max; };
+		if (!InRange(Tear.TearLengthMin, -.5f, 1.5f) || !InRange(Tear.TearLengthMax, -.5f, 1.5f) || Tear.TearLengthMin > Tear.TearLengthMax)
 		{
-			const auto IsRatio = [](float Value, float Max) { return FMath::IsFinite(Value) && Value >= 0 && Value <= Max; };
-			if (!IsRatio(Impact.StartProbability, 1) || !IsRatio(Impact.Persistence, 1) || !IsRatio(Impact.EndCutback, .25f) || !IsRatio(Impact.MinEndSharpness, 1) ||
-				(Pattern.GrainEndSharpness > 0 && Impact.MinEndSharpness > Pattern.GrainEndSharpness))
-			{
-				OutError = TEXT("Impact grain settings are out of range, or minimum end sharpness exceeds maximum.");
-				return false;
-			}
-		}
-		if (Pattern.GrainMaxEndSplinters < 0 || Pattern.GrainMaxEndSplinters > 8)
-		{
-			OutError = TEXT("Maximum end splinters must be between zero and eight.");
+			OutError = TEXT("Tear length must be finite, between -0.5 and 1.5, with minimum not above maximum.");
 			return false;
 		}
-		if (!FMath::IsFinite(Pattern.GrainEndSharpness) || Pattern.GrainEndSharpness < 0 || Pattern.GrainEndSharpness > 1)
+		if (!InRange(Tear.MinTearLength, 0, 1))
 		{
-			OutError = TEXT("Grain end sharpness must be finite and between zero and one.");
+			OutError = TEXT("Minimum tear length must be finite and between zero and one.");
+			return false;
+		}
+		if (Tear.MaxSplits < 0 || Tear.MaxSplits > 4 || Tear.MaxSpikes < 0 || Tear.MaxSpikes > 8)
+		{
+			OutError = TEXT("Max splits must be 0..4 and max spikes 0..8.");
+			return false;
+		}
+		if (!InRange(Tear.SpikeLengthMin, 0, 3) || !InRange(Tear.SpikeLengthMax, 0, 3) || Tear.SpikeLengthMin > Tear.SpikeLengthMax)
+		{
+			OutError = TEXT("Spike length must be finite, between zero and three strip widths, with minimum not above maximum.");
 			return false;
 		}
 		if (Pattern.Guides.IsEmpty())
@@ -736,22 +494,28 @@ bool BreachPatternGeometry::Generate(const UBreachPattern& Pattern, const UE::Ge
 			return false;
 		}
 	}
-	else if (Pattern.Mode == EBreachPatternMode::GrainGuides && Pattern.ImpactGrain.bEnabled)
+	else
 	{
-		const FAxisAlignedBox2d Bounds = BaseMetric.Bounds();
-		const double SearchMargin = FMath::Min(Bounds.Width(), Bounds.Height()) * .75;
-		TArray<FGuideSegment> Guides;
-		if (!GatherGuides(Pattern, BaseMetric, Transform, SearchMargin, Guides, OutError) ||
-			!BreachGrainFracture::BuildImpact(Pattern, BaseMetric, Guides, Contour.Seed == 0 ? 1 : Contour.Seed, Influence, Generated, OutError))
+		if (!GenerateContour(BaseMetric, Contour, Generated, OutError))
 		{
 			return false;
 		}
-	}
-	else
-	{
-		if (!GenerateContour(Pattern, BaseMetric, Transform, Contour, Influence, Generated, OutError))
+		if (Pattern.Mode == EBreachPatternMode::GrainGuides && Influence > 0)
 		{
-			return false;
+			// Lines must cover the furthest strip end: contour noise plus the longest tear at each end.
+			const FAxisAlignedBox2d Bounds = BaseMetric.Bounds();
+			const double SearchMargin = FMath::Max(Bounds.Width(), Bounds.Height()) * (1 + 2 * FMath::Max(0.f, Pattern.LineTear.TearLengthMax));
+			TArray<FGuideSegment> Guides;
+			if (!GatherGuides(Pattern, BaseMetric, Transform, SearchMargin, Guides, OutError))
+			{
+				return false;
+			}
+			TArray<UE::Geometry::FGeneralPolygon2d> Grain;
+			if (!BreachGrainFracture::Build(Pattern.LineTear, Generated[0].GetOuter(), Guides, Contour.Seed == 0 ? 1 : Contour.Seed, Influence, Grain, OutError))
+			{
+				return false;
+			}
+			Generated = MoveTemp(Grain);
 		}
 	}
 	OutCutters = MoveTemp(Generated);
