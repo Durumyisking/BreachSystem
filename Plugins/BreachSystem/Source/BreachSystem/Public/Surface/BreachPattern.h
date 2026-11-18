@@ -48,6 +48,27 @@ struct BREACHSYSTEM_API FBreachPatternGuide
 	TArray<FVector2D> Points;
 };
 
+USTRUCT(BlueprintType)
+struct BREACHSYSTEM_API FBreachImpactGrainOptions
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Grain")
+	bool bEnabled = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Grain", meta=(ClampMin="0", ClampMax="1"))
+	float StartProbability = .76f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Grain", meta=(ClampMin="0", ClampMax="1"))
+	float Persistence = .55f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Grain", meta=(ClampMin="0", ClampMax="0.25"))
+	float EndCutback = .06f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Grain", meta=(ClampMin="0", ClampMax="1"))
+	float MinEndSharpness = .39f;
+};
+
 /** Unit-period UV geometry shared by surfaces. Loops may cross a tile boundary. */
 UCLASS(BlueprintType)
 class BREACHSYSTEM_API UBreachPattern : public UDataAsset
@@ -63,6 +84,17 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Pattern", meta=(EditCondition="Mode == EBreachPatternMode::GrainGuides"))
 	TArray<FBreachPatternGuide> Guides;
+
+	/** Shapes short cross-grain ends; zero keeps long grain tears with blunt ends. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Pattern|Grain", meta=(DisplayName="파단 끝 뾰족함", ClampMin="0", ClampMax="1", EditCondition="Mode == EBreachPatternMode::GrainGuides", EditConditionHides))
+	float GrainEndSharpness = 0.f;
+
+	/** Maximum total inward/outward splinters per short end; zero keeps blunt grain tears. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Pattern|Grain", meta=(DisplayName="파단 끝 최대 가시 수", ClampMin="0", ClampMax="8", EditCondition="Mode == EBreachPatternMode::GrainGuides", EditConditionHides))
+	int32 GrainMaxEndSplinters = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Pattern|Grain", meta=(EditCondition="Mode == EBreachPatternMode::GrainGuides", EditConditionHides))
+	FBreachImpactGrainOptions ImpactGrain;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category="Pattern")

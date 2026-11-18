@@ -162,6 +162,9 @@ bool BreachPatternEditing::CreatePath(UBreachPattern& Pattern, TConstArrayView<F
 	Candidate->Mode = Mode;
 	Candidate->Regions = Pattern.Regions;
 	Candidate->Guides = Pattern.Guides;
+	Candidate->GrainEndSharpness = Pattern.GrainEndSharpness;
+	Candidate->GrainMaxEndSplinters = Pattern.GrainMaxEndSplinters;
+	Candidate->ImpactGrain = Pattern.ImpactGrain;
 	TArray<FVector2D> Path(Points);
 	if (bClosed && Path.Num() > 1 && Path[0].Equals(Path.Last(), 1.e-7))
 	{

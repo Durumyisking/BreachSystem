@@ -1,5 +1,6 @@
 #include "Surface/BreachPatternGeometry.h"
 #include "Surface/BreachPattern.h"
+#include "BreachGrainFracture.h"
 #include "Curve/PolygonIntersectionUtils.h"
 
 namespace
@@ -271,12 +272,7 @@ namespace
 		return BreachPatternGeometry::ValidateRegions(Out, OutError);
 	}
 
-	struct FGuideSegment
-	{
-		FVector2d A;
-		FVector2d B;
-		int32 PathIndex;
-	};
+	using BreachGrainFracture::FGuideSegment;
 
 	bool GatherGuides(const UBreachPattern& Pattern, const FPolygon2d& Base, const FMapping& Mapping, double Radius, TArray<FGuideSegment>& Out, FString& OutError)
 	{
@@ -540,32 +536,44 @@ namespace
 				return false;
 			}
 		}
-		TArray<FVector2d> Displacements;
-		if (Guides.IsEmpty())
-		{
-			for (int32 I = 0; I < Prepared.Samples.Num(); ++I)
-			{
-				Displacements.Add(Noisy[I] - Prepared.Samples[I].Point);
-			}
-		}
-		else
-		{
-			ApplyGrainRuns(Prepared, Noisy, Guides, Radius, Influence, Displacements);
-		}
+		TArray<BreachGrainFracture::FVertex> Vertices;
 		if (!Guides.IsEmpty())
 		{
+			if (!BreachGrainFracture::Build(Prepared,Noisy,Guides,Influence,Pattern.GrainEndSharpness,Pattern.GrainMaxEndSplinters,Vertices,OutError))
+			{
+				return false;
+			}
+		}
+		if (Vertices.IsEmpty())
+		{
+			TArray<FVector2d> Displacements;
+			if (Guides.IsEmpty())
+			{
+				for (int32 I = 0; I < Prepared.Samples.Num(); ++I)
+				{
+					Displacements.Add(Noisy[I] - Prepared.Samples[I].Point);
+				}
+			}
+			else
+			{
+				ApplyGrainRuns(Prepared,Noisy,Guides,Radius,Influence,Displacements);
+				for (int32 I = 0; I < Prepared.Samples.Num(); ++I)
+				{
+					const auto& Sample = Prepared.Samples[I];
+					FVector2d& Delta = Displacements[I];
+					const double NormalDisplacement = Delta.Dot(Sample.Normal);
+					Delta += Sample.Normal * (FMath::Clamp(NormalDisplacement,-Sample.MaxDisplacement,Sample.MaxDisplacement) - NormalDisplacement);
+					const double Cap = Prepared.CutterSize * Options.MaxDisplacementFraction;
+					const double Length = Delta.Length();
+					if (Length > Cap)
+					{
+						Delta *= Cap / Length;
+					}
+				}
+			}
 			for (int32 I = 0; I < Prepared.Samples.Num(); ++I)
 			{
-				const auto& Sample = Prepared.Samples[I];
-				FVector2d& Delta = Displacements[I];
-				const double NormalDisplacement = Delta.Dot(Sample.Normal);
-				Delta += Sample.Normal * (FMath::Clamp(NormalDisplacement, -Sample.MaxDisplacement, Sample.MaxDisplacement) - NormalDisplacement);
-				const double Cap = Prepared.CutterSize * Options.MaxDisplacementFraction;
-				const double Length = Delta.Length();
-				if (Length > Cap)
-				{
-					Delta *= Cap / Length;
-				}
+				Vertices.Add({Prepared.Samples[I].Point,Prepared.Samples[I].Point + Displacements[I],false});
 			}
 		}
 
@@ -573,9 +581,9 @@ namespace
 		{
 			FPolygon2d Candidate;
 			const double Scale = FMath::Pow(0.5, Attempt);
-			for (int32 Index = 0; Index < Prepared.Samples.Num(); ++Index)
+			for (const auto& Vertex : Vertices)
 			{
-				Candidate.AppendVertex(Prepared.Samples[Index].Point + Displacements[Index] * Scale);
+				Candidate.AppendVertex(Vertex.Reference + (Vertex.Position - Vertex.Reference) * Scale);
 			}
 			if (SimplePath(Candidate.GetVertices(), true, OutError))
 			{
@@ -620,6 +628,27 @@ bool BreachPatternGeometry::Validate(const UBreachPattern& Pattern, FString& Out
 	}
 	if (Pattern.Mode == EBreachPatternMode::GrainGuides)
 	{
+		const FBreachImpactGrainOptions& Impact = Pattern.ImpactGrain;
+		if (Impact.bEnabled)
+		{
+			const auto IsRatio = [](float Value, float Max) { return FMath::IsFinite(Value) && Value >= 0 && Value <= Max; };
+			if (!IsRatio(Impact.StartProbability, 1) || !IsRatio(Impact.Persistence, 1) || !IsRatio(Impact.EndCutback, .25f) || !IsRatio(Impact.MinEndSharpness, 1) ||
+				(Pattern.GrainEndSharpness > 0 && Impact.MinEndSharpness > Pattern.GrainEndSharpness))
+			{
+				OutError = TEXT("Impact grain settings are out of range, or minimum end sharpness exceeds maximum.");
+				return false;
+			}
+		}
+		if (Pattern.GrainMaxEndSplinters < 0 || Pattern.GrainMaxEndSplinters > 8)
+		{
+			OutError = TEXT("Maximum end splinters must be between zero and eight.");
+			return false;
+		}
+		if (!FMath::IsFinite(Pattern.GrainEndSharpness) || Pattern.GrainEndSharpness < 0 || Pattern.GrainEndSharpness > 1)
+		{
+			OutError = TEXT("Grain end sharpness must be finite and between zero and one.");
+			return false;
+		}
 		if (Pattern.Guides.IsEmpty())
 		{
 			OutError = TEXT("GrainGuides mode requires at least one open guide.");
@@ -703,6 +732,17 @@ bool BreachPatternGeometry::Generate(const UBreachPattern& Pattern, const UE::Ge
 	if (Pattern.Mode == EBreachPatternMode::Regions)
 	{
 		if (!GenerateRegions(Pattern, BaseMetric, Transform, Generated, OutError))
+		{
+			return false;
+		}
+	}
+	else if (Pattern.Mode == EBreachPatternMode::GrainGuides && Pattern.ImpactGrain.bEnabled)
+	{
+		const FAxisAlignedBox2d Bounds = BaseMetric.Bounds();
+		const double SearchMargin = FMath::Min(Bounds.Width(), Bounds.Height()) * .75;
+		TArray<FGuideSegment> Guides;
+		if (!GatherGuides(Pattern, BaseMetric, Transform, SearchMargin, Guides, OutError) ||
+			!BreachGrainFracture::BuildImpact(Pattern, BaseMetric, Guides, Contour.Seed == 0 ? 1 : Contour.Seed, Influence, Generated, OutError))
 		{
 			return false;
 		}

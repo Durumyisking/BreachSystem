@@ -152,6 +152,54 @@ namespace
 		int32 CaptureIndex = 0;
 		double ReadyTime = 0;
 
+		// 테스트 전용: 기준 사진과 같은 단일 원형 범위로 실제 재질의 근접 화면을 비교한다.
+		bool SpawnWoodCloseups(UWorld& World, UStaticMesh& Cube, AActor& Gun)
+		{
+			UBreachSurfaceMaterial* Wood = LoadObject<UBreachSurfaceMaterial>(nullptr, TEXT("/BreachSystem/SurfaceMaterial/SurfaceMaterial001_Wood"));
+			if (!Test->TestNotNull(TEXT("Wood closeup material"), Wood) || !Test->TestNotNull(TEXT("Wood closeup display"), Wood->DisplayMaterial.Get()))
+			{
+				return false;
+			}
+			const int32 Seeds[] = {5, 32, 57};
+			for (int32 Index = 0; Index < UE_ARRAY_COUNT(Seeds); ++Index)
+			{
+				AActor* Wall = World.SpawnActor<AActor>();
+				check(Wall);
+				Actors.Add(Wall);
+				UBreachableSurfaceComponent* Surface = NewObject<UBreachableSurfaceComponent>(Wall);
+				Wall->SetRootComponent(Surface);
+				Surface->SetStaticMesh(&Cube);
+				Surface->SetWorldTransform(FTransform(FRotator(Index == 0 ? 0 : 90, 0, 0), FVector(1000 + Index * 230, 0, 0), FVector(1.8, .065, 1.8)));
+				Surface->SetMaterial(0, Wood->DisplayMaterial);
+				UBreachSurfaceMaterial* Material = DuplicateObject<UBreachSurfaceMaterial>(Wood, Wall);
+				Material->Accumulation.bEnabled = true;
+				Material->Accumulation.BreachHP = 3;
+				Material->Accumulation.WindowSize = FVector2D(40, 40);
+				Material->AccumulationShape.Contour.Seed = Seeds[Index];
+				Surface->SetSurfaceMaterial(Material);
+				Surface->RegisterComponent();
+
+				for (int32 Hit = 0; Hit < 3; ++Hit)
+				{
+					FPointDamageEvent Event;
+					Event.Damage = 1;
+					Event.HitInfo.Component = Surface;
+					Event.HitInfo.ImpactPoint = Surface->GetComponentTransform().TransformPosition(FVector(.5 * (Hit - 1), -50, .5 * (1 - Hit)));
+					Event.HitInfo.ImpactNormal = FVector(0, -1, 0);
+					Event.ShotDirection = -Event.HitInfo.ImpactNormal;
+					Surface->HandleBreachDamage(Surface, Event, &Gun, 1);
+				}
+				UBreachSurfaceProxy* Proxy = Wall->FindComponentByClass<UBreachSurfaceProxy>();
+				if (!Test->TestNotNull(TEXT("Wood closeup has an actual cut proxy"), Proxy))
+				{
+					return false;
+				}
+				Test->TestEqual(TEXT("Wood closeup used the accumulated cut"), Surface->GetAccumulatedHitCount(), 0);
+				Test->TestFalse(TEXT("Wood closeup is open well beyond the direct shot"), BlocksAt(*Proxy, FVector2d(14, 6)));
+			}
+			return !Test->HasAnyErrors();
+		}
+
 	public:
 		explicit FExercisePatternPIE(FAutomationTestBase* InTest) : Test(InTest) {}
 
@@ -375,14 +423,37 @@ namespace
 			Test->TestTrue(TEXT("Export real PIE render target"), FImageUtils::ExportRenderTarget2DAsPNG(View->TextureTarget, PNG));
 			const FString Directory = FPaths::ProjectSavedDir() / TEXT("Automation/Pattern");
 			IFileManager::Get().MakeDirectory(*Directory, true);
-			const FString Path = Directory / (CaptureIndex == 0 ? TEXT("front.png") : TEXT("back.png"));
+			const FString Path = Directory / (CaptureIndex < 2
+				? FString(CaptureIndex == 0 ? TEXT("front.png") : TEXT("back.png"))
+				: FString::Printf(TEXT("wood-closeup-%d.png"), CaptureIndex - 1));
 			Test->TestTrue(TEXT("Save screenshot outside Content"), FFileHelper::SaveArrayToFile(PNG, *Path));
 			Test->AddInfo(FString::Printf(TEXT("Pattern PIE screenshot: %s"), *Path));
-			if (++CaptureIndex < 2)
+			++CaptureIndex;
+			if (CaptureIndex == 1)
 			{
 				Capture->SetActorLocation(FVector(0, 900, -130));
 				Capture->SetActorRotation(FRotator(0, -90, 0));
 				ReadyTime = FPlatformTime::Seconds() + 3;
+				return false;
+			}
+			if (FParse::Param(FCommandLine::Get(), TEXT("BreachWoodCloseups")) && CaptureIndex < 5)
+			{
+				if (CaptureIndex == 2)
+				{
+					UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+					check(Cube && Actors[0].IsValid());
+					if (!SpawnWoodCloseups(*World, *Cube, *Actors[0].Get()))
+					{
+						return true;
+					}
+					View->OrthoWidth = 132;
+					View->TextureTarget->ResizeTarget(960, 960);
+					View->PostProcessSettings.bOverride_AutoExposureBias = true;
+					View->PostProcessSettings.AutoExposureBias = 1;
+				}
+				Capture->SetActorLocation(FVector(1000 + (CaptureIndex - 2) * 230, -680, 0));
+				Capture->SetActorRotation(FRotator(0, 90, 0));
+				ReadyTime = FPlatformTime::Seconds() + 1;
 				return false;
 			}
 			return true;
