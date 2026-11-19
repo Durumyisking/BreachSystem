@@ -6,6 +6,7 @@
 #include "Components/BreachSimpleProxy.h"
 #include "Components/BreachDecorationComponent.h"
 #include "Components/BreachSourceComponent.h"
+#include "Surface/BreachDebrisSubsystem.h"
 #include "Surface/BreachSurfaceMaterial.h"
 #include "Surface/BreachPattern.h"
 #include "Surface/BreachPatternGeometry.h"
@@ -708,6 +709,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 {
 	PendingDecorationCuts.Reset();
 	PendingDecorationRemoved.Reset();
+	PendingRemovedArea = 0;
 	// 검증: 포인트 피해만 처리하며, 커터를 제공하는 BreachSource가 필요하다.
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
@@ -815,6 +817,23 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		if (!bUpdated)
 		{
 			return;
+		}
+
+		if (PendingRemovedArea > 0 && IsValid(Material))
+		{
+			UWorld* World = GetWorld();
+			if (IsValid(World))
+			{
+				UBreachDebrisSubsystem* Debris = World->GetSubsystem<UBreachDebrisSubsystem>();
+				if (IsValid(Debris))
+				{
+					const FTransform& Transform = GetComponentTransform();
+					const double AreaScale = FMath::Abs(Transform.GetScale3D().X * Transform.GetScale3D().Z);
+					const FVector Face = Side == EBreachSurfaceSide::Front ? -FVector::YAxisVector : FVector::YAxisVector;
+					const FVector Outward = Transform.TransformVector(Face).GetSafeNormal();
+					Debris->Spawn(*Material, PointDamage.HitInfo.ImpactPoint, Outward, PendingRemovedArea * AreaScale);
+				}
+			}
 		}
 
 		// 최종 메시와 충돌이 반영된 뒤 피격을 알린다.
@@ -1396,6 +1415,10 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 
 	// 계산 결과만 보관한다. 실제 메시와 충돌은 모든 절단이 끝난 뒤 반영한다.
 	SurfaceState.RemainingRegions = MoveTemp(CandidateRegions);
+	if (bAreaReduced)
+	{
+		PendingRemovedArea += PreviousArea - NewArea;
+	}
 	OutMesh = MoveTemp(RenewedMesh);
 	bOutChanged = true;
 

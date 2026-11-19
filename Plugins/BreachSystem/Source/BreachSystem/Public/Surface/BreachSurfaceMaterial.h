@@ -9,6 +9,8 @@
 
 class UBreachPattern;
 class UMaterialInterface;
+class UNiagaraSystem;
+class UStaticMesh;
 
 /** 여러 표면이 공유하는 파괴 규칙. 피격 기록과 남은 형상은 각 표면이 소유한다. */
 UCLASS(BlueprintType)
@@ -44,6 +46,14 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Breach|Decoration")
 	FBreachFeatureDecorationOptions FeatureDecoration;
+
+	/** 파편으로 사용할 사전 제작 메시. 각 메시에는 단순 충돌체가 필요하다. */
+	UPROPERTY(EditAnywhere, Category="Breach|Debris")
+	TArray<TObjectPtr<UStaticMesh>> DebrisMeshes;
+
+	/** 작은 칩과 먼지에 사용할 선택적 일회성 효과. */
+	UPROPERTY(EditAnywhere, Category="Breach|Debris")
+	TObjectPtr<UNiagaraSystem> DebrisEffect;
 
 #if WITH_EDITOR
 	virtual void PostLoad() override;

@@ -180,6 +180,8 @@ private:
 	TArray<UE::Geometry::FAxisAlignedBox2d> PendingDecorationCuts;
 	// 같은 피격으로 사라진 도형(커터와 고립 조각의 외곽). Deco가 이 범위만 다시 계산한다.
 	TArray<UE::Geometry::FPolygon2d> PendingDecorationRemoved;
+	// 한 번의 피격에서 성공한 절단으로 제거된 로컬 면적.
+	double PendingRemovedArea = 0;
 
 	ECollisionEnabled::Type OriginalCollisionEnabled = ECollisionEnabled::QueryAndPhysics;
 	bool bOriginalVisible = true;

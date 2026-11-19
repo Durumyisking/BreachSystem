@@ -38,6 +38,7 @@ public class BreachSystem : ModuleRules
 				"GeometryAlgorithms",
 				"Chaos",
 				"MeshConversionEngineTypes",
+				"Niagara",
 			}
 			);
 		
