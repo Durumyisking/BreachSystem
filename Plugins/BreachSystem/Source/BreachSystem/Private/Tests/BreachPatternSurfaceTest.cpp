@@ -1,9 +1,11 @@
 #include "Components/BreachableSurfaceComponent.h"
+#include "Components/BreachSourceComponent.h"
 #include "Components/BreachSurfaceProxy.h"
 #include "Materials/Material.h"
 #include "Surface/BreachPattern.h"
 #include "Surface/BreachSurfaceMaterial.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "Engine/DamageEvents.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -213,6 +215,60 @@ bool FBreachPatternSurfaceTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Hole connected to original boundary remains solid"), FBreachPatternSurfaceTestAccess::Solid(*HoleSurface, FVector2d(-20, 0)));
 	TestFalse(TEXT("Retained hole material is not reported as removed to decorations"), FBreachPatternSurfaceTestAccess::ReportedRemoved(*HoleSurface, FVector2d(-20, 0)));
 	TestTrue(TEXT("Actually removed material is reported"), FBreachPatternSurfaceTestAccess::ReportedRemoved(*HoleSurface, FVector2d(20, 0)));
+	World->DestroyWorld(false);
+	return !HasAnyErrors();
+}
+
+// 테스트 전용: LV_Test에서 벽돌의 기존 구멍과 새 패턴 경계가 만나는 피격 순서를 재현한다.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachBrickSeamTest, "BreachSystem.Pattern.BrickSeam", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FBreachBrickSeamTest::RunTest(const FString& Parameters)
+{
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	UBreachSurfaceMaterial* Brick = LoadObject<UBreachSurfaceMaterial>(nullptr, TEXT("/BreachSystem/SurfaceMaterial/SurfaceMaterial003_Brick"));
+	if (!TestNotNull(TEXT("Cube mesh"), Cube) || !TestNotNull(TEXT("Brick material"), Brick))
+	{
+		return false;
+	}
+
+	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
+	if (!TestNotNull(TEXT("Fixture world"), World))
+	{
+		return false;
+	}
+	AActor* Wall = World->SpawnActor<AActor>();
+	AActor* Gun = World->SpawnActor<AActor>();
+	check(Wall && Gun);
+	UBreachableSurfaceComponent* Surface = NewObject<UBreachableSurfaceComponent>(Wall);
+	Wall->SetRootComponent(Surface);
+	Surface->SetStaticMesh(Cube);
+	const FVector Scale(2.34375, .05, 3.125);
+	Surface->SetWorldScale3D(Scale);
+	Surface->SetSurfaceMaterial(Brick);
+	Surface->RegisterComponent();
+
+	UBreachSourceComponent* Source = NewObject<UBreachSourceComponent>(Gun);
+	Source->RegisterComponent();
+	Source->BindCircle(1.5f);
+	Source->BreachDamage = 1;
+	const FVector2d Impacts[] = {{-61.1897931, 33.384315118}, {16.250037890, 36.019713820}, {56.459075965, 36.005955164}};
+	for (const FVector2d& Impact : Impacts)
+	{
+		FPointDamageEvent Damage;
+		Damage.Damage = 1;
+		Damage.HitInfo.Component = Surface;
+		Damage.HitInfo.ImpactPoint = FVector(Impact.X, -50 * Scale.Y, Impact.Y);
+		Damage.HitInfo.ImpactNormal = FVector(0, -1, 0);
+		Damage.ShotDirection = -Damage.HitInfo.ImpactNormal;
+		Surface->HandleBreachDamage(Surface, Damage, Gun, 1);
+		TestEqual(TEXT("Successful pattern cut consumes the accumulated hit"), Surface->GetAccumulatedHitCount(), 0);
+	}
+
+	TestFalse(TEXT("Third cut removes brick beyond the direct bullet hole"), FBreachPatternSurfaceTestAccess::Solid(*Surface, FVector2d(35, 11)));
+	UBreachSurfaceProxy* Proxy = Wall->FindComponentByClass<UBreachSurfaceProxy>();
+	if (TestNotNull(TEXT("Cut surface proxy"), Proxy))
+	{
+		TestTrue(TEXT("The rebuilt wall remains a closed mesh"), Proxy->GetMesh()->IsClosed());
+	}
 	World->DestroyWorld(false);
 	return !HasAnyErrors();
 }

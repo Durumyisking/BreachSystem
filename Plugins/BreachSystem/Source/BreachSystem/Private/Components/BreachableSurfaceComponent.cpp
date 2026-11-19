@@ -805,8 +805,6 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 			}
 		}
 
-		// Here
-
 		// 표시 중인 표면을 바꾸지 않은 피격은 메시·충돌·Deco를 갱신하지 않고 브리칭 이벤트도 알리지 않는다.
 		if (!bChanged)
 		{
@@ -1234,6 +1232,45 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 	if (!bDifference)
 	{
 		return Reject(TEXT("Polygon difference failed."));
+	}
+
+	// 차집합에서 같은 교점이 미세하게 어긋나 남으면 닫힌 윤곽에 거의 길이가 없는 변이 생긴다.
+	auto CollapseAdjacentVertices = [](const FPolygon2d& Boundary)
+	{
+		constexpr double VertexToleranceSquared = 1.e-18;
+		TArray<FVector2d> Vertices;
+		Vertices.Reserve(Boundary.VertexCount());
+		for (const FVector2d& Point : Boundary.GetVertices())
+		{
+			if (Vertices.IsEmpty() || (Point - Vertices.Last()).SquaredLength() > VertexToleranceSquared)
+			{
+				Vertices.Add(Point);
+			}
+		}
+		while (Vertices.Num() > 1 && (Vertices.Last() - Vertices[0]).SquaredLength() <= VertexToleranceSquared)
+		{
+			Vertices.Pop(EAllowShrinking::No);
+		}
+		return FPolygon2d(MoveTemp(Vertices));
+	};
+	for (FGeneralPolygon2d& Region : CandidateRegions)
+	{
+		const FPolygon2d Outer = CollapseAdjacentVertices(Region.GetOuter());
+		if (Outer.VertexCount() < 3)
+		{
+			return Reject(TEXT("The remaining region lost its outer boundary after collapsing adjacent vertices."));
+		}
+		FGeneralPolygon2d CleanedRegion(Outer);
+		for (const FPolygon2d& Hole : Region.GetHoles())
+		{
+			FPolygon2d CleanedHole = CollapseAdjacentVertices(Hole);
+			if (CleanedHole.VertexCount() < 3)
+			{
+				return Reject(TEXT("The remaining region lost a hole boundary after collapsing adjacent vertices."));
+			}
+			CleanedRegion.AddHole(MoveTemp(CleanedHole), false, false);
+		}
+		Region = MoveTemp(CleanedRegion);
 	}
 
 	// 처리: 원본 경계에 고정되지 않은 고립 영역을 후보에서 제거한다.
