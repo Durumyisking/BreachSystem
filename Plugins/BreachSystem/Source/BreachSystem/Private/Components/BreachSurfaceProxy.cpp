@@ -1,6 +1,7 @@
 #include "Components/BreachSurfaceProxy.h"
 #include "Components/BreachableSurfaceComponent.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 UBreachSurfaceProxy::UBreachSurfaceProxy()
 {
@@ -27,6 +28,12 @@ UBodySetup* UBreachSurfaceProxy::CreateBodySetupHelper()
 	// 엔진은 이 값이 꺼진 BodySetup으로 음수 스케일 바디를 만들지 않는다. 삼각형 충돌은 이 값으로 추가 Cooking을 하지 않는다.
 	Setup->bGenerateMirroredCollision = true;
 	return Setup;
+}
+
+void UBreachSurfaceProxy::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* FinishedBodySetup)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Complex finish async cook");
+	Super::FinishPhysicsAsyncCook(bSuccess, FinishedBodySetup);
 }
 
 void UBreachSurfaceProxy::ReceiveComponentDamage(float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser)

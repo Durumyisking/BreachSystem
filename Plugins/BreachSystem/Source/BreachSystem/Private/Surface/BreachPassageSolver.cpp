@@ -192,6 +192,7 @@ namespace
 
 	bool Offset(double Distance, TConstArrayView<FGeneralPolygon2d> Input, TArray<FGeneralPolygon2d>& Out, FBreachSimpleBuildStats& Stats)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Offset passage polygon");
 		++Stats.BooleanOperations;
 		// 마지막 인자는 오차가 아닌 분할 배율이다. 기본 배율에 상한만 적용한다.
 		return PolygonsOffset(Distance, Input, Out, false, 2.0, EPolygonOffsetJoinType::Round, EPolygonOffsetEndType::Polygon, 12.0, 1.0);
@@ -580,6 +581,7 @@ namespace
 {
 	bool Partition(const FGeneralPolygon2d& Region, TArray<FPolygon2d>& Out, FString& Error)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Partition opening core");
 		TArray<FVector2d> Vertices;
 		TArray<FIndex3i> Triangles;
 		if (!BreachSurfaceGeometry::TriangulateRegion(Region, Vertices, Triangles, Error))
@@ -667,6 +669,7 @@ namespace
 
 	FPolygon2d Expand(FPolygon2d Polygon, const TArray<FVector2d>& Targets, const FBreachPreparedBoundary& Boundary, FBreachSimpleBuildStats& Stats, FBoundaryQueryCache& Queries)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Expand candidate hull");
 		TArray<FVector2d> Remaining = Targets;
 		int32 AcceptedSteps = 0;
 		while (AcceptedSteps < 24 && !Remaining.IsEmpty())
@@ -730,6 +733,7 @@ namespace
 
 	void Merge(TArray<FPolygon2d>& Pieces, const FBreachPreparedBoundary& Boundary, FBreachSimpleBuildStats& Stats, FBoundaryQueryCache& Queries)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Merge passage hulls");
 		for (int32 A = 0; A < Pieces.Num(); ++A)
 		{
 			for (int32 B = Pieces.Num() - 1; B > A; --B)
@@ -885,6 +889,7 @@ bool BreachPassageSolver::Solve(TConstArrayView<TSharedPtr<const FBreachPrepared
 	}
 	for (const FGeneralPolygon2d& Domain : Domains)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Solve passage domain");
 		const auto* Reused = Previous.Bodies.FindByPredicate([&](const auto& Body)
 		{
 			if (SameDomain(Body->Domain, Domain))

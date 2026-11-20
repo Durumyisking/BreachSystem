@@ -51,6 +51,10 @@ public:
 	UPROPERTY(EditAnywhere, Category="Breach|Debris")
 	TArray<TObjectPtr<UStaticMesh>> DebrisMeshes;
 
+	/** 절단 면적으로 계산한 물리 파편 개수에 곱한다. 0이면 물리 파편을 생성하지 않는다. */
+	UPROPERTY(EditAnywhere, Category="Breach|Debris", meta=(ClampMin="0", ClampMax="4", DisplayName="물리 파편 수 배율"))
+	float DebrisCountMultiplier = 1.f;
+
 	/** 작은 칩과 먼지에 사용할 선택적 일회성 효과. */
 	UPROPERTY(EditAnywhere, Category="Breach|Debris")
 	TObjectPtr<UNiagaraSystem> DebrisEffect;

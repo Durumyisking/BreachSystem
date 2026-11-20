@@ -46,6 +46,14 @@ void UBreachDebrisSubsystem::Spawn(const UBreachSurfaceMaterial& Material, const
 		return;
 	}
 
+	const int32 BaseCount = FMath::CeilToInt(FMath::Clamp(BreachRadius / 4.0, 1.0, 8.0));
+	const float Multiplier = FMath::Clamp(Material.DebrisCountMultiplier, 0.f, 4.f);
+	const int32 Requested = FMath::RoundToInt(BaseCount * Multiplier);
+	if (Requested <= 0)
+	{
+		return;
+	}
+
 	constexpr int32 MaxActivePieces = 64;
 	ActivePieces.RemoveAllSwap([](const TWeakObjectPtr<AStaticMeshActor>& Piece) { return !Piece.IsValid(); });
 	const int32 Available = MaxActivePieces - ActivePieces.Num();
@@ -79,7 +87,6 @@ void UBreachDebrisSubsystem::Spawn(const UBreachSurfaceMaterial& Material, const
 	FVector Tangent;
 	FVector Bitangent;
 	Outward.FindBestAxisVectors(Tangent, Bitangent);
-	const int32 Requested = FMath::Clamp(FMath::CeilToInt(BreachRadius / 4.0), 1, 8);
 	const int32 Count = FMath::Min(Requested, Available);
 	const double Spread = FMath::Min(BreachRadius, 20.0);
 	for (int32 Index = 0; Index < Count; ++Index)

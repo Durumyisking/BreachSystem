@@ -1,6 +1,7 @@
 #include "Surface/BreachSurfaceGeometry.h"
 #include "CompGeom/Delaunay2.h"
 #include "CompGeom/ExactPredicates.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 using namespace UE::Geometry;
 
@@ -66,6 +67,7 @@ namespace
 
 bool BreachSurfaceGeometry::ResolveBoundaryOverlaps(TArray<FGeneralPolygon2d>& Regions, FString& OutError)
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE_STR("Breach Geometry | Resolve boundary overlaps");
     OutError.Reset();
     TArray<FGeneralPolygon2d> Resolved;
     for (const FGeneralPolygon2d& Region : Regions)
@@ -289,6 +291,7 @@ bool BreachSurfaceGeometry::ResolveBoundaryOverlaps(TArray<FGeneralPolygon2d>& R
 bool BreachSurfaceGeometry::TriangulateRegion(const FGeneralPolygon2d& Region, TArray<FVector2d>& OutVertices,
     TArray<FIndex3i>& OutTriangles, FString& OutError)
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE_STR("Breach Geometry | Triangulate region");
     OutError.Reset();
 
     FDelaunay2 Delaunay;

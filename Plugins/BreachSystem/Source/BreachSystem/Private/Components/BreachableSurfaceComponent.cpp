@@ -21,6 +21,7 @@
 #include "StaticMeshLODResourcesToDynamicMesh.h"
 #include "StaticMeshResources.h"
 #include "Engine/DamageEvents.h"
+#include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Async/Async.h"
 #include "Engine/World.h"
@@ -42,6 +43,8 @@
 #include "PhysicsEngine/BodySetup.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBreachableSurface, Log, All);
+TRACE_DECLARE_FLOAT_COUNTER(BreachSimpleRequestLatency, TEXT("BreachSimpleCollision | Request to apply (ms)"));
+TRACE_DECLARE_FLOAT_COUNTER(BreachSimpleCookLatency, TEXT("BreachSimpleCollision | Cook request to apply (ms)"));
 
 struct FBreachSimpleBuildJob
 {
@@ -278,6 +281,7 @@ bool UBreachableSurfaceComponent::ReadSourceSurface(UE::Geometry::FDynamicMesh3&
 
 bool UBreachableSurfaceComponent::CreateDynamicMeshProxy(UE::Geometry::FDynamicMesh3& OutMesh)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Initialize collision proxies");
 	FPlanarUVMapping InitialUVs[2];
 	if (!ReadSourceSurface(OutMesh, InitialUVs))
 	{
@@ -426,6 +430,7 @@ void UBreachableSurfaceComponent::OnRegister()
 
 void UBreachableSurfaceComponent::QueueSimpleCollision()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Queue build");
 	check(IsInGameThread());
 	if (!IsValid(SimpleProxy) || !IsRegistered() || !SimpleCollision.HasHoleCache())
 	{
@@ -450,7 +455,10 @@ void UBreachableSurfaceComponent::QueueSimpleCollision()
 	}
 
 	auto Job = MakeShared<FBreachSimpleBuildJob, ESPMode::ThreadSafe>();
-	Job->Snapshot = SimpleCollision;
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Snapshot collision state");
+		Job->Snapshot = SimpleCollision;
+	}
 	Job->Policy = Policy;
 	Job->Generation = SimpleBuildGeneration;
 	Job->Revision = SimpleCollision.GetRevision();
@@ -496,6 +504,7 @@ bool UBreachableSurfaceComponent::CanPublishSimpleCollision(const TSharedPtr<FBr
 
 void UBreachableSurfaceComponent::CompleteSimpleCollision(const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Complete build");
 	check(IsInGameThread());
 	check(Job.IsValid());
 	if (SimpleBuildJob != Job)
@@ -530,6 +539,7 @@ void UBreachableSurfaceComponent::CompleteSimpleCollision(const TSharedPtr<FBrea
 
 void UBreachableSurfaceComponent::CompleteSimpleCook(const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job, bool bCookSucceeded)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Complete cook and publish");
 	check(IsInGameThread());
 	check(Job.IsValid());
 	if (SimpleBuildJob != Job)
@@ -558,6 +568,11 @@ void UBreachableSurfaceComponent::CompleteSimpleCook(const TSharedPtr<FBreachSim
 				const double ApplyMs = (FPlatformTime::Seconds() - ApplyStarted) * 1000;
 				const double LatencyMs = (FPlatformTime::Seconds() - Job->RequestedAt) * 1000;
 				const double CookLatencyMs = Job->CookStarted > 0 ? (ApplyStarted - Job->CookStarted) * 1000 : 0;
+				TRACE_COUNTER_SET(BreachSimpleRequestLatency, LatencyMs);
+				if (Job->CookStarted > 0)
+				{
+					TRACE_COUNTER_SET(BreachSimpleCookLatency, CookLatencyMs);
+				}
 				UE_LOG(LogBreachableSurface, Verbose, TEXT("[BreachSimpleAsync] %s revision=%llu geometry=%.3fms cookLatency=%.3fms apply=%.3fms latency=%.3fms prepared=%d reused=%d changed=%d"), *GetName(), Job->Revision, Stats.GeometryMs, CookLatencyMs, ApplyMs, LatencyMs, Stats.PreparedOpenings, Stats.ReusedBodies, Stats.bCollisionChanged);
 				if (Stats.FrozenOpenings > 0)
 				{
@@ -600,6 +615,7 @@ void UBreachableSurfaceComponent::CompleteSimpleCook(const TSharedPtr<FBreachSim
 
 bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh, EBreachSurfaceSide Side)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Publish wall update");
 	if (!ensureMsgf(IsValid(DynamicMeshProxy) && IsValid(SimpleProxy), TEXT("%s requires both proxies to update its mesh."), *GetName()))
 	{
 		return false;
@@ -616,14 +632,20 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh,
 	}
 	DynamicMeshProxy->bUseAsyncCooking = bAsyncCook;
 
-	DynamicMeshProxy->SetMesh(MoveTemp(Mesh));
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Set proxy mesh");
+		DynamicMeshProxy->SetMesh(MoveTemp(Mesh));
+	}
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | ComplexCollisionCook");
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR_CONDITIONAL("PlanarBreach | Complex sync cook and apply", !bAsyncCook);
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR_CONDITIONAL("PlanarBreach | Complex queue async cook", bAsyncCook);
 		DynamicMeshProxy->UpdateCollision(false);
 	}
 
 	if (!DynamicMeshProxy->IsRegistered())
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Register collision proxies");
 		SimpleProxy->RegisterComponent();
 		DynamicMeshProxy->RegisterComponent();
 		SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -637,6 +659,7 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh,
 	QueueSimpleCollision();
 	if (!PendingDecorationCuts.IsEmpty())
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Update decorations");
 		const bool bHasMaterial = IsValid(SurfaceMaterial);
 		bool bConfigured = false;
 		if (bHasMaterial)
@@ -916,6 +939,7 @@ bool UBreachableSurfaceComponent::PrepareAccumulation(const FVector& ImpactPoint
 bool UBreachableSurfaceComponent::ApplyDirectCut(UBreachSourceComponent* Source, const FVector& ImpactPoint,
 	FGeneralPolygon2d& InOutCutter, FDynamicMesh3& OutMesh, bool& bOutChanged)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Direct cut");
 	bOutChanged = false;
 	if (!ensureMsgf(IsValid(Source), TEXT("%s requires a valid BreachSourceComponent to apply a direct cut."), *GetName()))
 	{
@@ -963,6 +987,7 @@ bool UBreachableSurfaceComponent::ApplyDirectCut(UBreachSourceComponent* Source,
 bool UBreachableSurfaceComponent::AccumulateHit(const FVector2d& GridHitPoint, double BreachDamage,
 	const FBreachAccumulationShapeOptions& ShapeOptions, FDynamicMesh3& OutMesh, bool& bOutChanged, EBreachSurfaceSide Side)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Accumulated cut");
 	bOutChanged = false;
 	const UBreachSurfaceMaterial* Material = SurfaceMaterial.Get();
 	if (!ensureMsgf(IsValid(Material), TEXT("%s requires a surface material for accumulation."), *GetName()))
@@ -1172,6 +1197,7 @@ bool UBreachableSurfaceComponent::CutPolygon(const FPolygon2d& InCutter, FDynami
 
 bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> InCutters, FDynamicMesh3& OutMesh, bool& bOutChanged)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Cut regions");
 	bOutChanged = false;
 	FString Error;
 	if (!BreachPatternGeometry::ValidateRegions(InCutters, Error))
@@ -1228,10 +1254,13 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 
 	TArray<FGeneralPolygon2d> CandidateRegions;
 
-	const bool bDifference = PolygonsDifference(SurfaceState.RemainingRegions, Cutters, CandidateRegions);
-	if (!bDifference)
 	{
-		return Reject(TEXT("Polygon difference failed."));
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Subtract cutters");
+		const bool bDifference = PolygonsDifference(SurfaceState.RemainingRegions, Cutters, CandidateRegions);
+		if (!bDifference)
+		{
+			return Reject(TEXT("Polygon difference failed."));
+		}
 	}
 
 	// 차집합에서 같은 교점이 미세하게 어긋나 남으면 닫힌 윤곽에 거의 길이가 없는 변이 생긴다.
@@ -1255,6 +1284,7 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 	};
 	for (FGeneralPolygon2d& Region : CandidateRegions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Clean region boundary");
 		const FPolygon2d Outer = CollapseAdjacentVertices(Region.GetOuter());
 		if (Outer.VertexCount() < 3)
 		{
@@ -1320,6 +1350,7 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 
 	for (const auto& RemainingRegion : CandidateRegions)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Rebuild wall region mesh");
 		TArray<FVector2d> Vertices;
 		TArray<FIndex3i> Triangles; // 삼각분할 결과로 만들어진 삼각형들의 정점 인덱스를 저장하는 배열 (그냥 int 3개임)
 
@@ -1503,6 +1534,7 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 
 void UBreachableSurfaceComponent::BuildSurfaceAttributes(FDynamicMesh3& Mesh) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Build mesh normals and UVs");
 	// 처리: 검증된 메시의 노멀과 UV를 구성한다.
 	UE::Geometry::FMeshNormals::InitializeMeshToPerTriangleNormals(&Mesh);
 

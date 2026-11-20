@@ -76,6 +76,7 @@ namespace
 
 	bool BuildPrisms(TConstArrayView<FVector2d> Vertices, TConstArrayView<FIndex3i> Triangles, const FVector2d& Depth, FKAggregateGeom& OutCollision, FString& OutError, double WorldAreaScale, double& DiscardedWorldArea)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Build convex prisms");
 		TArray<TArray<int32>> Parts;
 		TArray<bool> Cookable;
 		auto CanCook = [&](TConstArrayView<int32> Part)
@@ -376,6 +377,7 @@ namespace
 	// Published는 이전에 공개한 통로의 꼭짓점이다. 그 통로를 다시 막게 되는 꼭짓점은 지우지 않는다.
 	FGeneralPolygon2d SimplifyPassage(const FGeneralPolygon2d& Passage, const FPolygon2d& Wall, double Tolerance, TConstArrayView<FVector2d> Published)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Simplify passage boundary");
 		if (Tolerance <= 0 || Passage.GetOuter().VertexCount() <= 3)
 		{
 			return Passage;
@@ -606,6 +608,7 @@ bool FBreachSimpleCollision::IsInsideOriginal(const FAxisAlignedBox2d& Bounds) c
 
 bool FBreachSimpleCollision::MeasureSurfaceArea(const FGeneralPolygon2d& Polygon, const FAxisAlignedBox2d& Bounds, double& OutArea) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Measure hole area");
 	if (IsInsideOriginal(Bounds))
 	{
 		OutArea = FMath::Abs(Polygon.SignedArea());
@@ -681,6 +684,7 @@ bool FBreachSimpleCollision::ApplyCut(const FPolygon2d& Cutter, TConstArrayView<
 		{
 			if (!IsInsideOriginal(Component.Bounds))
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Test overlap at wall edge");
 				// 둘 다 벽 밖으로 나가 있으면 벽 밖에서만 겹칠 수 있다. 벽 안에서 겹칠 때만 하나의 구멍으로 본다.
 				TArray<FGeneralPolygon2d> Overlap;
 				const bool bOverlapBuilt = PolygonsIntersection(MakeArrayView(&CutterRegion, 1), MakeArrayView(&Component.Polygon, 1), Overlap);
@@ -726,6 +730,7 @@ bool FBreachSimpleCollision::ApplyCut(const FPolygon2d& Cutter, TConstArrayView<
 	}
 	else
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Merge tracked holes");
 		const bool bMerged = PolygonsUnion(Touched, Merged, false);
 		if (!bMerged)
 		{
@@ -1100,6 +1105,7 @@ bool FBreachSimpleCollision::BuildMeshFromCuts(const FBreachSimpleBuildPolicy& P
 	// 통로를 풀고 벽에서 빼 충돌 도형까지 만든다. Frozen에 든 개구부는 이전 통로만 유지한다.
 	auto Derive = [&](TConstArrayView<int32> Frozen, FDerived& Out, FString& Error)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Derive passage collision");
 		Out.State = MakeShared<FBreachPassageState, ESPMode::ThreadSafe>();
 		if (bFullRemoval)
 		{
@@ -1178,6 +1184,7 @@ bool FBreachSimpleCollision::BuildMeshFromCuts(const FBreachSimpleBuildPolicy& P
 		TArray<FGeneralPolygon2d> Regions = {FGeneralPolygon2d(OriginalOuter)};
 		if (!Cuts.IsEmpty())
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Build remaining collision regions");
 			++LastBuildStats.BooleanOperations;
 			if (!PolygonsDifference(TArray<FGeneralPolygon2d>{FGeneralPolygon2d(OriginalOuter)}, Cuts, Regions))
 			{

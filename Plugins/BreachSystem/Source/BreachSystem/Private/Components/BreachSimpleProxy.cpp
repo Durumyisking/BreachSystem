@@ -131,6 +131,7 @@ void UBreachSimpleProxy::CookCollision(const FKAggregateGeom& Collision, TFuncti
 
 bool UBreachSimpleProxy::FinishCook(bool bSucceeded)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Validate cooked hulls");
 	check(IsInGameThread());
 	check(PendingBodySetup);
 	bCooking = false;
@@ -185,7 +186,10 @@ bool UBreachSimpleProxy::ApplyCollision()
 	}
 	const TStrongObjectPtr<UBodySetup> Previous(ActiveBodySetup.Get());
 	ActiveBodySetup = PendingBodySetup;
-	RecreatePhysicsState();
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Recreate physics state");
+		RecreatePhysicsState();
+	}
 	if (bNeedsBody)
 	{
 		if (!BodyInstance.IsValidBodyInstance())

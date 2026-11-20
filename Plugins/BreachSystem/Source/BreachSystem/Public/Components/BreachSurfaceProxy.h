@@ -22,6 +22,7 @@ public:
 protected:
 	/** 동기·비동기 Cooking이 만드는 모든 BodySetup에 음수 스케일 허용을 적용한다. */
 	virtual UBodySetup* CreateBodySetupHelper() override;
+	virtual void FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* FinishedBodySetup) override;
 
 private:
 	UPROPERTY(Transient)

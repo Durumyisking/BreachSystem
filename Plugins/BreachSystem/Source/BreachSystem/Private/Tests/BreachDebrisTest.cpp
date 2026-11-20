@@ -78,6 +78,14 @@ bool FBreachDebrisTest::RunTest(const FString& Parameters)
 	HitWall(0);
 	TestEqual(TEXT("Cutting the same hole again adds no debris"), CountDebris(), AfterCut);
 
+	Material->DebrisCountMultiplier = 2.f;
+	HitWall(20);
+	const int32 AfterDouble = CountDebris();
+	TestEqual(TEXT("Doubling the multiplier spawns twice as many pieces for the same-sized cut"), AfterDouble - AfterCut, 2 * AfterCut);
+	Material->DebrisCountMultiplier = 0.f;
+	HitWall(-20);
+	TestEqual(TEXT("Zero multiplier disables physical debris"), CountDebris(), AfterDouble);
+
 	World->DestroyWorld(false);
 	return !HasAnyErrors();
 }
