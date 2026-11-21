@@ -125,7 +125,7 @@ private:
 	/** 절단으로 사라진 영역의 누적 탄착 기록을 지운다. 입력은 표면 로컬 XZ 좌표다. */
 	void RemoveHitsInside(const UE::Geometry::FPolygon2d& LocalPolygon);
 
-	/** 외곽선의 길이 있는 변이 원본 사각 경계의 한 변 위에 있는지 0.001 허용 오차로 검사한다. 점 접촉만으로는 true가 아니다. */
+	/** 외곽선의 길이 있는 변이 원본 사각 경계의 한 변 위에 있는지 UE_DOUBLE_KINDA_SMALL_NUMBER 허용 오차로 검사한다. 점 접촉만으로는 true가 아니다. */
 	static bool TouchesOriginalBorder(const UE::Geometry::FPolygon2d& Outer, const UE::Geometry::FAxisAlignedBox2d& Bounds);
 
 public:

@@ -6,13 +6,13 @@ namespace
 	bool SameGraphPeriodicPoint(FVector2D A, FVector2D B)
 	{
 		const FVector2D D = A - B;
-		return FMath::IsNearlyEqual(D.X, FMath::RoundToDouble(D.X), 1.e-7) && FMath::IsNearlyEqual(D.Y, FMath::RoundToDouble(D.Y), 1.e-7);
+		return FMath::IsNearlyEqual(D.X, FMath::RoundToDouble(D.X), UE_DOUBLE_KINDA_SMALL_NUMBER) && FMath::IsNearlyEqual(D.Y, FMath::RoundToDouble(D.Y), UE_DOUBLE_KINDA_SMALL_NUMBER);
 	}
 }
 
 int32 FBreachPatternEditGraph::FindVertex(FVector2D Point) const
 {
-	return Vertices.IndexOfByPredicate([Point](FVector2D P) { return P.Equals(Point, 1.e-7); });
+	return Vertices.IndexOfByPredicate([Point](FVector2D P) { return P.Equals(Point, UE_DOUBLE_KINDA_SMALL_NUMBER); });
 }
 
 bool FBreachPatternEditGraph::Build(const UBreachPattern& Pattern, FString& OutError)
@@ -77,10 +77,10 @@ bool FBreachPatternEditGraph::Build(const UBreachPattern& Pattern, FString& OutE
 			TArray<TPair<double, FVector2D>> Splits;
 			for (FVector2D Point : OriginalVertices)
 			{
-				const int64 X0 = FMath::CeilToInt64(FMath::Min(A.X, B.X) - Point.X - 1.e-7);
-				const int64 X1 = FMath::FloorToInt64(FMath::Max(A.X, B.X) - Point.X + 1.e-7);
-				const int64 Y0 = FMath::CeilToInt64(FMath::Min(A.Y, B.Y) - Point.Y - 1.e-7);
-				const int64 Y1 = FMath::FloorToInt64(FMath::Max(A.Y, B.Y) - Point.Y + 1.e-7);
+				const int64 X0 = FMath::CeilToInt64(FMath::Min(A.X, B.X) - Point.X - UE_DOUBLE_KINDA_SMALL_NUMBER);
+				const int64 X1 = FMath::FloorToInt64(FMath::Max(A.X, B.X) - Point.X + UE_DOUBLE_KINDA_SMALL_NUMBER);
+				const int64 Y0 = FMath::CeilToInt64(FMath::Min(A.Y, B.Y) - Point.Y - UE_DOUBLE_KINDA_SMALL_NUMBER);
+				const int64 Y1 = FMath::FloorToInt64(FMath::Max(A.Y, B.Y) - Point.Y + UE_DOUBLE_KINDA_SMALL_NUMBER);
 				if (double(X1 - X0 + 1) * double(Y1 - Y0 + 1) > 4096)
 				{
 					OutError = TEXT("편집할 경계가 너무 많은 타일을 가로지릅니다.");
@@ -91,8 +91,8 @@ bool FBreachPatternEditGraph::Build(const UBreachPattern& Pattern, FString& OutE
 					for (int64 X = X0; X <= X1; ++X)
 					{
 						const FVector2D P = Point + FVector2D(double(X), double(Y));
-						const double Alpha = FVector2D::DotProduct(P - A, D) / FMath::Max(D.SizeSquared(), 1.e-14);
-						if (Alpha > 1.e-7 && Alpha < 1 - 1.e-7 && P.Equals(A + D * Alpha, 1.e-7))
+						const double Alpha = FVector2D::DotProduct(P - A, D) / FMath::Max(D.SizeSquared(), UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER);
+						if (Alpha > UE_DOUBLE_KINDA_SMALL_NUMBER && Alpha < 1 - UE_DOUBLE_KINDA_SMALL_NUMBER && P.Equals(A + D * Alpha, UE_DOUBLE_KINDA_SMALL_NUMBER))
 						{
 							Splits.Emplace(Alpha, P);
 						}
@@ -103,7 +103,7 @@ bool FBreachPatternEditGraph::Build(const UBreachPattern& Pattern, FString& OutE
 			double Previous = -1;
 			for (const auto& Split : Splits)
 			{
-				if (!FMath::IsNearlyEqual(Previous, Split.Key, 1.e-7))
+				if (!FMath::IsNearlyEqual(Previous, Split.Key, UE_DOUBLE_KINDA_SMALL_NUMBER))
 				{
 					int32 Node = FindVertex(Split.Value);
 					if (Node == INDEX_NONE)

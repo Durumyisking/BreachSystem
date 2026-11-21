@@ -344,10 +344,10 @@ void FBreachDamageAccumulator::RemoveInside(const UE::Geometry::FGeneralPolygon2
 		);
 	for (const FBreachDamageRecord& Record : Nearby)
 	{
-		bool bInside = Polygon.Contains(Record.Point) || Polygon.GetOuter().DistanceSquared(Record.Point) <= UE_DOUBLE_SMALL_NUMBER;
+		bool bInside = Polygon.Contains(Record.Point) || Polygon.GetOuter().DistanceSquared(Record.Point) <= UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER;
 		for (const UE::Geometry::FPolygon2d& Hole : Polygon.GetHoles())
 		{
-			if (Hole.Contains(Record.Point) || Hole.DistanceSquared(Record.Point) <= UE_DOUBLE_SMALL_NUMBER)
+			if (Hole.Contains(Record.Point) || Hole.DistanceSquared(Record.Point) <= UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER)
 			{
 				bInside = false;
 				break;

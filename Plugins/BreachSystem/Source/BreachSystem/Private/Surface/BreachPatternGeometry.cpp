@@ -6,7 +6,7 @@
 namespace
 {
 	using namespace UE::Geometry;
-	constexpr double GeometryTolerance = 1.e-10;
+	constexpr double GeometryTolerance = UE_DOUBLE_KINDA_SMALL_NUMBER;
 	constexpr int64 MaxTileCandidates = 65536;
 
 	double PatternCross(const FVector2d& A, const FVector2d& B)
@@ -481,7 +481,7 @@ bool BreachPatternGeometry::Generate(const UBreachPattern& Pattern, const UE::Ge
 	Transform.UV = Mapping;
 	Transform.Determinant = PatternCross(Mapping.UVPerX, Mapping.UVPerY);
 	const double AxisProduct = Mapping.UVPerX.Length() * Mapping.UVPerY.Length();
-	if (!Finite(Mapping.UVOffset) || !Finite(Mapping.UVPerX) || !Finite(Mapping.UVPerY) || !FMath::IsFinite(Transform.Determinant) || !FMath::IsFinite(AxisProduct) || AxisProduct <= 0 || FMath::Abs(Transform.Determinant) <= AxisProduct * 1.e-12)
+	if (!Finite(Mapping.UVOffset) || !Finite(Mapping.UVPerX) || !Finite(Mapping.UVPerY) || !FMath::IsFinite(Transform.Determinant) || !FMath::IsFinite(AxisProduct) || AxisProduct <= 0 || FMath::Abs(Transform.Determinant) <= AxisProduct * UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER)
 	{
 		OutError = TEXT("Pattern mapping requires finite independent UV axes.");
 		return false;

@@ -37,7 +37,7 @@ namespace
 		double Exit = 1.0;
 		for (int32 Axis = 0; Axis < 2; ++Axis)
 		{
-			if (FMath::Abs(Direction[Axis]) < 1.e-12)
+			if (FMath::Abs(Direction[Axis]) < UE_DOUBLE_KINDA_SMALL_NUMBER)
 			{
 				if (Start[Axis] < Bounds.Min[Axis] || Start[Axis] > Bounds.Max[Axis])
 				{
@@ -65,7 +65,7 @@ namespace
 			Start[Axis] = FMath::Clamp(Start[Axis], Bounds.Min[Axis], Bounds.Max[Axis]);
 			End[Axis] = FMath::Clamp(End[Axis], Bounds.Min[Axis], Bounds.Max[Axis]);
 		}
-		return (End - Start).SquaredLength() > 1.e-16;
+		return (End - Start).SquaredLength() > UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER;
 	}
 
 	bool BuildLines(const UBreachableSurfaceComponent* Surface, int32 Budget, TArray<FBatchedLine>& OutLines)
@@ -114,7 +114,7 @@ namespace
 		OutLines.Reserve(static_cast<int32>(LineCount));
 		const FTransform Transform = Surface->GetComponentTransform();
 		const double DepthScale = FMath::Abs(Transform.GetScale3D().Y);
-		if (!FMath::IsFinite(DepthScale) || DepthScale <= UE_DOUBLE_SMALL_NUMBER)
+		if (!FMath::IsFinite(DepthScale) || DepthScale <= UE_DOUBLE_KINDA_SMALL_NUMBER)
 		{
 			return false;
 		}

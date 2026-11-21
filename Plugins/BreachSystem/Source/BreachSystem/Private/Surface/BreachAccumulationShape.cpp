@@ -15,7 +15,7 @@ bool BreachAccumulationShape::GenerateBase(TConstArrayView<FVector2d> ImpactPoin
 	// Shared boundaries must not retain trace/transform roundoff as separate Boolean vertices.
 	auto SnapPoint = [](const FVector2d& Point)
 	{
-		constexpr double Precision = 1.e-6;
+		constexpr double Precision = UE_DOUBLE_KINDA_SMALL_NUMBER;
 		return FVector2d(FMath::GridSnap(Point.X, Precision), FMath::GridSnap(Point.Y, Precision));
 	};
 	const FVector2d Origin = SnapPoint(ImpactPoints[0]);

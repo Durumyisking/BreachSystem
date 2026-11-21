@@ -12,7 +12,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogBreachFeatureGeometry, Log, All);
 namespace
 {
 	constexpr int32 Samples = 7;
-	constexpr double Tolerance = 0.001;
+	constexpr double Tolerance = UE_DOUBLE_KINDA_SMALL_NUMBER;
 
 	struct FSupportPath
 	{
@@ -23,7 +23,7 @@ namespace
 
 	bool ValidOptions(const FBreachFeatureDecorationOptions& Options, const FVector& Scale, FString& Error)
 	{
-		if (Scale.ContainsNaN() || FMath::Abs(Scale.X) <= UE_DOUBLE_SMALL_NUMBER || FMath::Abs(Scale.Y) <= UE_DOUBLE_SMALL_NUMBER || FMath::Abs(Scale.Z) <= UE_DOUBLE_SMALL_NUMBER)
+		if (Scale.ContainsNaN() || FMath::Abs(Scale.X) <= UE_DOUBLE_KINDA_SMALL_NUMBER || FMath::Abs(Scale.Y) <= UE_DOUBLE_KINDA_SMALL_NUMBER || FMath::Abs(Scale.Z) <= UE_DOUBLE_KINDA_SMALL_NUMBER)
 		{
 			Error = TEXT("Feature Deco requires a finite nonzero surface scale.");
 			return false;
@@ -49,7 +49,7 @@ namespace
 			if (!Path.Points.IsEmpty())
 			{
 				const double Step = ((Point - Path.Points.Last()) * Metric).Length();
-				if (Step <= 1.e-8)
+				if (Step <= UE_DOUBLE_KINDA_SMALL_NUMBER)
 				{
 					continue;
 				}
@@ -82,7 +82,7 @@ namespace
 		Points.Add(PointAt(Path, Start));
 		for (int32 Index = 1; Index < Path.Arc.Num() - 1; ++Index)
 		{
-			if (Path.Arc[Index] > Start + 1.e-8 && Path.Arc[Index] < End - 1.e-8)
+			if (Path.Arc[Index] > Start + UE_DOUBLE_KINDA_SMALL_NUMBER && Path.Arc[Index] < End - UE_DOUBLE_KINDA_SMALL_NUMBER)
 			{
 				Points.Add(Path.Points[Index]);
 			}
@@ -95,7 +95,7 @@ namespace
 	{
 		const FVector2d Delta = B - A;
 		const double Length = Delta.Length();
-		if (Length <= 1.e-8)
+		if (Length <= UE_DOUBLE_KINDA_SMALL_NUMBER)
 		{
 			return false;
 		}
@@ -291,12 +291,12 @@ bool BreachDecoration::UpdateBindings(FFeatureState& State, const FBreachSimpleC
 		for (const FGeneralPolygon2d& Piece : Pieces)
 		{
 			// Boolean 연산이 남긴 면적 없는 띠는 구멍이 아니다.
-			if (FMath::Abs(Piece.SignedArea()) <= 1.e-8)
+			if (FMath::Abs(Piece.SignedArea()) <= UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER)
 			{
 				continue;
 			}
 			Entry.Bounds.Contain(Piece.GetOuter().Bounds());
-			if (FMath::Abs(Piece.SignedArea()) * Metric.X * Metric.Y + 1.e-8 < Options.MinHoleArea)
+			if (FMath::Abs(Piece.SignedArea()) * Metric.X * Metric.Y + UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER < Options.MinHoleArea)
 			{
 				Entry.bDecorated = false;
 				continue;
@@ -576,7 +576,7 @@ bool BreachDecoration::UpdateFeatureMesh(FFeatureState& State, const FBreachFeat
 					const FVector3d AC = Positions[C] - Positions[A];
 					return AB.X * AC.Z - AB.Z * AC.X;
 				};
-				if (Area(Index, Index + 1, Samples + Index + 1) <= 1.e-10 || Area(Index, Samples + Index + 1, Samples + Index) <= 1.e-10)
+				if (Area(Index, Index + 1, Samples + Index + 1) <= UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER || Area(Index, Samples + Index + 1, Samples + Index) <= UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER)
 				{
 					bValid = false;
 				}

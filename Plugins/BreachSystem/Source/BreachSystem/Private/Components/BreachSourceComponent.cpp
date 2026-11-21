@@ -157,7 +157,7 @@ bool UBreachSourceComponent::ResolveCutterPolygon(const FTransform& SurfaceTrans
 	using namespace UE::Geometry;
 	OutPolygon = FGeneralPolygon2d();
 	const FVector Scale = SurfaceTransform.GetScale3D();
-	if (FMath::IsNearlyZero(Scale.X) || FMath::IsNearlyZero(Scale.Z))
+	if (FMath::IsNearlyZero(Scale.X, UE_DOUBLE_KINDA_SMALL_NUMBER) || FMath::IsNearlyZero(Scale.Z, UE_DOUBLE_KINDA_SMALL_NUMBER))
 	{
 		SWARN(TEXT("BreachSourceComponent '%s' cannot resolve a cutter on a zero-scale XZ surface."), *GetPathName());
 		return false;

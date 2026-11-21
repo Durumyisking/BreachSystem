@@ -45,7 +45,7 @@ namespace
             {
                 const FVector2D Previous = Points[(Index + Points.Num() - 1) % Points.Num()];
                 const FVector2D Next = Points[(Index + 1) % Points.Num()];
-                if (FMath::Abs(Cross(Points[Index] - Previous, Next - Points[Index])) < 1.e-14 && FVector2D::DotProduct(Points[Index] - Previous, Next - Points[Index]) >= 0)
+                if (FMath::Abs(Cross(Points[Index] - Previous, Next - Points[Index])) < UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER && FVector2D::DotProduct(Points[Index] - Previous, Next - Points[Index]) >= 0)
                 {
                     Points.RemoveAt(Index);
                     bChanged = true;
@@ -522,7 +522,7 @@ namespace
                 Previous = Current;
                 Current = Next;
             }
-            if (Guide.Points[0].Equals(Guide.Points.Last(), 1.e-12))
+            if (Guide.Points[0].Equals(Guide.Points.Last(), UE_DOUBLE_KINDA_SMALL_NUMBER))
             {
                 Result.Error = TEXT("Closed guide loops are unsupported. Break the loop to make an open grain guide; it will not be converted into a filled region.");
                 return false;
@@ -583,7 +583,7 @@ namespace
                     {
                         const FVector2D R = Guides[B].Points[J - 1];
                         const FVector2D S = Guides[B].Points[J];
-                        if (FMath::Max(P.X, Q.X) < FMath::Min(R.X, S.X) - 1.e-12 || FMath::Max(R.X, S.X) < FMath::Min(P.X, Q.X) - 1.e-12 || FMath::Max(P.Y, Q.Y) < FMath::Min(R.Y, S.Y) - 1.e-12 || FMath::Max(R.Y, S.Y) < FMath::Min(P.Y, Q.Y) - 1.e-12)
+                        if (FMath::Max(P.X, Q.X) < FMath::Min(R.X, S.X) - UE_DOUBLE_KINDA_SMALL_NUMBER || FMath::Max(R.X, S.X) < FMath::Min(P.X, Q.X) - UE_DOUBLE_KINDA_SMALL_NUMBER || FMath::Max(P.Y, Q.Y) < FMath::Min(R.Y, S.Y) - UE_DOUBLE_KINDA_SMALL_NUMBER || FMath::Max(R.Y, S.Y) < FMath::Min(P.Y, Q.Y) - UE_DOUBLE_KINDA_SMALL_NUMBER)
                         {
                             continue;
                         }
@@ -591,22 +591,22 @@ namespace
                         const double C2 = Cross(Q - P, S - P);
                         const double C3 = Cross(S - R, P - R);
                         const double C4 = Cross(S - R, Q - R);
-                        if ((C1 > 1.e-12 && C2 > 1.e-12) || (C1 < -1.e-12 && C2 < -1.e-12) || (C3 > 1.e-12 && C4 > 1.e-12) || (C3 < -1.e-12 && C4 < -1.e-12))
+                        if ((C1 > UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER && C2 > UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER) || (C1 < -UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER && C2 < -UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER) || (C3 > UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER && C4 > UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER) || (C3 < -UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER && C4 < -UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER))
                         {
                             continue;
                         }
-                        const bool bSharedEndpoint = P.Equals(R, 1.e-12) || P.Equals(S, 1.e-12) || Q.Equals(R, 1.e-12) || Q.Equals(S, 1.e-12);
+                        const bool bSharedEndpoint = P.Equals(R, UE_DOUBLE_KINDA_SMALL_NUMBER) || P.Equals(S, UE_DOUBLE_KINDA_SMALL_NUMBER) || Q.Equals(R, UE_DOUBLE_KINDA_SMALL_NUMBER) || Q.Equals(S, UE_DOUBLE_KINDA_SMALL_NUMBER);
                         if (!bSharedEndpoint)
                         {
                             return true;
                         }
-                        if (FMath::Abs(C1) < 1.e-12 && FMath::Abs(C2) < 1.e-12)
+                        if (FMath::Abs(C1) < UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER && FMath::Abs(C2) < UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER)
                         {
                             const FVector2D Axis = (Q - P).GetSafeNormal();
                             const double RProjection = FVector2D::DotProduct(R - P, Axis);
                             const double SProjection = FVector2D::DotProduct(S - P, Axis);
                             const double Overlap = FMath::Min((Q - P).Size(), FMath::Max(RProjection, SProjection)) - FMath::Max(0.0, FMath::Min(RProjection, SProjection));
-                            if (Overlap > 1.e-12)
+                            if (Overlap > UE_DOUBLE_KINDA_SMALL_NUMBER)
                             {
                                 return true;
                             }

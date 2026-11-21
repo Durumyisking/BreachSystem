@@ -13,8 +13,8 @@ using namespace UE::Geometry;
 
 namespace
 {
-	constexpr double AreaTolerance = 1.e-6;
-	constexpr double PositionTolerance = 1.e-7;
+	constexpr double AreaTolerance = UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER;
+	constexpr double PositionTolerance = UE_DOUBLE_KINDA_SMALL_NUMBER;
 
 	double Area(TConstArrayView<FGeneralPolygon2d> Polygons)
 	{

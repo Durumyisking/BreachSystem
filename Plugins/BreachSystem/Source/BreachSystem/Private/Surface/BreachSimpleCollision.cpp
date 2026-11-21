@@ -65,7 +65,7 @@ namespace
 		const double HullArea = FMath::Abs(PolygonFromIndices(Merged, Vertices).SignedArea());
 
 		// 인접 조각의 합집합이 이미 볼록할 때만 병합한다. 구멍을 가로질러 덮지 않는다.
-		if (FMath::Abs(HullArea - CombinedArea) > FMath::Max(1.e-8, CombinedArea * 1.e-10))
+		if (FMath::Abs(HullArea - CombinedArea) > FMath::Max(UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER, CombinedArea * UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER))
 		{
 			return false;
 		}
@@ -205,7 +205,7 @@ namespace
 					const FVector2d AF(static_cast<float>(A.X), static_cast<float>(A.Y)), BF(static_cast<float>(B.X), static_cast<float>(B.Y)), CF(static_cast<float>(C.X), static_cast<float>(C.Y));
 					const double WorldArea = FMath::Abs(ExactPredicates::Orient2(A, B, C)) * 0.5 * WorldAreaScale;
 					// Chaos에서 면적이 정확히 0이며 전체 벽의 누적 오차가 1e-8 cm² 이내인 조각만 제외한다.
-					if (ExactPredicates::Orient2(AF, BF, CF) == 0 && DiscardedWorldArea + WorldArea <= 1.e-8)
+					if (ExactPredicates::Orient2(AF, BF, CF) == 0 && DiscardedWorldArea + WorldArea <= UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER)
 					{
 						DiscardedWorldArea += WorldArea;
 						Parts[Index].Reset();
@@ -398,7 +398,7 @@ namespace
 		{
 			for (int32 Edge = 0; Edge < Wall.VertexCount(); ++Edge)
 			{
-				if (DistanceToSegment(Points[Index], Wall[Edge], Wall[(Edge + 1) % Wall.VertexCount()]) <= 1.e-6)
+				if (DistanceToSegment(Points[Index], Wall[Edge], Wall[(Edge + 1) % Wall.VertexCount()]) <= UE_DOUBLE_KINDA_SMALL_NUMBER)
 				{
 					Locked[Index] = true;
 					break;
@@ -468,7 +468,7 @@ namespace
 					{
 						const FVector2d Offset = Point - Previous;
 						const double Side = (Chord.X * Offset.Y - Chord.Y * Offset.X) / ChordLength;
-						if (Side < -1.e-7 && DistanceToSegment(Point, Previous, Next) <= Deviation + 1.e-7)
+						if (Side < -UE_DOUBLE_KINDA_SMALL_NUMBER && DistanceToSegment(Point, Previous, Next) <= Deviation + UE_DOUBLE_KINDA_SMALL_NUMBER)
 						{
 							bKeepsPublished = false;
 							break;
@@ -1013,11 +1013,11 @@ bool FBreachSimpleCollision::BuildMeshFromCuts(const FBreachSimpleBuildPolicy& P
 	for (int32 Index = 0; Index < HoleComponents.Num(); ++Index)
 	{
 		const FHoleComponent& Component = HoleComponents[Index];
-		if (Component.SurfaceArea >= OriginalArea - 1.e-7)
+		if (Component.SurfaceArea >= OriginalArea - UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER)
 		{
 			bFullRemoval = true;
 		}
-		if (Component.SurfaceArea * AreaScale + 1.e-7 >= Policy.AreaThreshold || bFullRemoval)
+		if (Component.SurfaceArea * AreaScale + UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER >= Policy.AreaThreshold || bFullRemoval)
 		{
 			Selected.Add(Index);
 			Revisions.Add(Component.Revision);
@@ -1162,7 +1162,7 @@ bool FBreachSimpleCollision::BuildMeshFromCuts(const FBreachSimpleBuildPolicy& P
 		{
 			ChangedArea += FMath::Abs(Part.SignedArea());
 		}
-		Out.bChanged = !bBuiltCollisionValid || !PassageState.IsValid() || ChangedArea > 1.e-6;
+		Out.bChanged = !bBuiltCollisionValid || !PassageState.IsValid() || ChangedArea > UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER;
 
 		Out.Collision = FKAggregateGeom();
 		Out.Passages.Reset();
@@ -1279,7 +1279,7 @@ bool FBreachSimpleCollision::BuildMesh(TConstArrayView<FGeneralPolygon2d> Remain
 
 	const double AreaThreshold = UBreachSystemSettings::GetComplexHoleSizeThreshold();
 	const int32 MaxConvexCount = UBreachSystemSettings::GetMaxSimpleConvexCount();
-	const double Bias = 1.e-7;
+	const double Bias = UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER;
 	if (OriginalOuter.VertexCount() < 3 || !FMath::IsFinite(ComponentArea) || ComponentArea <= 0)
 	{
 		OutError = TEXT("Simple collision requires an initialized surface and a finite positive area scale.");
@@ -1310,7 +1310,7 @@ bool FBreachSimpleCollision::BuildMesh(TConstArrayView<FGeneralPolygon2d> Remain
 		if (WorldArea + Bias < AreaThreshold)
 		{
 			const double OriginalArea = FMath::Abs(OriginalOuter.SignedArea());
-			if (WorldArea < OriginalArea - 1.e-7)
+			if (WorldArea < OriginalArea - UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER)
 			{
 				continue;
 			}

@@ -206,7 +206,7 @@ bool UBreachableSurfaceComponent::ReadSourceSurface(UE::Geometry::FDynamicMesh3&
 	InitialState.Size.Height = MeshBounds.Max.Z - MeshBounds.Min.Z;
 
 	// 검증: XZ 평면에서 유효한 면적을 가져야 한다.
-	if (InitialState.Size.Width <= UE_SMALL_NUMBER || InitialState.Size.Height <= UE_SMALL_NUMBER)
+	if (InitialState.Size.Width <= UE_DOUBLE_KINDA_SMALL_NUMBER || InitialState.Size.Height <= UE_DOUBLE_KINDA_SMALL_NUMBER)
 	{
 		UE_LOG(LogBreachableSurface, Warning, TEXT("%s must have non-zero dimensions in local XZ."), *SourceStaticMesh->GetName());
 		return false;
@@ -245,7 +245,7 @@ bool UBreachableSurfaceComponent::ReadSourceSurface(UE::Geometry::FDynamicMesh3&
 		{
 			const FVector3d AB = B - A, AC = C - A;
 			const double Determinant = AB.X * AC.Z - AC.X * AB.Z;
-			if (FMath::Abs(Determinant) <= UE_DOUBLE_SMALL_NUMBER)
+			if (FMath::Abs(Determinant) <= UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER)
 			{
 				continue;
 			}
@@ -261,7 +261,7 @@ bool UBreachableSurfaceComponent::ReadSourceSurface(UE::Geometry::FDynamicMesh3&
 		for (int32 Corner = 0; Corner < 3; ++Corner)
 		{
 			const FVector2d Expected = Mapping.Offset + Mapping.PerX * Positions[Corner].X + Mapping.PerZ * Positions[Corner].Z;
-			if ((Expected - UVs[Corner]).Length() > 0.0001)
+			if ((Expected - UVs[Corner]).Length() > UE_DOUBLE_KINDA_SMALL_NUMBER)
 			{
 				UE_LOG(LogBreachableSurface, Warning, TEXT("%s requires one linear UV mapping per surface face; keeping the static mesh."), *SourceStaticMesh->GetName());
 				return false;
@@ -1266,7 +1266,7 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 	// 차집합에서 같은 교점이 미세하게 어긋나 남으면 닫힌 윤곽에 거의 길이가 없는 변이 생긴다.
 	auto CollapseAdjacentVertices = [](const FPolygon2d& Boundary)
 	{
-		constexpr double VertexToleranceSquared = 1.e-18;
+		constexpr double VertexToleranceSquared = UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER;
 		TArray<FVector2d> Vertices;
 		Vertices.Reserve(Boundary.VertexCount());
 		for (const FVector2d& Point : Boundary.GetVertices())
@@ -1327,7 +1327,7 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 	{
 		NewArea += FMath::Abs(Region.SignedArea());
 	}
-	const bool bAreaReduced = PreviousArea - NewArea > 1.e-8;
+	const bool bAreaReduced = PreviousArea - NewArea > UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER;
 	if (!bAreaReduced)
 	{
 		if (DynamicMeshProxy->IsRegistered())
@@ -1367,7 +1367,7 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 			const FVector2d AB = Vertices[Triangle.B] - Vertices[Triangle.A];
 			const FVector2d AC = Vertices[Triangle.C] - Vertices[Triangle.A];
 			const double Area = FMath::Abs(AB.X * AC.Y - AB.Y * AC.X) * 0.5;
-			if (Area <= 1.e-12)
+			if (Area <= UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER)
 			{
 				return Reject(TEXT("Triangulation produced a degenerate face."));
 			}
@@ -1626,7 +1626,7 @@ void UBreachableSurfaceComponent::DebugDrawSurface()
 bool UBreachableSurfaceComponent::TouchesOriginalBorder(const UE::Geometry::FPolygon2d& Outer, const UE::Geometry::FAxisAlignedBox2d& Bounds)
 {
 	// 현재 outer의 Edge와 원본 outer의 Bound를 비교해 원본 경계와 닿지 않은 폴리곤들을 제거한다.
-	constexpr double Epsilon = 0.001;
+	constexpr double Epsilon = UE_DOUBLE_KINDA_SMALL_NUMBER;
 
 	const TArray<FVector2d>& Vertices = Outer.GetVertices();
 

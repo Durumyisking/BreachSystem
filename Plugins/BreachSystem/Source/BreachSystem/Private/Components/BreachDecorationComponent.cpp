@@ -105,7 +105,7 @@ bool UBreachDecorationComponent::BuildDisplays(UBreachableSurfaceComponent* Surf
 		return false;
 	}
 	const FVector Scale = Surface->GetComponentScale();
-	if (Scale.ContainsNaN() || FMath::Abs(Scale.Y) <= UE_DOUBLE_SMALL_NUMBER || !FMath::IsFinite(AppliedCut.SurfaceOffset) || AppliedCut.SurfaceOffset <= 0)
+	if (Scale.ContainsNaN() || FMath::Abs(Scale.Y) <= UE_DOUBLE_KINDA_SMALL_NUMBER || !FMath::IsFinite(AppliedCut.SurfaceOffset) || AppliedCut.SurfaceOffset <= 0)
 	{
 		Error = TEXT("Deco surface offset and scale must be finite and nonzero.");
 		return false;

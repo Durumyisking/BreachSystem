@@ -77,7 +77,7 @@ namespace
 			Sum += Direction.Dot(Reference) < 0 ? -Direction : Direction;
 		}
 		const double Length = Sum.Length();
-		if (Length <= UE_DOUBLE_SMALL_NUMBER)
+		if (Length <= UE_DOUBLE_KINDA_SMALL_NUMBER)
 		{
 			return false;
 		}
@@ -273,7 +273,7 @@ bool Build(const FBreachLineTearOptions& Options, const FPolygon2d& Contour, TCo
 	const FAxisAlignedBox2d Bounds = ContourLoop.Bounds();
 	Frame.Origin = Bounds.Center();
 	const double Size = FMath::Max(Bounds.Width(), Bounds.Height());
-	const double Tolerance = Size * 1.e-7;
+	const double Tolerance = UE_DOUBLE_KINDA_SMALL_NUMBER;
 	const double Overlap = Size * 1.e-5;
 	// Tear lengths are fractions of the hole's length along the lines, so every strip, even one the hit barely touched,
 	// can tear by the same random amount; the outline is not just the contour stretched.
@@ -534,7 +534,7 @@ bool Build(const FBreachLineTearOptions& Options, const FPolygon2d& Contour, TCo
 	{
 		if (FMath::Abs(Region.SignedArea()) > MinArea)
 		{
-			Out.Add(CleanRegion(Region, Size * 1.e-6, MinArea));
+			Out.Add(CleanRegion(Region, UE_DOUBLE_KINDA_SMALL_NUMBER, MinArea));
 		}
 	}
 	if (Out.IsEmpty())

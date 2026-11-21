@@ -256,7 +256,7 @@ void SBreachPatternCanvas::HitTest(FVector2D UV, FVector2D Size, int32& Node, in
 				const FVector2D A = (Graph.Vertices[E.X] + Offset) * Size;
 				const FVector2D D = (Graph.Vertices[E.Y] - Graph.Vertices[E.X]) * Size;
 				const FVector2D P = UV * Size;
-				const double Alpha = FMath::Clamp(FVector2D::DotProduct(P - A, D) / FMath::Max(D.SizeSquared(), 1.e-12), 0.0, 1.0);
+				const double Alpha = FMath::Clamp(FVector2D::DotProduct(P - A, D) / FMath::Max(D.SizeSquared(), UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER), 0.0, 1.0);
 				const double Distance = FVector2D::DistSquared(P, A + D * Alpha);
 				if (Distance < BestEdge)
 				{

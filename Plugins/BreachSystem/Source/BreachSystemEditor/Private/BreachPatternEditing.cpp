@@ -7,7 +7,7 @@ namespace
 	bool SamePeriodicPoint(FVector2D A, FVector2D B)
 	{
 		const FVector2D Difference = A - B;
-		return FMath::IsNearlyEqual(Difference.X, FMath::RoundToDouble(Difference.X), 1.e-7) && FMath::IsNearlyEqual(Difference.Y, FMath::RoundToDouble(Difference.Y), 1.e-7);
+		return FMath::IsNearlyEqual(Difference.X, FMath::RoundToDouble(Difference.X), UE_DOUBLE_KINDA_SMALL_NUMBER) && FMath::IsNearlyEqual(Difference.Y, FMath::RoundToDouble(Difference.Y), UE_DOUBLE_KINDA_SMALL_NUMBER);
 	}
 
 	void MoveSharedPoints(UBreachPattern& Pattern, TConstArrayView<FVector2D> Sources, FVector2D Delta)
@@ -36,24 +36,24 @@ namespace
 				const FVector2D B = Points[(Index + 1) % Points.Num()];
 				const FVector2D Segment = B - A;
 				const double LengthSquared = Segment.SizeSquared();
-				if (LengthSquared <= 1.e-14)
+				if (LengthSquared <= UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER)
 				{
 					continue;
 				}
 				TArray<TPair<double, FVector2D>> Splits;
 				for (const FVector2D& Source : Sources)
 				{
-					const int64 MinX = FMath::CeilToInt64(FMath::Min(A.X, B.X) - Source.X - 1.e-7);
-					const int64 MaxX = FMath::FloorToInt64(FMath::Max(A.X, B.X) - Source.X + 1.e-7);
-					const int64 MinY = FMath::CeilToInt64(FMath::Min(A.Y, B.Y) - Source.Y - 1.e-7);
-					const int64 MaxY = FMath::FloorToInt64(FMath::Max(A.Y, B.Y) - Source.Y + 1.e-7);
+					const int64 MinX = FMath::CeilToInt64(FMath::Min(A.X, B.X) - Source.X - UE_DOUBLE_KINDA_SMALL_NUMBER);
+					const int64 MaxX = FMath::FloorToInt64(FMath::Max(A.X, B.X) - Source.X + UE_DOUBLE_KINDA_SMALL_NUMBER);
+					const int64 MinY = FMath::CeilToInt64(FMath::Min(A.Y, B.Y) - Source.Y - UE_DOUBLE_KINDA_SMALL_NUMBER);
+					const int64 MaxY = FMath::FloorToInt64(FMath::Max(A.Y, B.Y) - Source.Y + UE_DOUBLE_KINDA_SMALL_NUMBER);
 					for (int64 Y = MinY; Y <= MaxY; ++Y)
 					{
 						for (int64 X = MinX; X <= MaxX; ++X)
 						{
 							const FVector2D Candidate = Source + FVector2D(double(X), double(Y));
 							const double Alpha = FVector2D::DotProduct(Candidate - A, Segment) / LengthSquared;
-							if (Alpha > 1.e-7 && Alpha < 1 - 1.e-7 && (A + Segment * Alpha).Equals(Candidate, 1.e-7))
+							if (Alpha > UE_DOUBLE_KINDA_SMALL_NUMBER && Alpha < 1 - UE_DOUBLE_KINDA_SMALL_NUMBER && (A + Segment * Alpha).Equals(Candidate, UE_DOUBLE_KINDA_SMALL_NUMBER))
 							{
 								Splits.Emplace(Alpha, Candidate);
 							}
@@ -64,7 +64,7 @@ namespace
 				double LastAlpha = -1;
 				for (const auto& Split : Splits)
 				{
-					if (!FMath::IsNearlyEqual(LastAlpha, Split.Key, 1.e-7))
+					if (!FMath::IsNearlyEqual(LastAlpha, Split.Key, UE_DOUBLE_KINDA_SMALL_NUMBER))
 					{
 						Updated.Add(Split.Value + Delta);
 						LastAlpha = Split.Key;
@@ -164,7 +164,7 @@ bool BreachPatternEditing::CreatePath(UBreachPattern& Pattern, TConstArrayView<F
 	Candidate->Guides = Pattern.Guides;
 	Candidate->LineTear = Pattern.LineTear;
 	TArray<FVector2D> Path(Points);
-	if (bClosed && Path.Num() > 1 && Path[0].Equals(Path.Last(), 1.e-7))
+	if (bClosed && Path.Num() > 1 && Path[0].Equals(Path.Last(), UE_DOUBLE_KINDA_SMALL_NUMBER))
 	{
 		Path.Pop();
 	}

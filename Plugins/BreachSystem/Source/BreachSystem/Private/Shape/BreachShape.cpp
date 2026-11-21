@@ -7,7 +7,7 @@ namespace
 	bool MakeCircle(double Radius, int32 Segments, FPolygon2d& OutPolygon)
 	{
 		OutPolygon = FPolygon2d();
-		if (!FMath::IsFinite(Radius) || Radius <= UE_SMALL_NUMBER)
+		if (!FMath::IsFinite(Radius) || Radius <= UE_DOUBLE_KINDA_SMALL_NUMBER)
 		{
 			return false;
 		}
@@ -41,7 +41,7 @@ bool UBreachBoxShape::GeneratePolygon(const FBreachSourceOption& Option, UE::Geo
 		return false;
 	}
 	if (!FMath::IsFinite(Shape->Size.X) || !FMath::IsFinite(Shape->Size.Y)
-		|| Shape->Size.X <= UE_SMALL_NUMBER || Shape->Size.Y <= UE_SMALL_NUMBER
+		|| Shape->Size.X <= UE_DOUBLE_KINDA_SMALL_NUMBER || Shape->Size.Y <= UE_DOUBLE_KINDA_SMALL_NUMBER
 		|| !FMath::IsFinite(Shape->CornerRadius))
 	{
 		return false;
@@ -49,7 +49,7 @@ bool UBreachBoxShape::GeneratePolygon(const FBreachSourceOption& Option, UE::Geo
 	const FVector2d Half = FVector2d(Shape->Size) * 0.5;
 	const double Radius = FMath::Clamp(double(Shape->CornerRadius), 0.0, FMath::Min(Half.X, Half.Y));
 	TArray<FVector2d> Boundary;
-	if (Radius <= UE_SMALL_NUMBER)
+	if (Radius <= UE_DOUBLE_KINDA_SMALL_NUMBER)
 	{
 		Boundary = { FVector2d(-Half.X, -Half.Y), FVector2d(Half.X, -Half.Y),
 			FVector2d(Half.X, Half.Y), FVector2d(-Half.X, Half.Y) };
@@ -67,7 +67,7 @@ bool UBreachBoxShape::GeneratePolygon(const FBreachSourceOption& Option, UE::Geo
 				const FVector2d Point = Centers[Corner] + Radius * FVector2d(FMath::Cos(Angle), FMath::Sin(Angle));
 				if (!Boundary.IsEmpty())
 				{
-					if (Boundary.Last().Equals(Point, UE_SMALL_NUMBER))
+					if (Boundary.Last().Equals(Point, UE_DOUBLE_KINDA_SMALL_NUMBER))
 					{
 						continue;
 					}
@@ -77,7 +77,7 @@ bool UBreachBoxShape::GeneratePolygon(const FBreachSourceOption& Option, UE::Geo
 		}
 		if (Boundary.Num() > 1)
 		{
-			if (Boundary[0].Equals(Boundary.Last(), UE_SMALL_NUMBER))
+			if (Boundary[0].Equals(Boundary.Last(), UE_DOUBLE_KINDA_SMALL_NUMBER))
 			{
 				Boundary.Pop();
 			}

@@ -15,7 +15,7 @@ bool FBreachCellGrid::Configure(const FVector2d& UVOffset, const FVector2d& UVPe
 	const FVector2d AbsScale(FMath::Abs(PhysicalScale.X), FMath::Abs(PhysicalScale.Y));
 
 	if (!Finite(UVOffset) || !Finite(UVPerX) || !Finite(UVPerZ) || !Finite(AbsScale)
-		|| AbsScale.X <= UE_DOUBLE_SMALL_NUMBER || AbsScale.Y <= UE_DOUBLE_SMALL_NUMBER
+		|| AbsScale.X <= UE_DOUBLE_KINDA_SMALL_NUMBER || AbsScale.Y <= UE_DOUBLE_KINDA_SMALL_NUMBER
 		|| !FMath::IsFinite(InCellSize) || InCellSize < 0.1)
 	{
 		OutError = TEXT("Cell grid requires finite UVs, non-zero scale and cell size >= 0.1 cm.");
@@ -104,7 +104,7 @@ bool FBreachCellGrid::Quantize(const FVector2d& LocalXZ, FIntPoint& OutCell, FVe
 		}
 		// Stabilize only transform roundoff at a boundary, not a visible sub-cell displacement.
 		const double Nearest = FMath::RoundToDouble(Indices[Axis]);
-		if (FMath::Abs(Indices[Axis] - Nearest) <= 1.e-9)
+		if (FMath::Abs(Indices[Axis] - Nearest) <= UE_DOUBLE_KINDA_SMALL_NUMBER)
 		{
 			Indices[Axis] = Nearest;
 		}

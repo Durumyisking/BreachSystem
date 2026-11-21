@@ -22,7 +22,7 @@ namespace
 
 	bool ValidScale(const FVector& Scale)
 	{
-		return !Scale.ContainsNaN() && FMath::Abs(Scale.X) > UE_DOUBLE_SMALL_NUMBER && FMath::Abs(Scale.Y) > UE_DOUBLE_SMALL_NUMBER && FMath::Abs(Scale.Z) > UE_DOUBLE_SMALL_NUMBER;
+		return !Scale.ContainsNaN() && FMath::Abs(Scale.X) > UE_DOUBLE_KINDA_SMALL_NUMBER && FMath::Abs(Scale.Y) > UE_DOUBLE_KINDA_SMALL_NUMBER && FMath::Abs(Scale.Z) > UE_DOUBLE_KINDA_SMALL_NUMBER;
 	}
 
 	double RegionArea(TConstArrayView<FGeneralPolygon2d> Regions)
@@ -45,7 +45,7 @@ namespace
 	{
 		Regions.RemoveAll([](const FGeneralPolygon2d& Region)
 		{
-			return FMath::Abs(Region.SignedArea()) <= 1.e-8;
+			return FMath::Abs(Region.SignedArea()) <= UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER;
 		});
 	}
 }
@@ -139,7 +139,7 @@ bool BreachDecoration::ClipPatches(FCutState& State, const FBreachSimpleCollisio
 
 		// 경계만 겹치고 실제로 잘리지 않은 패치는 표시 메시도 그대로 둔다.
 		const double Before = RegionArea(Patch.Regions);
-		if (FMath::Abs(Before - RegionArea(Clipped)) <= FMath::Max(1.e-9, Before * 1.e-12))
+		if (FMath::Abs(Before - RegionArea(Clipped)) <= FMath::Max(UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER, Before * UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER))
 		{
 			continue;
 		}

@@ -352,7 +352,7 @@ bool BreachSurfaceGeometry::TriangulateRegion(const FGeneralPolygon2d& Region, T
     }
 
     const double RegionArea = FMath::Abs(Region.SignedArea());
-    if (FMath::Abs(TriangulatedArea - RegionArea) > FMath::Max(1.e-6, RegionArea * 1.e-6))
+    if (FMath::Abs(TriangulatedArea - RegionArea) > FMath::Max(UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER, RegionArea * UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER))
     {
         OutError = TEXT("삼각분할 결과가 남은 영역을 완전히 덮지 못합니다.");
         return false;

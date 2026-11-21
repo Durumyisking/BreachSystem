@@ -298,7 +298,7 @@ namespace
 			const FVector2d After = Samples[Next].Point - Samples[Index].Point;
 			FVector2d Axis = Before / Before.Length() + After / After.Length();
 			const double AxisLength = Axis.Length();
-			if (AxisLength <= 1.e-12)
+			if (AxisLength <= UE_DOUBLE_KINDA_SMALL_NUMBER)
 			{
 				OutError = TEXT("Sampled boundary folds back at a vertex.");
 				return false;
@@ -378,7 +378,7 @@ namespace
 		}
 		const auto Bounds = Polygon.Bounds();
 		const double Scale = FMath::Max(Bounds.Width(), Bounds.Height());
-		const double Tolerance = FMath::Max(1.e-6, Scale * 1.e-8);
+		const double Tolerance = UE_DOUBLE_KINDA_SMALL_NUMBER;
 		if (!FMath::IsFinite(Scale))
 		{
 			OutError = TEXT("Boundary extent is not finite.");
@@ -506,7 +506,7 @@ bool BreachContour::Prepare(const UE::Geometry::FPolygon2d& Base, const FBreachC
 	{
 		return false;
 	}
-	const double Tolerance = FMath::Max(1.e-6, FMath::Max(Bounds.Width(), Bounds.Height()) * 1.e-8);
+	const double Tolerance = UE_DOUBLE_KINDA_SMALL_NUMBER;
 	if (SampledBoundary.IsClockwise())
 	{
 		OutError = TEXT("Sampled boundary reverses the source orientation.");
