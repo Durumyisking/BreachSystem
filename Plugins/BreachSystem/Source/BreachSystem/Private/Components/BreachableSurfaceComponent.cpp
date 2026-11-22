@@ -6,55 +6,27 @@
 #include "Components/BreachSimpleProxy.h"
 #include "Components/BreachDecorationComponent.h"
 #include "Components/BreachSourceComponent.h"
+#include "Components/BreachSurfaceSource.h"
 #include "Subsystems/BreachDebrisSubsystem.h"
 #include "Data/BreachSurfaceMaterial.h"
 #include "Data/BreachSystemSettings.h"
 #include "GameFramework/Actor.h"
 #include "Engine/CollisionProfile.h"
-#include "Engine/StaticMesh.h"
 #include "Generators/MinimalBoxMeshGenerator.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "StaticMeshLODResourcesToDynamicMesh.h"
-#include "StaticMeshResources.h"
 #include "Engine/DamageEvents.h"
-#include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Async/Async.h"
 #include "Tasks/Task.h"
 #include "Engine/World.h"
-#include "HAL/PlatformTime.h"
 
 #include "BreachSystemLog.h"
-
-#if WITH_EDITOR
-#include "Components/LineBatchComponent.h"
-#endif
 
 #include "Geometry/BreachSurfaceGeometry.h"
 #include "Geometry/BreachSurfaceWork.h"
 
-#include "DynamicMesh/DynamicMeshAttributeSet.h"
-
-#include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/BodySetup.h"
-
-TRACE_DECLARE_FLOAT_COUNTER(BreachSimpleRequestLatency, TEXT("BreachSimpleCollision | Request to apply (ms)"));
-TRACE_DECLARE_FLOAT_COUNTER(BreachSimpleCookLatency, TEXT("BreachSimpleCollision | Cook request to apply (ms)"));
-
-struct FBreachSimpleBuildJob
-{
-	FBreachSimpleCollision Snapshot;
-	FBreachSimpleBuildPolicy Policy;
-	FKAggregateGeom Collision;
-	FString Error;
-	uint64 Generation = 0;
-	uint64 Revision = 0;
-	double RequestedAt = 0;
-	double CookStarted = 0;
-	TWeakObjectPtr<UBreachSimpleProxy> Proxy;
-	bool bSucceeded = false;
-};
 
 /** 표면 하나의 브리칭 계산 한 번. 실행 중 들어온 피격은 다음 작업에 모인다. */
 struct FBreachJob
@@ -67,51 +39,6 @@ struct FBreachJob
 	uint64 Generation = 0;
 	UE::Tasks::FTask Task;
 };
-
-#if WITH_EDITOR
-bool UBreachableSurfaceComponent::GetCellGridForDebug(FBreachCellGrid& OutGrid, UE::Geometry::FAxisAlignedBox2d& OutLocalBounds, FVector2d& OutDepthRange) const
-{
-	OutGrid = FBreachCellGrid();
-	const FVector Scale = GetComponentScale();
-	const FVector2d MetricScale(FMath::Abs(Scale.X), FMath::Abs(Scale.Z));
-	FString Error;
-	if (IsValid(SurfaceProxy))
-	{
-		OutLocalBounds = Layout.OriginalBounds;
-		OutDepthRange = Layout.OriginalDepthRange;
-		return OutGrid.Configure(Layout.SurfaceUVs[0].Offset, Layout.SurfaceUVs[0].PerX, Layout.SurfaceUVs[0].PerZ,
-			MetricScale, Layout.CapturedCellSize, Error);
-	}
-
-	UStaticMesh* MeshAsset = GetStaticMesh();
-	if (!IsValid(MeshAsset))
-	{
-		return false;
-	}
-	const void* RenderData = MeshAsset->GetRenderData();
-	if (DebugSourceMesh.Get() != MeshAsset || DebugRenderData != RenderData)
-	{
-		DebugSourceMesh = MeshAsset;
-		DebugRenderData = RenderData;
-		UE::Geometry::FDynamicMesh3 Mesh;
-		bDebugSourceValid = ReadSourceSurface(Mesh, DebugUVs);
-		if (bDebugSourceValid)
-		{
-			const UE::Geometry::FAxisAlignedBox3d MeshBounds = Mesh.GetBounds();
-			DebugBounds = UE::Geometry::FAxisAlignedBox2d(FVector2d(MeshBounds.Min.X, MeshBounds.Min.Z), FVector2d(MeshBounds.Max.X, MeshBounds.Max.Z));
-			DebugDepth = FVector2d(MeshBounds.Min.Y, MeshBounds.Max.Y);
-		}
-	}
-	if (!bDebugSourceValid)
-	{
-		return false;
-	}
-	OutLocalBounds = DebugBounds;
-	OutDepthRange = DebugDepth;
-	return OutGrid.Configure(DebugUVs[0].Offset, DebugUVs[0].PerX, DebugUVs[0].PerZ,
-		MetricScale, UBreachSystemSettings::GetCellSizeCm(), Error);
-}
-#endif
 
 UBreachableSurfaceComponent::UBreachableSurfaceComponent()
 {
@@ -132,7 +59,7 @@ void UBreachableSurfaceComponent::OnComponentDestroyed(bool bDestroyingHierarchy
 {
 	// 작업 스레드가 이 표면이 붙잡은 재질을 읽고 있을 수 있으므로 계산이 끝날 때까지 기다린다.
 	InvalidateBreachJobs(true);
-	InvalidateSimpleCollisionJobs();
+	SimpleCollisionQueue.Invalidate();
 	if (IsValid(Decorations))
 	{
 		Decorations->DestroyComponent();
@@ -165,135 +92,11 @@ void UBreachableSurfaceComponent::ReceiveComponentDamage(float DamageAmount, con
 	HandleBreachDamage(this, DamageEvent, DamageCauser, DamageAmount);
 }
 
-bool UBreachableSurfaceComponent::ReadSourceSurface(UE::Geometry::FDynamicMesh3& Mesh, FPlanarUVMapping (&InitialUVs)[2]) const
-{
-	// 1. 원본을 검사한다. 실패하면 현재 표면은 그대로 유지한다.
-	UStaticMesh* SourceStaticMesh = GetStaticMesh();
-	if (!IsValid(SourceStaticMesh))
-	{
-		return false;
-	}
-
-	// 2. 원본의 LOD0 렌더 데이터를 가져온다. 이 버퍼를 읽어 DynamicMesh로 복사한다.
-	const FStaticMeshRenderData* RenderData = SourceStaticMesh->GetRenderData();
-	if (!RenderData)
-	{
-		UE_LOG(LogBreachableSurface, Warning, TEXT("%s has no render data."), *SourceStaticMesh->GetName());
-		return false;
-	}
-
-	if (RenderData->LODResources.Num() == 0)
-	{
-		UE_LOG(LogBreachableSurface, Warning, TEXT("%s has no render LOD to initialize from."), *SourceStaticMesh->GetName());
-		return false;
-	}
-
-	// GPU에만 남은 데이터는 읽을 수 없으므로 CPU 접근 가능한 버퍼인지 먼저 확인한다.
-	const FStaticMeshLODResources& LOD = RenderData->LODResources[0];
-	if (!LOD.VertexBuffers.PositionVertexBuffer.GetAllowCPUAccess()
-		|| !LOD.VertexBuffers.StaticMeshVertexBuffer.GetAllowCPUAccess()
-		|| !LOD.IndexBuffer.GetAllowCPUAccess())
-	{
-		UE_LOG(LogBreachableSurface, Warning, TEXT("Enable Allow CPU Access on %s before initializing a breach surface."), *SourceStaticMesh->GetName());
-		return false;
-	}
-
-	// 3. 정점, 삼각형, 노멀, UV, 머티리얼 ID를 복사한다. 원본 에셋은 수정하지 않는다. (Mesh가 결과물이다)
-	const UE::Geometry::FStaticMeshLODResourcesToDynamicMesh::ConversionOptions Options;
-	if (!UE::Geometry::FStaticMeshLODResourcesToDynamicMesh::Convert(&LOD, Options, Mesh))
-	{
-		return false;
-	}
-	if (Mesh.TriangleCount() == 0)
-	{
-		return false;
-	}
-
-	// 4. 로컬 경계에서 치수를 구한다. 컴포넌트의 월드 스케일은 이 치수에 포함하지 않는다.
-	const UE::Geometry::FAxisAlignedBox3d MeshBounds = Mesh.GetBounds();
-	FBreachSurfaceState InitialState;
-	InitialState.Size.Width = MeshBounds.Max.X - MeshBounds.Min.X;
-	InitialState.Size.Height = MeshBounds.Max.Z - MeshBounds.Min.Z;
-
-	// 검증: XZ 평면에서 유효한 면적을 가져야 한다.
-	if (InitialState.Size.Width <= UE_DOUBLE_KINDA_SMALL_NUMBER || InitialState.Size.Height <= UE_DOUBLE_KINDA_SMALL_NUMBER)
-	{
-		UE_LOG(LogBreachableSurface, Warning, TEXT("%s must have non-zero dimensions in local XZ."), *SourceStaticMesh->GetName());
-		return false;
-	}
-
-	// 사각 면의 UV = Offset + X * PerX + Z * PerZ. 원본에서 한 번만 구한다.
-	const auto* SourceUV = Mesh.HasAttributes() ? Mesh.Attributes()->PrimaryUV() : nullptr;
-	if (!SourceUV)
-	{
-		UE_LOG(LogBreachableSurface, Warning, TEXT("%s needs UV0 to initialize the breach surface; keeping the static mesh."), *SourceStaticMesh->GetName());
-		return false;
-	}
-
-	bool bFoundUVs[2] = { false, false };
-	for (int32 TriangleID : Mesh.TriangleIndicesItr())
-	{
-		const FVector3d Normal = Mesh.GetTriNormal(TriangleID);
-		if (FMath::Abs(Normal.Y) < 0.99)
-		{
-			continue;
-		}
-		if (!SourceUV->IsSetTriangle(TriangleID))
-		{
-			UE_LOG(LogBreachableSurface, Warning, TEXT("%s has a surface triangle without UV0; keeping the static mesh."), *SourceStaticMesh->GetName());
-			return false;
-		}
-		FVector3d A, B, C;
-		Mesh.GetTriVertices(TriangleID, A, B, C);
-		const UE::Geometry::FIndex3i Elements = SourceUV->GetTriangle(TriangleID);
-		const FVector2d UV0(SourceUV->GetElement(Elements.A));
-		const FVector2d UV1(SourceUV->GetElement(Elements.B));
-		const FVector2d UV2(SourceUV->GetElement(Elements.C));
-		const int32 Side = Normal.Y > 0 ? 1 : 0;
-		FPlanarUVMapping& Mapping = InitialUVs[Side];
-		if (!bFoundUVs[Side])
-		{
-			const FVector3d AB = B - A, AC = C - A;
-			const double Determinant = AB.X * AC.Z - AC.X * AB.Z;
-			if (FMath::Abs(Determinant) <= UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER)
-			{
-				continue;
-			}
-			Mapping.PerX = ((UV1 - UV0) * AC.Z - (UV2 - UV0) * AB.Z) / Determinant;
-			Mapping.PerZ = ((UV2 - UV0) * AB.X - (UV1 - UV0) * AC.X) / Determinant;
-			Mapping.Offset = UV0 - Mapping.PerX * A.X - Mapping.PerZ * A.Z;
-			bFoundUVs[Side] = true;
-		}
-
-		// 검증: 한 면 안에 UV 이음선이나 서로 다른 배율이 있으면 단일 변환으로 보존할 수 없다.
-		const FVector3d Positions[3] = { A, B, C };
-		const FVector2d UVs[3] = { UV0, UV1, UV2 };
-		for (int32 Corner = 0; Corner < 3; ++Corner)
-		{
-			const FVector2d Expected = Mapping.Offset + Mapping.PerX * Positions[Corner].X + Mapping.PerZ * Positions[Corner].Z;
-			if ((Expected - UVs[Corner]).Length() > UE_DOUBLE_KINDA_SMALL_NUMBER)
-			{
-				UE_LOG(LogBreachableSurface, Warning, TEXT("%s requires one linear UV mapping per surface face; keeping the static mesh."), *SourceStaticMesh->GetName());
-				return false;
-			}
-		}
-	}
-
-	// 검증: 원본의 앞·뒷면 UV 변환을 모두 확보한 뒤 저장한다.
-	if (!bFoundUVs[0] || !bFoundUVs[1])
-	{
-		UE_LOG(LogBreachableSurface, Warning, TEXT("%s needs UV0 on both XZ faces; keeping the static mesh."), *SourceStaticMesh->GetName());
-		return false;
-	}
-
-	return true;
-}
-
 bool UBreachableSurfaceComponent::CreateSurfaceProxy(UE::Geometry::FDynamicMesh3& OutMesh)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Initialize collision proxies");
 	FPlanarUVMapping InitialUVs[2];
-	if (!ReadSourceSurface(OutMesh, InitialUVs))
+	if (!BreachSurfaceSource::ReadSurface(GetStaticMesh(), OutMesh, InitialUVs))
 	{
 		return false;
 	}
@@ -314,7 +117,7 @@ bool UBreachableSurfaceComponent::CreateSurfaceProxy(UE::Geometry::FDynamicMesh3
 	OriginalOuter = Outer;
 	Layout.OriginalBounds = OriginalOuter.Bounds();
 	Layout.OriginalDepthRange = FVector2d(MeshBounds.Min.Y, MeshBounds.Max.Y);
-	InvalidateSimpleCollisionJobs();
+	SimpleCollisionQueue.Invalidate();
 	Model.SimpleCollision.Initialize(OriginalOuter, Layout.OriginalDepthRange);
 
 	// 6. 복사한 삼각형의 머티리얼 ID와 대응하도록 원본의 슬롯 순서를 유지한다.
@@ -359,7 +162,7 @@ bool UBreachableSurfaceComponent::CreateSurfaceProxy(UE::Geometry::FDynamicMesh3
 	SimpleProxy->InitializeCollision(InitialBounds);
 	UBodySetup* InitialBody = SimpleProxy->GetBodySetup();
 	check(InitialBody);
-	Model.SimpleCollision.InitializeCollision(GetSimpleBuildPolicy(), InitialBody->AggGeom);
+	Model.SimpleCollision.InitializeCollision(FBreachSimpleCollisionQueue::MakePolicy(GetComponentScale()), InitialBody->AggGeom);
 
 	Model.SurfaceState = MoveTemp(InitialState);
 
@@ -383,31 +186,45 @@ bool UBreachableSurfaceComponent::CreateSurfaceProxy(UE::Geometry::FDynamicMesh3
 	return true;
 }
 
-FBreachSimpleBuildPolicy UBreachableSurfaceComponent::GetSimpleBuildPolicy() const
+FBreachSimpleCollisionQueue::FInput UBreachableSurfaceComponent::MakeSimpleCollisionInput()
 {
 	check(IsInGameThread());
-	const FVector Scale = GetComponentScale();
-	FBreachSimpleBuildPolicy Policy;
-	Policy.WorldScale = FVector2d(FMath::Abs(Scale.X), FMath::Abs(Scale.Z));
-	Policy.AreaThreshold = UBreachSystemSettings::GetComplexHoleSizeThreshold();
-	Policy.MaxCount = UBreachSystemSettings::GetMaxSimpleConvexCount();
-	Policy.PassageTolerance = UBreachSystemSettings::GetSimplePassageToleranceCm();
-	return Policy;
-}
+	FBreachSimpleCollisionQueue::FInput Input{Model.SimpleCollision};
+	Input.Proxy = SimpleProxy;
+	Input.ComponentScale = GetComponentScale();
+	Input.bRegistered = IsRegistered();
+	const UWorld* World = GetWorld();
+	if (World)
+	{
+		Input.bWorldAlive = !World->bIsTearingDown;
+	}
+	Input.SurfaceName = GetName();
 
-void UBreachableSurfaceComponent::InvalidateSimpleCollisionJobs()
-{
-	++SimpleBuildGeneration;
-	// 진행 중인 이전 수명의 작업도 완료까지 보관하여 같은 표면의 작업이 겹치지 않게 한다.
-	bSimpleBuildPending = false;
-	SimplePendingSince = 0;
-	CompletedSimpleRevision = 0;
+	// 완료 알림은 게임 스레드에서 온다. 그 사이 표면이 사라졌으면 결과를 버리고, 살아 있으면 그때의 값으로 대기열을 이어 간다.
+	const TWeakObjectPtr<UBreachableSurfaceComponent> WeakThis(this);
+	Input.OnBuilt = [WeakThis](const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job)
+	{
+		UBreachableSurfaceComponent* Surface = WeakThis.Get();
+		if (IsValid(Surface))
+		{
+			Surface->SimpleCollisionQueue.CompleteBuild(Surface->MakeSimpleCollisionInput(), Job);
+		}
+	};
+	Input.OnCooked = [WeakThis](const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job, bool bCookSucceeded)
+	{
+		UBreachableSurfaceComponent* Surface = WeakThis.Get();
+		if (IsValid(Surface))
+		{
+			Surface->SimpleCollisionQueue.CompleteCook(Surface->MakeSimpleCollisionInput(), Job, bCookSucceeded);
+		}
+	};
+	return Input;
 }
 
 void UBreachableSurfaceComponent::OnUnregister()
 {
 	InvalidateBreachJobs(true);
-	InvalidateSimpleCollisionJobs();
+	SimpleCollisionQueue.Invalidate();
 	if (IsValid(Decorations))
 	{
 		Decorations->UnregisterComponent();
@@ -435,192 +252,7 @@ void UBreachableSurfaceComponent::OnRegister()
 	{
 		SurfaceProxy->RegisterComponent();
 		SimpleProxy->RegisterComponent();
-		QueueSimpleCollision();
-	}
-}
-
-void UBreachableSurfaceComponent::QueueSimpleCollision()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Queue build");
-	check(IsInGameThread());
-	if (!IsValid(SimpleProxy) || !IsRegistered() || !Model.SimpleCollision.HasHoleCache())
-	{
-		bSimpleBuildPending = false;
-		SimplePendingSince = 0;
-		UE_LOG(LogBreachableSurface, Warning, TEXT("%s cannot queue Simple collision without a valid proxy and hole cache; previous collision is retained."), *GetName());
-		return;
-	}
-	const FBreachSimpleBuildPolicy Policy = GetSimpleBuildPolicy();
-	if (!SimpleBuildJob.IsValid() && Model.SimpleCollision.GetRevision() == CompletedSimpleRevision && Policy == CompletedSimplePolicy)
-	{
-		return;
-	}
-	if (!bSimpleBuildPending)
-	{
-		SimplePendingSince = FPlatformTime::Seconds();
-	}
-	bSimpleBuildPending = true;
-	if (SimpleBuildJob.IsValid())
-	{
-		return;
-	}
-
-	auto Job = MakeShared<FBreachSimpleBuildJob, ESPMode::ThreadSafe>();
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Snapshot collision state");
-		Job->Snapshot = Model.SimpleCollision;
-	}
-	Job->Policy = Policy;
-	Job->Generation = SimpleBuildGeneration;
-	Job->Revision = Model.SimpleCollision.GetRevision();
-	Job->RequestedAt = SimplePendingSince;
-	Job->Proxy = SimpleProxy;
-	SimpleBuildJob = Job;
-	bSimpleBuildPending = false;
-	SimplePendingSince = 0;
-	const TWeakObjectPtr<UBreachableSurfaceComponent> WeakThis(this);
-	Async(EAsyncExecution::ThreadPool, [WeakThis, Job]
-	{
-		Job->bSucceeded = Job->Snapshot.BuildMeshFromCuts(Job->Policy, Job->Collision, Job->Error);
-		AsyncTask(ENamedThreads::GameThread, [WeakThis, Job]
-		{
-			UBreachableSurfaceComponent* Surface = WeakThis.Get();
-			if (IsValid(Surface))
-			{
-				Surface->CompleteSimpleCollision(Job);
-			}
-		});
-	});
-}
-
-bool UBreachableSurfaceComponent::CanPublishSimpleCollision(const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job) const
-{
-	check(IsInGameThread());
-	check(Job.IsValid());
-	if (SimpleBuildJob != Job || Job->Generation != SimpleBuildGeneration)
-	{
-		return false;
-	}
-	UWorld* World = GetWorld();
-	if (!World || World->bIsTearingDown || !IsRegistered())
-	{
-		return false;
-	}
-	if (!IsValid(SimpleProxy) || Job->Proxy.Get() != SimpleProxy || !SimpleProxy->IsRegistered())
-	{
-		return false;
-	}
-	return Model.SimpleCollision.HasHoleCache() && GetSimpleBuildPolicy() == Job->Policy;
-}
-
-void UBreachableSurfaceComponent::CompleteSimpleCollision(const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Complete build");
-	check(IsInGameThread());
-	check(Job.IsValid());
-	if (SimpleBuildJob != Job)
-	{
-		return;
-	}
-	if (CanPublishSimpleCollision(Job))
-	{
-		if (Job->bSucceeded)
-		{
-			const FBreachSimpleBuildStats& Stats = Job->Snapshot.GetLastBuildStats();
-			if (Stats.bCollisionChanged)
-			{
-				UBreachSimpleProxy* Proxy = Job->Proxy.Get();
-				check(Proxy);
-				Job->CookStarted = FPlatformTime::Seconds();
-				const TWeakObjectPtr<UBreachableSurfaceComponent> WeakThis(this);
-				Proxy->CookCollision(Job->Collision, [WeakThis, Job](bool bSucceeded)
-				{
-					UBreachableSurfaceComponent* Current = WeakThis.Get();
-					if (IsValid(Current))
-					{
-						Current->CompleteSimpleCook(Job, bSucceeded);
-					}
-				});
-				return;
-			}
-		}
-	}
-	CompleteSimpleCook(Job, Job->bSucceeded);
-}
-
-void UBreachableSurfaceComponent::CompleteSimpleCook(const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job, bool bCookSucceeded)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Complete cook and publish");
-	check(IsInGameThread());
-	check(Job.IsValid());
-	if (SimpleBuildJob != Job)
-	{
-		return;
-	}
-	UBreachSimpleProxy* Proxy = Job->Proxy.Get();
-	const bool bCanPublish = CanPublishSimpleCollision(Job);
-	if (bCanPublish)
-	{
-		if (Job->bSucceeded && bCookSucceeded)
-		{
-			check(Proxy);
-			const double ApplyStarted = FPlatformTime::Seconds();
-			const FBreachSimpleBuildStats& Stats = Job->Snapshot.GetLastBuildStats();
-			bool bApplied = true;
-			if (Stats.bCollisionChanged)
-			{
-				bApplied = Proxy->ApplyCollision();
-			}
-			if (bApplied)
-			{
-				Model.SimpleCollision.CommitBuild(Job->Snapshot);
-				CompletedSimpleRevision = Job->Revision;
-				CompletedSimplePolicy = Job->Policy;
-				const double ApplyMs = (FPlatformTime::Seconds() - ApplyStarted) * 1000;
-				const double LatencyMs = (FPlatformTime::Seconds() - Job->RequestedAt) * 1000;
-				const double CookLatencyMs = Job->CookStarted > 0 ? (ApplyStarted - Job->CookStarted) * 1000 : 0;
-				TRACE_COUNTER_SET(BreachSimpleRequestLatency, LatencyMs);
-				if (Job->CookStarted > 0)
-				{
-					TRACE_COUNTER_SET(BreachSimpleCookLatency, CookLatencyMs);
-				}
-				UE_LOG(LogBreachableSurface, Verbose, TEXT("[BreachSimpleAsync] %s revision=%llu geometry=%.3fms cookLatency=%.3fms apply=%.3fms latency=%.3fms prepared=%d reused=%d changed=%d"), *GetName(), Job->Revision, Stats.GeometryMs, CookLatencyMs, ApplyMs, LatencyMs, Stats.PreparedOpenings, Stats.ReusedBodies, Stats.bCollisionChanged);
-				if (Stats.FrozenOpenings > 0)
-				{
-					UE_LOG(LogBreachableSurface, Warning, TEXT("%s updated its Simple collision but kept the previous passages of %d opening(s) whose calculation failed: %s"), *GetName(), Stats.FrozenOpenings, *Job->Error);
-				}
-			}
-		}
-		else
-		{
-			if (Job->bSucceeded)
-			{
-				Job->Error = TEXT("Simple physics cooking failed or produced incomplete geometry.");
-			}
-			UE_LOG(LogBreachableSurface, Warning, TEXT("%s kept its previous Simple collision after calculation or cooking failed: %s"), *GetName(), *Job->Error);
-		}
-	}
-	if (IsValid(Proxy))
-	{
-		Proxy->DiscardCollision();
-	}
-
-	// 설정 변경도 연사와 같은 대기 요청 하나로 병합한다.
-	if (Job->Generation == SimpleBuildGeneration && IsRegistered())
-	{
-		if (!(GetSimpleBuildPolicy() == Job->Policy))
-		{
-			if (!bSimpleBuildPending)
-			{
-				SimplePendingSince = FPlatformTime::Seconds();
-			}
-			bSimpleBuildPending = true;
-		}
-	}
-	SimpleBuildJob.Reset();
-	if (bSimpleBuildPending && IsRegistered())
-	{
-		QueueSimpleCollision();
+		SimpleCollisionQueue.Queue(MakeSimpleCollisionInput());
 	}
 }
 
@@ -665,7 +297,7 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh,
 		SurfaceProxy->SetHiddenInGame(bOriginalHiddenInGame, false);
 	}
 
-	QueueSimpleCollision();
+	SimpleCollisionQueue.Queue(MakeSimpleCollisionInput());
 	if (!PendingDecorationCuts.IsEmpty())
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Update decorations");
@@ -697,7 +329,7 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh,
 bool UBreachableSurfaceComponent::ResetSurface()
 {
 	InvalidateBreachJobs(false);
-	InvalidateSimpleCollisionJobs();
+	SimpleCollisionQueue.Invalidate();
 	PendingDecorationCuts.Reset();
 	PendingDecorationRemoved.Reset();
 	if (IsValid(Decorations))
@@ -937,20 +569,7 @@ void UBreachableSurfaceComponent::CommitBreachJob(const TSharedPtr<FBreachJob, E
 		{
 			if (Work.bDecorationExists)
 			{
-				if (!IsValid(Decorations))
-				{
-					AActor* Owner = GetOwner();
-					if (ensureMsgf(IsValid(Owner), TEXT("%s requires an owner for Deco."), *GetName()))
-					{
-						Decorations = NewObject<UBreachDecorationComponent>(Owner);
-						Decorations->RegisterComponent();
-					}
-				}
-				if (IsValid(Decorations))
-				{
-					TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Update decorations");
-					Decorations->ApplyWork(this, Work.Decoration, bOriginalVisible, bOriginalHiddenInGame);
-				}
+				ApplyDecorationWork(Work.Decoration);
 			}
 
 			for (int32 Index = 0; Index < Work.Results.Num(); ++Index)
@@ -962,22 +581,7 @@ void UBreachableSurfaceComponent::CommitBreachJob(const TSharedPtr<FBreachJob, E
 					continue;
 				}
 
-				if (Result.RemovedArea > 0 && IsValid(Hit.Material))
-				{
-					UWorld* World = GetWorld();
-					if (IsValid(World))
-					{
-						UBreachDebrisSubsystem* Debris = World->GetSubsystem<UBreachDebrisSubsystem>();
-						if (IsValid(Debris))
-						{
-							const FTransform& Transform = GetComponentTransform();
-							const double AreaScale = FMath::Abs(Transform.GetScale3D().X * Transform.GetScale3D().Z);
-							const FVector Face = Hit.Side == EBreachSurfaceSide::Front ? -FVector::YAxisVector : FVector::YAxisVector;
-							const FVector Outward = Transform.TransformVector(Face).GetSafeNormal();
-							Debris->Spawn(*Hit.Material, Hit.HitInfo.ImpactPoint, Outward, Result.RemovedArea * AreaScale);
-						}
-					}
-				}
+				SpawnHitDebris(Hit, Result);
 
 				// 최종 메시와 충돌이 반영된 뒤 피격을 알린다.
 				TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Breached event");
@@ -1000,6 +604,44 @@ void UBreachableSurfaceComponent::CommitBreachJob(const TSharedPtr<FBreachJob, E
 		BreachJobMaterials.Reset();
 	}
 	StartBreachJob();
+}
+
+void UBreachableSurfaceComponent::ApplyDecorationWork(FBreachDecorationWork& Decoration)
+{
+	if (!IsValid(Decorations))
+	{
+		AActor* Owner = GetOwner();
+		if (ensureMsgf(IsValid(Owner), TEXT("%s requires an owner for Deco."), *GetName()))
+		{
+			Decorations = NewObject<UBreachDecorationComponent>(Owner);
+			Decorations->RegisterComponent();
+		}
+	}
+	if (IsValid(Decorations))
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Update decorations");
+		Decorations->ApplyWork(this, Decoration, bOriginalVisible, bOriginalHiddenInGame);
+	}
+}
+
+void UBreachableSurfaceComponent::SpawnHitDebris(const FBreachHitInput& Hit, const FBreachHitResult& Result)
+{
+	if (Result.RemovedArea > 0 && IsValid(Hit.Material))
+	{
+		UWorld* World = GetWorld();
+		if (IsValid(World))
+		{
+			UBreachDebrisSubsystem* Debris = World->GetSubsystem<UBreachDebrisSubsystem>();
+			if (IsValid(Debris))
+			{
+				const FTransform& Transform = GetComponentTransform();
+				const double AreaScale = FMath::Abs(Transform.GetScale3D().X * Transform.GetScale3D().Z);
+				const FVector Face = Hit.Side == EBreachSurfaceSide::Front ? -FVector::YAxisVector : FVector::YAxisVector;
+				const FVector Outward = Transform.TransformVector(Face).GetSafeNormal();
+				Debris->Spawn(*Hit.Material, Hit.HitInfo.ImpactPoint, Outward, Result.RemovedArea * AreaScale);
+			}
+		}
+	}
 }
 
 void UBreachableSurfaceComponent::FlushBreachJobs()
@@ -1134,57 +776,6 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 	PendingDecorationRemoved.Append(Result.DecorationRemoved);
 	return true;
 }
-
-#if WITH_EDITOR
-void UBreachableSurfaceComponent::DebugDrawSurface()
-{
-	// 상태 확인: 월드가 있을 때만 남은 표면 영역을 그린다.
-	UWorld* World = GetWorld();
-	if (World)
-	{
-		const FTransform& ComponentTransform = GetComponentTransform();
-		BreachSurfaceGeometry::DebugDrawPolygon2ds(this, ComponentTransform, Model.SurfaceState.RemainingRegions);
-
-#pragma region LineBatch방식
-		/*for (auto& RemainingRegion : SurfaceState.RemainingRegions)
-		{
-			TArray<FBatchedLine> Lines;
-
-			const TArray<FVector2D>& OuterVertices = RemainingRegion.GetOuter().GetVertices();
-			for (int32 i = 0; i < OuterVertices.Num(); ++i)
-			{
-				const FVector Start = SurfaceToWorld(OuterVertices[i]);
-				const FVector End = SurfaceToWorld(OuterVertices[(i + 1) % OuterVertices.Num()]);
-				Lines.Emplace(Start, End, FLinearColor::Green, 2.f, 2.f, SDPG_Foreground, 0);
-			}
-
-			const TArray<UE::Geometry::FPolygon2d> Holes = RemainingRegion.GetHoles();
-			for (auto& Hole : Holes)
-			{
-				const TArray<FVector2D>& HoleVertices = Hole.GetVertices();
-				for (int32 i = 0; i < HoleVertices.Num(); ++i)
-				{
-					const FVector Start = SurfaceToWorld(HoleVertices[i]);
-					const FVector End = SurfaceToWorld(HoleVertices[(i + 1) % HoleVertices.Num()]);
-					Lines.Emplace(Start, End, FLinearColor::Green, 2.f, 2.f, SDPG_Foreground, 0);
-				}
-			}
-
-			if (!Lines.IsEmpty())
-			{
-				if (ULineBatchComponent* LineBatcher = World->GetLineBatcher(UWorld::ELineBatcherType::ForegroundPersistent))
-				{
-					LineBatcher->DrawLines(Lines);
-				}
-			}
-		}*/
-#pragma endregion
-
-
-	}
-}
-
-#endif
 
 UBreachSurfaceMaterial* UBreachableSurfaceComponent::GetSurfaceMaterial() const
 {

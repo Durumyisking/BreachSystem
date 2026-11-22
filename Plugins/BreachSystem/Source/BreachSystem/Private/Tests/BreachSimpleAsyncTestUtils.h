@@ -23,12 +23,12 @@ struct FBreachSimpleAsyncTestAccess
 	static uint64 PublishedRevision(const UBreachableSurfaceComponent* Surface)
 	{
 		check(Surface);
-		return Surface->CompletedSimpleRevision;
+		return Surface->SimpleCollisionQueue.CompletedRevision;
 	}
 	static bool IsPending(const UBreachableSurfaceComponent* Surface)
 	{
 		check(Surface);
-		return Surface->SimpleBuildJob.IsValid() || Surface->bSimpleBuildPending;
+		return Surface->SimpleCollisionQueue.BuildJob.IsValid() || Surface->SimpleCollisionQueue.bPending;
 	}
 	static bool HasHoleCache(const UBreachableSurfaceComponent* Surface)
 	{

@@ -8,9 +8,9 @@
 #include "Geometry/BreachDamageAccumulator.h"
 #include "Geometry/BreachAccumulationShape.h"
 #include "Geometry/BreachCellGrid.h"
-#include "Geometry/BreachSimpleCollision.h"
 #include "Data/BreachDecorationOptions.h"
 #include "Geometry/BreachSurfaceUV.h"
+#include "Components/BreachSimpleCollisionQueue.h"
 #include "BreachableSurfaceComponent.generated.h"
 
 
@@ -19,9 +19,10 @@ class UBreachSimpleProxy;
 class UBreachDecorationComponent;
 class UBreachSurfaceMaterial;
 class UMaterialInstanceDynamic;
-struct FBreachSimpleBuildJob;
 struct FBreachJob;
 struct FBreachHitInput;
+struct FBreachHitResult;
+struct FBreachDecorationWork;
 class FBreachSurfaceWork;
 namespace UE::Geometry { class FDynamicMesh3; }
 
@@ -117,6 +118,10 @@ private:
 	void StartBreachJob(bool bForceSync = false);
 	/** 끝난 작업을 게임 스레드에서 반영한다. 표면 수명이 바뀐 뒤 도착한 결과는 버린다. */
 	void CommitBreachJob(const TSharedPtr<FBreachJob, ESPMode::ThreadSafe>& Job);
+	/** 작업이 갱신한 Deco 사본을 표시에 옮긴다. 아직 Deco 컴포넌트가 없으면 만든다. */
+	void ApplyDecorationWork(FBreachDecorationWork& Decoration);
+	/** 피격 하나가 덜어 낸 면적만큼 재질의 파편을 피격 면 바깥쪽으로 뿌린다. */
+	void SpawnHitDebris(const FBreachHitInput& Hit, const FBreachHitResult& Result);
 	/** 실행 중인 작업과 대기 중인 피격을 모두 반영할 때까지 기다린다. 동기 API가 순서를 지키기 위해 쓴다. */
 	void FlushBreachJobs();
 	/** 대기 중인 피격을 버리고 실행 중인 결과가 반영되지 않게 한다. bWait면 실행 중인 계산이 끝날 때까지 기다린다. */
@@ -125,12 +130,8 @@ private:
 	/** 노멀과 UV를 채운 최종 메시와 충돌을 반영하고, 첫 갱신이면 원본에서 Proxy로 표시와 충돌을 전환한다. */
 	bool UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh, EBreachSurfaceSide Side = EBreachSurfaceSide::Front);
 
-	FBreachSimpleBuildPolicy GetSimpleBuildPolicy() const;
-	void QueueSimpleCollision();
-	void CompleteSimpleCollision(const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job);
-	void CompleteSimpleCook(const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job, bool bCookSucceeded);
-	bool CanPublishSimpleCollision(const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job) const;
-	void InvalidateSimpleCollisionJobs();
+	/** Simple 충돌 대기열에 넘길 현재 표면 값을 만든다. 완료 알림은 표면이 살아 있을 때만 대기열로 돌아온다. */
+	FBreachSimpleCollisionQueue::FInput MakeSimpleCollisionInput();
 
 public:
 	// Variables
@@ -150,11 +151,8 @@ private:
 	bool bDisplayOverridesCaptured = false;
 	void RefreshDisplayMaterial();
 
-	/** 초기화와 표시 조회가 동일한 LOD0/UV 검증을 사용한다. 원본은 수정하지 않는다. */
-	bool ReadSourceSurface(UE::Geometry::FDynamicMesh3& Mesh, FPlanarUVMapping (&OutUVs)[2]) const;
-
 #if WITH_EDITOR
-	// 표시용 원본 캐시. 런타임 파손 상태를 생성하거나 변경하지 않는다.
+	// GetCellGridForDebug가 쓰는 표시용 원본 캐시(BreachableSurfaceComponentDebug.cpp). 런타임 파손 상태를 생성하거나 변경하지 않는다.
 	mutable TWeakObjectPtr<UStaticMesh> DebugSourceMesh;
 	mutable const void* DebugRenderData = nullptr;
 	mutable bool bDebugSourceValid = false;
@@ -197,13 +195,8 @@ private:
 
 	// 현재 표면상태 (필수). 계산하는 동안 작업이 들고 있다가 RestoreWork로 돌려준다.
 	FBreachSurfaceModel Model;
-	// 한 표면 수명에는 실행 작업 하나와 최신 변경을 나타내는 대기 표시만 둔다.
-	TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe> SimpleBuildJob;
-	uint64 SimpleBuildGeneration = 0;
-	uint64 CompletedSimpleRevision = 0;
-	FBreachSimpleBuildPolicy CompletedSimplePolicy;
-	bool bSimpleBuildPending = false;
-	double SimplePendingSince = 0;
+	// Model.SimpleCollision을 이동 충돌로 굽는 비동기 대기열. 표면 수명이 바뀌면 Invalidate한다.
+	FBreachSimpleCollisionQueue SimpleCollisionQueue;
 
 public:
 	// Getters / Setters
