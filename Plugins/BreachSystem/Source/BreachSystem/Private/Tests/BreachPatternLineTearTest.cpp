@@ -324,4 +324,81 @@ bool FBreachLineTearValidationTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("None mode ignores unused line tear options"), BreachPatternGeometry::Validate(*Pattern, Error));
 	return !HasAnyErrors();
 }
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBreachLineTearLargeCutTest, "BreachSystem.Pattern.LineTear.LargeCut", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+// 테스트 전용: 여러 타일에 걸친 큰 구멍의 결과를 고정해, 결 찢김 계산을 빠르게 바꿔도 같은 모양이 나오는지 검증한다.
+// 기댓값은 최적화 전 코드(dde7b82)로 측정했다. 모양 규칙을 의도적으로 바꾸면 다시 측정해 갱신한다.
+bool FBreachLineTearLargeCutTest::RunTest(const FString& Parameters)
+{
+	using namespace BreachLineTearTest;
+	// Wavy guides like the wood pattern; each end misses its next tile copy slightly, so tiles must be joined into long lines.
+	UBreachPattern* Pattern = NewObject<UBreachPattern>();
+	Pattern->Mode = EBreachPatternMode::GrainGuides;
+	for (int32 Line = 0; Line < 10; ++Line)
+	{
+		FBreachPatternGuide Guide;
+		for (int32 Point = 0; Point < 9; ++Point)
+		{
+			const double V = .003 + Point * (.994 / 8);
+			Guide.Points.Add({Offset + Line * Spacing + .02 * FMath::Sin(UE_DOUBLE_TWO_PI * V) + .004 * V, V});
+		}
+		Pattern->Guides.Add(Guide);
+	}
+	Pattern->LineTear.MaxSplits = 1;
+
+	// 100-unit tiles, as with the world-size UV of the wood wall.
+	FBreachPatternMapping Straight;
+	Straight.UVPerX = FVector2d(.01, 0);
+	Straight.UVPerY = FVector2d(0, .01);
+	FBreachPatternMapping Rotated;
+	Rotated.UVPerX = FVector2d(.007, -.007);
+	Rotated.UVPerY = FVector2d(.007, .007);
+
+	struct FCase
+	{
+		const TCHAR* Name;
+		double Radius;
+		const FBreachPatternMapping* Mapping;
+		int32 Regions;
+		int32 Vertices;
+		double Area;
+		FVector2d Min;
+		FVector2d Max;
+	};
+	const FCase Cases[] = {
+		{TEXT("Large"), 108, &Straight, 1, 726, 46269.693535989936, FVector2d(-73.036767063763889, -96.070428333080514), FVector2d(149.8584076531335, 215.06150268816324)},
+		{TEXT("Small"), 27, &Straight, 1, 150, 2997.8127474171206, FVector2d(3.8704572513953295, 19.895195857928798), FVector2d(66.821471665650819, 96.261654614583264)},
+		{TEXT("Rotated"), 108, &Rotated, 1, 763, 46563.443400977594, FVector2d(-100.51980344430721, -85.764489987801113), FVector2d(178.44668247458122, 203.53468958182188)},
+	};
+	for (const FCase& Case : Cases)
+	{
+		FString Error;
+		TArray<FGeneralPolygon2d> Result;
+		if (!TestTrue(FString::Printf(TEXT("%s cut generates"), Case.Name), BreachPatternGeometry::Generate(*Pattern, Circle({37, 61}, Case.Radius), *Case.Mapping, PlainContour(7), 1, Result, Error)))
+		{
+			AddError(Error);
+			continue;
+		}
+		TestTrue(FString::Printf(TEXT("%s cut is simple"), Case.Name), BreachPatternGeometry::ValidateRegions(Result, Error));
+
+		int32 Vertices = 0;
+		for (const FGeneralPolygon2d& Region : Result)
+		{
+			Vertices += Region.GetOuter().VertexCount();
+			for (const FPolygon2d& Hole : Region.GetHoles())
+			{
+				Vertices += Hole.VertexCount();
+			}
+		}
+		const double CutArea = Area(Result);
+		const FAxisAlignedBox2d CutBounds = Bounds(Result);
+		AddInfo(FString::Printf(TEXT("%s regions=%d vertices=%d area=%.17g min=(%.17g, %.17g) max=(%.17g, %.17g)"), Case.Name, Result.Num(), Vertices, CutArea, CutBounds.Min.X, CutBounds.Min.Y, CutBounds.Max.X, CutBounds.Max.Y));
+		TestEqual(FString::Printf(TEXT("%s keeps its region count"), Case.Name), Result.Num(), Case.Regions);
+		TestEqual(FString::Printf(TEXT("%s keeps its vertex count"), Case.Name), Vertices, Case.Vertices);
+		TestTrue(FString::Printf(TEXT("%s keeps its area"), Case.Name), FMath::IsNearlyEqual(CutArea, Case.Area, Case.Area * 1.e-9));
+		TestTrue(FString::Printf(TEXT("%s keeps its bounds"), Case.Name), CutBounds.Min.Equals(Case.Min, 1.e-6) && CutBounds.Max.Equals(Case.Max, 1.e-6));
+	}
+	return !HasAnyErrors();
+}
 #endif

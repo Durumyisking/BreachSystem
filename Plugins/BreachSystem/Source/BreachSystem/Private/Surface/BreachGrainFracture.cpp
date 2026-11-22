@@ -123,47 +123,158 @@ namespace
 		// Hand-authored guides rarely end exactly where their next tile copy starts, so an end joins the nearest start ahead
 		// of it when that start is unambiguous (four times closer than any other) and within SeamLimit.
 		// Anything else is treated as an authored gap in the grain.
-		bool bJoined = true;
-		while (bJoined)
+		//
+		// A join changes what other ends see, because the taken start may have been another end's nearest or its rival.
+		// The lowest-numbered end that can join always joins first, exactly as if every join rescanned all ends from the start.
+		// Only starts within four seam limits can decide an end (the nearest within one, any rival within four times that),
+		// so starts are bucketed at that size and, after a join, only the joined chain and ends near the taken start are checked again.
+		const double Reach = SeamLimit * 4;
+		const auto CellOf = [Reach](const FVector2d& Point)
 		{
-			bJoined = false;
-			for (int32 First = 0; First < OutChains.Num() && !bJoined; ++First)
+			// Clamped so a hole far smaller than its pattern cannot overflow a cell index; clamping only merges distant cells.
+			return FIntPoint(
+				static_cast<int32>(FMath::Clamp(FMath::FloorToDouble(Point.X / Reach), -1.e9, 1.e9)),
+				static_cast<int32>(FMath::Clamp(FMath::FloorToDouble(Point.Y / Reach), -1.e9, 1.e9)));
+		};
+		// A cell keeps every chain ever registered at it; readers check that the chain is alive and still has that point.
+		const auto Register = [&CellOf](TMap<FIntPoint, TArray<int32>>& Cells, const FVector2d& Point, int32 Chain)
+		{
+			Cells.FindOrAdd(CellOf(Point)).Add(Chain);
+		};
+		const auto Gather = [&CellOf, Reach](const TMap<FIntPoint, TArray<int32>>& Cells, const FVector2d& Point, TArray<int32>& OutFound)
+		{
+			OutFound.Reset();
+			const FIntPoint Min = CellOf(Point - FVector2d(Reach, Reach));
+			const FIntPoint Max = CellOf(Point + FVector2d(Reach, Reach));
+			for (int32 Y = Min.Y; Y <= Max.Y; ++Y)
 			{
-				const FVector2d End = OutChains[First].Points.Last();
-				int32 Nearest = INDEX_NONE;
-				double NearestDistance = TNumericLimits<double>::Max();
-				double SecondDistance = TNumericLimits<double>::Max();
-				for (int32 Second = 0; Second < OutChains.Num(); ++Second)
+				for (int32 X = Min.X; X <= Max.X; ++X)
 				{
-					const FVector2d Start = OutChains[Second].Points[0];
-					if (Second == First || Start.Y < End.Y - Tolerance)
+					if (const TArray<int32>* Cell = Cells.Find(FIntPoint(X, Y)))
 					{
-						continue;
-					}
-					const double Distance = FVector2d::Distance(End, Start);
-					if (Distance < NearestDistance)
-					{
-						SecondDistance = NearestDistance;
-						NearestDistance = Distance;
-						Nearest = Second;
-					}
-					else
-					{
-						SecondDistance = FMath::Min(SecondDistance, Distance);
+						OutFound.Append(*Cell);
 					}
 				}
-				if (Nearest == INDEX_NONE || NearestDistance > SeamLimit || NearestDistance > SecondDistance * .25)
+			}
+		};
+
+		TArray<bool> Alive;
+		Alive.Init(true, OutChains.Num());
+		TMap<FIntPoint, TArray<int32>> Starts;
+		TMap<FIntPoint, TArray<int32>> Ends;
+		for (int32 Index = 0; Index < OutChains.Num(); ++Index)
+		{
+			Register(Starts, OutChains[Index].Points[0], Index);
+			Register(Ends, OutChains[Index].Points.Last(), Index);
+		}
+		TArray<int32> Nearby;
+		const auto FindNext = [&](int32 First) -> int32
+		{
+			const FVector2d End = OutChains[First].Points.Last();
+			Gather(Starts, End, Nearby);
+			// Equal distances keep the lowest-numbered start, as the full scan in chain order did.
+			Nearby.Sort();
+			int32 Nearest = INDEX_NONE;
+			double NearestDistance = TNumericLimits<double>::Max();
+			double SecondDistance = TNumericLimits<double>::Max();
+			for (int32 Second : Nearby)
+			{
+				if (!Alive[Second] || Second == First)
 				{
 					continue;
 				}
-				// A start level with the end would make a zero-length step along the grain; the end vertex stands in for it.
-				const TArray<FVector2d>& Next = OutChains[Nearest].Points;
-				const int32 Skip = Next[0].Y - End.Y <= Tolerance ? 1 : 0;
-				OutChains[First].Points.Append(Next.GetData() + Skip, Next.Num() - Skip);
-				OutChains.RemoveAt(Nearest);
-				bJoined = true;
+				const FVector2d Start = OutChains[Second].Points[0];
+				if (Start.Y < End.Y - Tolerance)
+				{
+					continue;
+				}
+				const double Distance = FVector2d::Distance(End, Start);
+				if (Distance < NearestDistance)
+				{
+					SecondDistance = NearestDistance;
+					NearestDistance = Distance;
+					Nearest = Second;
+				}
+				else
+				{
+					SecondDistance = FMath::Min(SecondDistance, Distance);
+				}
+			}
+			if (Nearest == INDEX_NONE || NearestDistance > SeamLimit || NearestDistance > SecondDistance * .25)
+			{
+				return INDEX_NONE;
+			}
+			return Nearest;
+		};
+
+		// Every live chain outside Pending is known not to join under the current starts.
+		TArray<int32> Pending;
+		TArray<bool> Queued;
+		Queued.Init(true, OutChains.Num());
+		for (int32 Index = 0; Index < OutChains.Num(); ++Index)
+		{
+			Pending.Add(Index);
+		}
+		Pending.Heapify();
+		const auto Requeue = [&](int32 Chain)
+		{
+			if (!Queued[Chain])
+			{
+				Queued[Chain] = true;
+				Pending.HeapPush(Chain);
+			}
+		};
+		TArray<int32> Affected;
+		while (!Pending.IsEmpty())
+		{
+			int32 First = INDEX_NONE;
+			Pending.HeapPop(First, EAllowShrinking::No);
+			Queued[First] = false;
+			if (!Alive[First])
+			{
+				continue;
+			}
+			const int32 Nearest = FindNext(First);
+			if (Nearest == INDEX_NONE)
+			{
+				continue;
+			}
+
+			// A start level with the end would make a zero-length step along the grain; the end vertex stands in for it.
+			const FVector2d End = OutChains[First].Points.Last();
+			const TArray<FVector2d>& Next = OutChains[Nearest].Points;
+			const FVector2d Taken = Next[0];
+			const int32 Skip = Next[0].Y - End.Y <= Tolerance ? 1 : 0;
+			OutChains[First].Points.Append(Next.GetData() + Skip, Next.Num() - Skip);
+			Alive[Nearest] = false;
+			Register(Ends, OutChains[First].Points.Last(), First);
+
+			Requeue(First);
+			Gather(Ends, Taken, Affected);
+			for (int32 Other : Affected)
+			{
+				if (Alive[Other] && FVector2d::Distance(OutChains[Other].Points.Last(), Taken) <= Reach)
+				{
+					Requeue(Other);
+				}
 			}
 		}
+
+		// Joined chains keep their relative order, as removal from the array did.
+		int32 Kept = 0;
+		for (int32 Index = 0; Index < OutChains.Num(); ++Index)
+		{
+			if (!Alive[Index])
+			{
+				continue;
+			}
+			if (Kept != Index)
+			{
+				OutChains[Kept] = MoveTemp(OutChains[Index]);
+			}
+			++Kept;
+		}
+		OutChains.SetNum(Kept);
 	}
 
 	FGeneralPolygon2d WorldLoop(const FGrainFrame& Frame, TConstArrayView<FVector2d> FramePoints)
@@ -282,11 +393,15 @@ bool Build(const FBreachLineTearOptions& Options, const FPolygon2d& Contour, TCo
 	// can tear by the same random amount; the outline is not just the contour stretched.
 	double ContourLow = TNumericLimits<double>::Max();
 	double ContourHigh = TNumericLimits<double>::Lowest();
+	double ContourLeft = TNumericLimits<double>::Max();
+	double ContourRight = TNumericLimits<double>::Lowest();
 	for (const FVector2d& Point : ContourLoop.GetVertices())
 	{
-		const double AlongValue = Frame.ToFrame(Point).Y;
-		ContourLow = FMath::Min(ContourLow, AlongValue);
-		ContourHigh = FMath::Max(ContourHigh, AlongValue);
+		const FVector2d FramePoint = Frame.ToFrame(Point);
+		ContourLow = FMath::Min(ContourLow, FramePoint.Y);
+		ContourHigh = FMath::Max(ContourHigh, FramePoint.Y);
+		ContourLeft = FMath::Min(ContourLeft, FramePoint.X);
+		ContourRight = FMath::Max(ContourRight, FramePoint.X);
 	}
 	const double HoleLength = ContourHigh - ContourLow;
 	TArray<FChain> Chains;
@@ -340,6 +455,23 @@ bool Build(const FBreachLineTearOptions& Options, const FPolygon2d& Contour, TCo
 		{
 			continue;
 		}
+		// Lines are gathered far past the hole so no tear stops at a gathered edge, which leaves most lanes outside the contour.
+		// Such a lane yields no piece and removes nothing from the remainder, so it is dropped before its strips are clipped.
+		// Each lane seeds its own random stream, so the lanes kept tear exactly as before.
+		double LaneLeft = TNumericLimits<double>::Max();
+		for (const FVector2d& Point : Left.Points)
+		{
+			LaneLeft = FMath::Min(LaneLeft, Point.X);
+		}
+		double LaneRight = TNumericLimits<double>::Lowest();
+		for (const FVector2d& Point : Right.Points)
+		{
+			LaneRight = FMath::Max(LaneRight, Point.X);
+		}
+		if (High < ContourLow || Low > ContourHigh || LaneRight < ContourLeft || LaneLeft > ContourRight)
+		{
+			continue;
+		}
 		TArray<double> Samples{Low, High};
 		for (const FChain* Chain : {&Left, &Right})
 		{
@@ -384,20 +516,23 @@ bool Build(const FBreachLineTearOptions& Options, const FPolygon2d& Contour, TCo
 			}
 			return FMath::Lerp(Left.AcrossAt(Along), Right.AcrossAt(Along), Fraction);
 		};
-		const auto StripLoop = [&](double From, double To)
+		const auto StripLoop = [&](double From, double To, double Widen)
 		{
 			TArray<FVector2d> Points;
 			for (double Along : Samples)
 			{
-				Points.Add({BoundaryAt(To, Along), Along});
+				Points.Add({BoundaryAt(To, Along) + Widen, Along});
 			}
 			for (int32 Index = Samples.Num() - 1; Index >= 0; --Index)
 			{
-				Points.Add({BoundaryAt(From, Samples[Index]), Samples[Index]});
+				Points.Add({BoundaryAt(From, Samples[Index]) - Widen, Samples[Index]});
 			}
 			return WorldLoop(Frame, Points);
 		};
-		Lanes.Add(StripLoop(0, 1));
+		// Neighboring lanes evaluate their shared guide at different samples, so exact sides leave hairline slivers in the remainder,
+		// and a sliver can bridge two separate pieces into one self-touching outline. Lanes overlap by half the piece overlap,
+		// which still leaves every piece side reaching past the remainder.
+		Lanes.Add(StripLoop(0, 1, Overlap * .5));
 
 		const uint32 LaneHash = HashCombine(BaseHash, GetTypeHash(LaneIndex));
 		FRandomStream LaneRandom(static_cast<int32>(LaneHash));
@@ -424,7 +559,7 @@ bool Build(const FBreachLineTearOptions& Options, const FPolygon2d& Contour, TCo
 			const double From = Fractions[StripIndex];
 			const double To = Fractions[StripIndex + 1];
 			TRACE_CPUPROFILER_EVENT_SCOPE_STR("Breach Pattern | Clip tear strip");
-			const FGeneralPolygon2d Strip = StripLoop(From, To);
+			const FGeneralPolygon2d Strip = StripLoop(From, To, 0);
 			TArray<FGeneralPolygon2d> Cut;
 			if (!PolygonsIntersection(MakeArrayView(&Strip, 1), MakeArrayView(&ContourRegion, 1), Cut))
 			{

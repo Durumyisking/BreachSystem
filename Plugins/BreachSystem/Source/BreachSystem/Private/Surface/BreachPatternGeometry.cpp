@@ -76,13 +76,54 @@ namespace
 					return false;
 				}
 			}
-			for (int32 Other = Index + 2; Other < EdgeCount; ++Other)
+		}
+
+		// Every non-adjacent edge pair must stay apart. SegmentsTouch can only hold when the two edge boxes, each grown by the
+		// tolerance, overlap, so a sweep along one axis skips the pairs that cannot touch without changing the verdict.
+		// The sweep runs along the axis the edges are thinnest in; cut outlines are mostly long runs along the grain.
+		TArray<FAxisAlignedBox2d> Boxes;
+		Boxes.Reserve(EdgeCount);
+		double SpanX = 0;
+		double SpanY = 0;
+		for (int32 Index = 0; Index < EdgeCount; ++Index)
+		{
+			const FVector2d& A = Points[Index];
+			const FVector2d& B = Points[(Index + 1) % Points.Num()];
+			const FVector2d Grow(GeometryTolerance, GeometryTolerance);
+			Boxes.Emplace(FVector2d(FMath::Min(A.X, B.X), FMath::Min(A.Y, B.Y)) - Grow, FVector2d(FMath::Max(A.X, B.X), FMath::Max(A.Y, B.Y)) + Grow);
+			SpanX += FMath::Abs(B.X - A.X);
+			SpanY += FMath::Abs(B.Y - A.Y);
+		}
+		const int32 Sweep = SpanX <= SpanY ? 0 : 1;
+		const int32 Cross = 1 - Sweep;
+		TArray<int32> Order;
+		Order.Reserve(EdgeCount);
+		for (int32 Index = 0; Index < EdgeCount; ++Index)
+		{
+			Order.Add(Index);
+		}
+		Order.Sort([&Boxes, Sweep](int32 A, int32 B) { return Boxes[A].Min[Sweep] < Boxes[B].Min[Sweep]; });
+		for (int32 Position = 0; Position < Order.Num(); ++Position)
+		{
+			const FAxisAlignedBox2d& Box = Boxes[Order[Position]];
+			for (int32 Later = Position + 1; Later < Order.Num(); ++Later)
 			{
-				if (bClosed && Index == 0 && Other == EdgeCount - 1)
+				const FAxisAlignedBox2d& OtherBox = Boxes[Order[Later]];
+				if (OtherBox.Min[Sweep] > Box.Max[Sweep])
+				{
+					break;
+				}
+				if (OtherBox.Min[Cross] > Box.Max[Cross] || OtherBox.Max[Cross] < Box.Min[Cross])
 				{
 					continue;
 				}
-				if (SegmentsTouch(A, B, Points[Other], Points[(Other + 1) % Points.Num()]))
+				const int32 Index = FMath::Min(Order[Position], Order[Later]);
+				const int32 Other = FMath::Max(Order[Position], Order[Later]);
+				if (Other - Index < 2 || (bClosed && Index == 0 && Other == EdgeCount - 1))
+				{
+					continue;
+				}
+				if (SegmentsTouch(Points[Index], Points[(Index + 1) % Points.Num()], Points[Other], Points[(Other + 1) % Points.Num()]))
 				{
 					OutError = TEXT("Pattern path intersects or touches itself.");
 					return false;
