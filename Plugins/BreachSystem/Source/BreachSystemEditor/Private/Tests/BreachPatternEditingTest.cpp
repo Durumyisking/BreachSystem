@@ -1,12 +1,12 @@
 #include "BreachPatternEditing.h"
-#include "Surface/BreachPatternGeometry.h"
+#include "Geometry/BreachPatternGeometry.h"
 #include "Misc/AutomationTest.h"
 #include "Editor.h"
 #include "ScopedTransaction.h"
 #include "BreachPatternImport.h"
 #include "Polygon2.h"
 #include "BreachPatternCanvas.h"
-#include "Surface/BreachSurfaceMaterial.h"
+#include "Data/BreachSurfaceMaterial.h"
 
 // 테스트 전용: 반복 타일 초안, 공유 정점 및 실제 에디터 undo 복원을 검증한다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS

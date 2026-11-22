@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Surface/BreachPattern.h"
+#include "Data/BreachPattern.h"
 #include "Curve/GeneralPolygon2.h"
 #include "ScopedTransaction.h"
 #include "BreachPatternEditGraph.h"

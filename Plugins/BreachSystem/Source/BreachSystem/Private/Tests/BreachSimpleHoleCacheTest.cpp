@@ -1,5 +1,5 @@
-#include "Surface/BreachSimpleCollision.h"
-#include "Settings/BreachSystemSettings.h"
+#include "Geometry/BreachSimpleCollision.h"
+#include "Data/BreachSystemSettings.h"
 #include "CompGeom/ConvexHull2.h"
 #include "Curve/PolygonIntersectionUtils.h"
 #include "Math/RandomStream.h"

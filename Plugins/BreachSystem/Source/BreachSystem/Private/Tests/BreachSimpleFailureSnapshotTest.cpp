@@ -1,4 +1,4 @@
-#include "Surface/BreachSimpleCollisionDiagnostics.h"
+#include "Debug/BreachSimpleCollisionDiagnostics.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"

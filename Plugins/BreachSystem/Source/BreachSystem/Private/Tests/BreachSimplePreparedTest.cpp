@@ -1,7 +1,7 @@
-#include "Surface/BreachSimpleCollision.h"
+#include "Geometry/BreachSimpleCollision.h"
 #include "Curve/PolygonIntersectionUtils.h"
 #include "Misc/AutomationTest.h"
-#include "../Surface/BreachPassageSolver.h"
+#include "Geometry/BreachPassageSolver.h"
 
 // 테스트 전용: 공간 인덱스의 결과 동등성과 실제 검사량, 캐시 재사용을 비교한다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS

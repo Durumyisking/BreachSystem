@@ -1,14 +1,14 @@
 #include "Components/BreachableSurfaceComponent.h"
 #include "Components/BreachSourceComponent.h"
 #include "Components/DynamicMeshComponent.h"
-#include "Surface/BreachSurfaceMaterial.h"
+#include "Data/BreachSurfaceMaterial.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/AutomationTest.h"
-#include "Settings/BreachSystemSettings.h"
+#include "Data/BreachSystemSettings.h"
 #include "BreachSyncBreachGuard.h"
 
 // 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.

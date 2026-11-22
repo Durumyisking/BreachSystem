@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Components/StaticMeshComponent.h"
-#include "Surface/BreachSurfaceTypes.h"
-#include "Surface/BreachDamageAccumulator.h"
-#include "Surface/BreachAccumulationShape.h"
-#include "Surface/BreachCellGrid.h"
-#include "Surface/BreachSimpleCollision.h"
-#include "Surface/BreachDecorationOptions.h"
-#include "Surface/BreachSurfaceUV.h"
+#include "Geometry/BreachSurfaceTypes.h"
+#include "Geometry/BreachDamageAccumulator.h"
+#include "Geometry/BreachAccumulationShape.h"
+#include "Geometry/BreachCellGrid.h"
+#include "Geometry/BreachSimpleCollision.h"
+#include "Data/BreachDecorationOptions.h"
+#include "Geometry/BreachSurfaceUV.h"
 #include "BreachableSurfaceComponent.generated.h"
 
 

@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Surface/BreachDecorationGeometry.h"
+#include "Geometry/BreachDecorationGeometry.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "BreachDecorationComponent.generated.h"
 

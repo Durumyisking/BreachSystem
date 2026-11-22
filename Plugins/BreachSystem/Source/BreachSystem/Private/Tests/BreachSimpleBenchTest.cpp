@@ -3,10 +3,10 @@
 // 테스트 전용: 같은 탄착 기록으로 Simple 충돌 경로의 시간·할당·메모리를 계측한다.
 // 통과/실패 판정이 아닌 변경 전후 비교가 목적이며, -BreachSimpleBench 인자를 준 전용 프로세스에서만 실행한다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
-#include "Surface/BreachSimpleCollision.h"
+#include "Geometry/BreachSimpleCollision.h"
 #include "Components/BreachableSurfaceComponent.h"
 #include "Components/BreachSurfaceProxy.h"
-#include "Settings/BreachSystemSettings.h"
+#include "Data/BreachSystemSettings.h"
 #include "Curve/PolygonIntersectionUtils.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Engine/Engine.h"

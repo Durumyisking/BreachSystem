@@ -1,5 +1,5 @@
-#include "Surface/BreachSimpleCollision.h"
-#include "Settings/BreachSystemSettings.h"
+#include "Geometry/BreachSimpleCollision.h"
+#include "Data/BreachSystemSettings.h"
 #include "Curve/PolygonIntersectionUtils.h"
 #include "Misc/AutomationTest.h"
 

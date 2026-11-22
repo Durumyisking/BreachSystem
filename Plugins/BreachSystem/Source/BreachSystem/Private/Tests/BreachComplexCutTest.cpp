@@ -8,7 +8,7 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/OutputDevice.h"
 #include "Misc/OutputDeviceRedirector.h"
-#include "Shape/BreachContour.h"
+#include "Geometry/BreachContour.h"
 #include "BreachSyncBreachGuard.h"
 
 // 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.

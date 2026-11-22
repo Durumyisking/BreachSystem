@@ -8,9 +8,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
-#include "Settings/BreachSystemSettings.h"
-#include "Surface/BreachCellGrid.h"
-#include "Surface/BreachSurfaceMaterial.h"
+#include "Data/BreachSystemSettings.h"
+#include "Geometry/BreachCellGrid.h"
+#include "Data/BreachSurfaceMaterial.h"
 
 // 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS

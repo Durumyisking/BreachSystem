@@ -3,8 +3,8 @@
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 // 테스트 전용: 실제 나무 에셋을 에디터 프리뷰 경로로 잘라 판 옆면이 결선 위에 놓이는지 검증하고, 시안 비교용 좌표를 내보낸다.
 #include "BreachPatternEditing.h"
-#include "Surface/BreachPattern.h"
-#include "Surface/BreachSurfaceMaterial.h"
+#include "Data/BreachPattern.h"
+#include "Data/BreachSurfaceMaterial.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"

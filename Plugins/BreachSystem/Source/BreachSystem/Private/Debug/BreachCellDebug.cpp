@@ -8,7 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/CoreMisc.h"
 #include "SceneManagement.h"
-#include "Surface/BreachCellGrid.h"
+#include "Geometry/BreachCellGrid.h"
 #include "UObject/UObjectIterator.h"
 
 namespace

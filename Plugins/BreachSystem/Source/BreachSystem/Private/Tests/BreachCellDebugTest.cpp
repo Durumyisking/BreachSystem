@@ -6,7 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/AutomationTest.h"
-#include "Surface/BreachCellGrid.h"
+#include "Geometry/BreachCellGrid.h"
 #include "UObject/UObjectIterator.h"
 
 // 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.

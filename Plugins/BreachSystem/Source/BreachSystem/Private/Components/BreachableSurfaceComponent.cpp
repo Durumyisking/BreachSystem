@@ -6,9 +6,9 @@
 #include "Components/BreachSimpleProxy.h"
 #include "Components/BreachDecorationComponent.h"
 #include "Components/BreachSourceComponent.h"
-#include "Surface/BreachDebrisSubsystem.h"
-#include "Surface/BreachSurfaceMaterial.h"
-#include "Settings/BreachSystemSettings.h"
+#include "Subsystems/BreachDebrisSubsystem.h"
+#include "Data/BreachSurfaceMaterial.h"
+#include "Data/BreachSystemSettings.h"
 #include "GameFramework/Actor.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
@@ -31,8 +31,8 @@
 #include "Components/LineBatchComponent.h"
 #endif
 
-#include "Surface/BreachSurfaceGeometry.h"
-#include "Surface/BreachSurfaceWork.h"
+#include "Geometry/BreachSurfaceGeometry.h"
+#include "Geometry/BreachSurfaceWork.h"
 
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 

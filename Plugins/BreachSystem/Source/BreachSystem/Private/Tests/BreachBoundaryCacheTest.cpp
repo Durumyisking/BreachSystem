@@ -2,7 +2,7 @@
 
 // 테스트 전용: 동일한 성장 이력에서 캐시 유무에 따른 실제 형상·실패 결과·검사량·시간을 비교한다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
-#include "Surface/BreachSimpleCollision.h"
+#include "Geometry/BreachSimpleCollision.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"

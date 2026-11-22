@@ -1,6 +1,6 @@
 #include "BreachPatternEditing.h"
-#include "Surface/BreachSurfaceMaterial.h"
-#include "Surface/BreachPatternGeometry.h"
+#include "Data/BreachSurfaceMaterial.h"
+#include "Geometry/BreachPatternGeometry.h"
 
 namespace
 {

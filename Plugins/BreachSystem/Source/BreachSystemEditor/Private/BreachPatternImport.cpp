@@ -1,7 +1,7 @@
 #include "BreachPatternImport.h"
 #include "Engine/Texture2D.h"
 #include "ImageCore.h"
-#include "Surface/BreachPatternGeometry.h"
+#include "Geometry/BreachPatternGeometry.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace

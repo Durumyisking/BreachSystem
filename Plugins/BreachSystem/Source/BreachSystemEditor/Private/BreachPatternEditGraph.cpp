@@ -1,5 +1,5 @@
 #include "BreachPatternEditGraph.h"
-#include "Surface/BreachPatternGeometry.h"
+#include "Geometry/BreachPatternGeometry.h"
 
 namespace
 {

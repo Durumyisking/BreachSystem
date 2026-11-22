@@ -10,7 +10,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/AutomationTest.h"
-#include "Surface/BreachSurfaceMaterial.h"
+#include "Data/BreachSurfaceMaterial.h"
 #include "UObject/UnrealType.h"
 #include "BreachSyncBreachGuard.h"
 

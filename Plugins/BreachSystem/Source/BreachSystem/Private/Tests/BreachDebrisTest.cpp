@@ -5,7 +5,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Misc/AutomationTest.h"
-#include "Surface/BreachSurfaceMaterial.h"
+#include "Data/BreachSurfaceMaterial.h"
 #include "BreachSyncBreachGuard.h"
 
 // 테스트 전용: 실제 포인트 피해 경로의 절단 및 파편 충돌을 검증한다.

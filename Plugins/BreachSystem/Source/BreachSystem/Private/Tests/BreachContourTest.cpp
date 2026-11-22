@@ -1,4 +1,4 @@
-#include "Shape/BreachContour.h"
+#include "Geometry/BreachContour.h"
 #include "BreachPluginUtil.h"
 #include "Components/BreachSourceComponent.h"
 #include "Misc/AutomationTest.h"

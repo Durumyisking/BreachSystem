@@ -2,7 +2,7 @@
 #include "AssetToolsModule.h"
 #include "AssetTypeActions_Base.h"
 #include "BreachPatternEditor.h"
-#include "Surface/BreachPattern.h"
+#include "Data/BreachPattern.h"
 
 class FBreachPatternAssetActions : public FAssetTypeActions_Base
 {

@@ -5,7 +5,7 @@
 #include "Misc/ScopeExit.h"
 #include "HAL/FileManager.h"
 #include "UObject/UnrealType.h"
-#include "Settings/BreachSystemSettings.h"
+#include "Data/BreachSystemSettings.h"
 #include <limits>
 
 // 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.

@@ -1,5 +1,5 @@
-#include "Surface/BreachSurfaceUV.h"
-#include "Surface/BreachSurfaceMaterial.h"
+#include "Geometry/BreachSurfaceUV.h"
+#include "Data/BreachSurfaceMaterial.h"
 #include "Misc/AutomationTest.h"
 #include "UObject/UnrealType.h"
 

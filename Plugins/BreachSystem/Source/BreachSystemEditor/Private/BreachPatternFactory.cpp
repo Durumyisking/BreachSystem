@@ -1,5 +1,5 @@
 #include "BreachPatternFactory.h"
-#include "Surface/BreachPattern.h"
+#include "Data/BreachPattern.h"
 
 UBreachPatternFactory::UBreachPatternFactory()
 {

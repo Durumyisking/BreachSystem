@@ -5,8 +5,8 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Misc/AutomationTest.h"
-#include "Settings/BreachSystemSettings.h"
-#include "Surface/BreachSurfaceMaterial.h"
+#include "Data/BreachSystemSettings.h"
+#include "Data/BreachSurfaceMaterial.h"
 #include "BreachSyncBreachGuard.h"
 #include "BreachAsyncBreachTestUtils.h"
 

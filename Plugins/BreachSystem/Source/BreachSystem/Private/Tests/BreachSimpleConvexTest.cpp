@@ -1,10 +1,10 @@
-#include "Surface/BreachSimpleCollision.h"
-#include "Settings/BreachSystemSettings.h"
+#include "Geometry/BreachSimpleCollision.h"
+#include "Data/BreachSystemSettings.h"
 #include "Curve/PolygonIntersectionUtils.h"
 #include "HAL/PlatformTime.h"
 #include "CompGeom/ConvexHull3.h"
 #include "Misc/AutomationTest.h"
-#include "../Surface/BreachPassageSolver.h"
+#include "Geometry/BreachPassageSolver.h"
 
 // 테스트 전용: 연결된 개구부의 총면적과 개별 Convex 통과 영역의 최소 면적을 구분한다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS

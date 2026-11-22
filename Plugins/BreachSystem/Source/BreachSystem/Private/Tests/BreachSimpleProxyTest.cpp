@@ -6,7 +6,7 @@
 #include "Components/BreachSimpleProxy.h"
 #include "Components/BreachSurfaceProxy.h"
 #include "Components/BreachSourceComponent.h"
-#include "Settings/BreachSystemSettings.h"
+#include "Data/BreachSystemSettings.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"

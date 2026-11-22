@@ -1,5 +1,5 @@
-#include "Surface/BreachPattern.h"
-#include "Surface/BreachPatternGeometry.h"
+#include "Data/BreachPattern.h"
+#include "Geometry/BreachPatternGeometry.h"
 #include "Misc/AutomationTest.h"
 #include <limits>
 

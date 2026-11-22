@@ -1,5 +1,5 @@
-#include "Surface/BreachDecorationGeometry.h"
-#include "Surface/BreachSimpleCollision.h"
+#include "Geometry/BreachDecorationGeometry.h"
+#include "Geometry/BreachSimpleCollision.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Misc/AutomationTest.h"
 

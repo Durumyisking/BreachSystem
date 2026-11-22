@@ -20,7 +20,7 @@
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "ShaderCompiler.h"
 #include "UObject/StrongObjectPtr.h"
-#include "Surface/BreachSurfaceMaterial.h"
+#include "Data/BreachSurfaceMaterial.h"
 #include "Editor.h"
 #include "ImageUtils.h"
 #include "Misc/App.h"

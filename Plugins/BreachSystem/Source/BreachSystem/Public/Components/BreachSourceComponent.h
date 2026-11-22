@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "BreachSourceOption.h"
+#include "Data/BreachSourceOption.h"
 #include "Curve/GeneralPolygon2.h"
 #include "BreachSourceComponent.generated.h"
 

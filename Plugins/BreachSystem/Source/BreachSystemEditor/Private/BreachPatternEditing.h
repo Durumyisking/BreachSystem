@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Surface/BreachPattern.h"
+#include "Data/BreachPattern.h"
 #include "Curve/GeneralPolygon2.h"
 
 class UBreachSurfaceMaterial;
