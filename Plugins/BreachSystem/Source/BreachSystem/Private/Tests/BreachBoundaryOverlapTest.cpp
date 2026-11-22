@@ -185,17 +185,12 @@ bool FBreachBoundaryOverlapTest::RunTest(const FString& Parameters)
 			{
 				continue;
 			}
+			// 삼각분할은 이제 경계 변을 못 넣어도 실패하지 않으므로, 저장된 실패 재현 대신 영역 복원만 검증한다.
 			double Area = 0;
-			bool bPreviouslyFailed = false;
 			for (const FGeneralPolygon2d& Region : Regions)
 			{
 				Area += Region.SignedArea();
-				TArray<FVector2d> Vertices;
-				TArray<FIndex3i> Triangles;
-				FString Error;
-				bPreviouslyFailed |= !BreachSurfaceGeometry::TriangulateRegion(Region, Vertices, Triangles, Error);
 			}
-			TestTrue(File + TEXT(" reproduces its original triangulation failure"), bPreviouslyFailed);
 			const TMap<FString, int32> ExpectedCounts = {
 				{TEXT("1BB3B167-42A6-12C7-A9F0-A0A7239D2CD6"), 2},
 				{TEXT("6D48FE16-4CC5-4827-2CD3-8AB01CF49230"), 1},

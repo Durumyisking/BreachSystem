@@ -10,7 +10,7 @@ namespace BreachSurfaceGeometry
 	/** 기존 정점 위치에서 역방향으로 겹친 변을 상쇄하고 닫힌 영역으로 다시 연결한다. 실패하면 입력을 유지한다. */
 	bool ResolveBoundaryOverlaps(TArray<FGeneralPolygon2d>& Regions, FString& OutError);
 
-	/** 구멍을 포함한 영역을 삼각분할하고 정점 인덱스, 삼각형 유효성, 면적 일치를 검증한다. */
+	/** 구멍을 포함한 영역을 삼각분할한다. 겹친 정점은 한 점으로 묶고, 경계 변을 넣지 못하면 경계가 감싸는 횟수로 안팎을 정해 경고와 함께 면을 만든다. 만들 면이 없을 때만 false다. */
 	bool TriangulateRegion(const FGeneralPolygon2d& Region, TArray<FVector2d>& OutVertices,
 		TArray<FIndex3i>& OutTriangles, FString& OutError);
 

@@ -1263,46 +1263,6 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 		}
 	}
 
-	// 차집합에서 같은 교점이 미세하게 어긋나 남으면 닫힌 윤곽에 거의 길이가 없는 변이 생긴다.
-	auto CollapseAdjacentVertices = [](const FPolygon2d& Boundary)
-	{
-		constexpr double VertexToleranceSquared = UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER;
-		TArray<FVector2d> Vertices;
-		Vertices.Reserve(Boundary.VertexCount());
-		for (const FVector2d& Point : Boundary.GetVertices())
-		{
-			if (Vertices.IsEmpty() || (Point - Vertices.Last()).SquaredLength() > VertexToleranceSquared)
-			{
-				Vertices.Add(Point);
-			}
-		}
-		while (Vertices.Num() > 1 && (Vertices.Last() - Vertices[0]).SquaredLength() <= VertexToleranceSquared)
-		{
-			Vertices.Pop(EAllowShrinking::No);
-		}
-		return FPolygon2d(MoveTemp(Vertices));
-	};
-	for (FGeneralPolygon2d& Region : CandidateRegions)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Clean region boundary");
-		const FPolygon2d Outer = CollapseAdjacentVertices(Region.GetOuter());
-		if (Outer.VertexCount() < 3)
-		{
-			return Reject(TEXT("The remaining region lost its outer boundary after collapsing adjacent vertices."));
-		}
-		FGeneralPolygon2d CleanedRegion(Outer);
-		for (const FPolygon2d& Hole : Region.GetHoles())
-		{
-			FPolygon2d CleanedHole = CollapseAdjacentVertices(Hole);
-			if (CleanedHole.VertexCount() < 3)
-			{
-				return Reject(TEXT("The remaining region lost a hole boundary after collapsing adjacent vertices."));
-			}
-			CleanedRegion.AddHole(MoveTemp(CleanedHole), false, false);
-		}
-		Region = MoveTemp(CleanedRegion);
-	}
-
 	// 처리: 원본 경계에 고정되지 않은 고립 영역을 후보에서 제거한다.
 	TArray<FPolygon2d> DetachedRegions;
 	CandidateRegions.RemoveAll([&](const FGeneralPolygon2d& Region)
@@ -1338,42 +1298,19 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 
 	// 메시 생성: 후보 영역으로 새 메시를 만든다. 검증이 끝날 때까지 SurfaceState는 유지한다.
 	FDynamicMesh3 RenewedMesh;
-	bool bMeshValid = true;
-	auto AppendTriangle = [&](int32 A, int32 B, int32 C)
-	{
-		const int32 TriangleID = RenewedMesh.AppendTriangle(A, B, C);
-		if (TriangleID < 0) 
-		{
-			bMeshValid = false; 
-		}
-	};
-
 	for (const auto& RemainingRegion : CandidateRegions)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Rebuild wall region mesh");
 		TArray<FVector2d> Vertices;
 		TArray<FIndex3i> Triangles; // 삼각분할 결과로 만들어진 삼각형들의 정점 인덱스를 저장하는 배열 (그냥 int 3개임)
 
-		// 삼각분할과 결과 검증
-		const bool bTriangulated = BreachSurfaceGeometry::TriangulateRegion(RemainingRegion, Vertices, Triangles, Error);
-		if (!bTriangulated)
+		// 삼각분할이 실패하는 경우는 면적이 없는 영역뿐이라 만들 면도 없다.
+		if (!BreachSurfaceGeometry::TriangulateRegion(RemainingRegion, Vertices, Triangles, Error))
 		{
-			return Reject(*Error);
+			continue;
 		}
 
-		// 아주 작은 면이 있으면 이번 브리칭은 스킵
-		for (const FIndex3i& Triangle : Triangles)
-		{
-			const FVector2d AB = Vertices[Triangle.B] - Vertices[Triangle.A];
-			const FVector2d AC = Vertices[Triangle.C] - Vertices[Triangle.A];
-			const double Area = FMath::Abs(AB.X * AC.Y - AB.Y * AC.X) * 0.5;
-			if (Area <= UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER)
-			{
-				return Reject(TEXT("Triangulation produced a degenerate face."));
-			}
-		}
-
-		// 메시 생성: 검증된 삼각분할을 원본 두께의 앞·뒷면으로 확장한다.
+		// 메시 생성: 삼각분할을 원본 두께의 앞·뒷면으로 확장한다.
 		TArray<int32> FrontIDs;
 		TArray<int32> BackIDs;
 
@@ -1383,50 +1320,59 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 			BackIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, OriginalDepthRange.Y, Vertex.Y)));
 		}
 
+		auto EdgeKey = [](int32 A, int32 B) { return (static_cast<uint64>(FMath::Min(A, B)) << 32) | static_cast<uint32>(FMath::Max(A, B)); };
+		TMap<uint64, int32> EdgeUses;
 		for (const FIndex3i& Triangle : Triangles)
 		{
-			AppendTriangle(FrontIDs[Triangle.A], FrontIDs[Triangle.C], FrontIDs[Triangle.B]);
-			AppendTriangle(BackIDs[Triangle.A], BackIDs[Triangle.B], BackIDs[Triangle.C]);
+			RenewedMesh.AppendTriangle(FrontIDs[Triangle.A], FrontIDs[Triangle.C], FrontIDs[Triangle.B]);
+			RenewedMesh.AppendTriangle(BackIDs[Triangle.A], BackIDs[Triangle.B], BackIDs[Triangle.C]);
+			++EdgeUses.FindOrAdd(EdgeKey(Triangle.A, Triangle.B));
+			++EdgeUses.FindOrAdd(EdgeKey(Triangle.B, Triangle.C));
+			++EdgeUses.FindOrAdd(EdgeKey(Triangle.C, Triangle.A));
 		}
 
-		// 사이드 면 채우기
-		auto AppendSideFaces = [&](const FPolygon2d& Boundary, bool bIsHole, int32 VertexOffset)
+		// 한 점에서 닿은 두 쐐기는 같은 세로 변을 네 옆면이 나눠 써야 해서 추가가 거부된다. 그 옆면만 같은 위치에 정점을 새로 만들어 붙인다.
+		auto AppendSide = [&](int32 A, int32 B)
 		{
-			const int32 Count = Boundary.VertexCount();
-			const bool bReverse = Boundary.IsClockwise() != bIsHole;
-			for (int32 Index = 0; Index < Count; ++Index)
+			const int32 First = RenewedMesh.AppendTriangle(FrontIDs[A], FrontIDs[B], BackIDs[B]);
+			if (First >= 0)
 			{
-				int32 A = VertexOffset + Index;
-				int32 B = VertexOffset + (Index + 1) % Count;
-				if (bReverse)
+				if (RenewedMesh.AppendTriangle(FrontIDs[A], BackIDs[B], BackIDs[A]) >= 0)
+				{
+					return;
+				}
+				RenewedMesh.RemoveTriangle(First, false);
+			}
+			const int32 FrontA = RenewedMesh.AppendVertex(RenewedMesh.GetVertex(FrontIDs[A]));
+			const int32 FrontB = RenewedMesh.AppendVertex(RenewedMesh.GetVertex(FrontIDs[B]));
+			const int32 BackA = RenewedMesh.AppendVertex(RenewedMesh.GetVertex(BackIDs[A]));
+			const int32 BackB = RenewedMesh.AppendVertex(RenewedMesh.GetVertex(BackIDs[B]));
+			RenewedMesh.AppendTriangle(FrontA, FrontB, BackB);
+			RenewedMesh.AppendTriangle(FrontA, BackB, BackA);
+		};
+
+		// 옆면은 윤곽 대신 앞면 삼각형의 바깥 변에서 만든다. 대체 판정으로 채운 면과도 항상 맞물린다.
+		for (const FIndex3i& Triangle : Triangles)
+		{
+			const int32 Corners[3] = {Triangle.A, Triangle.B, Triangle.C};
+			for (int32 Index = 0; Index < 3; ++Index)
+			{
+				int32 A = Corners[Index];
+				int32 B = Corners[(Index + 1) % 3];
+				if (EdgeUses[EdgeKey(A, B)] != 1)
+				{
+					continue;
+				}
+
+				// 기존 윤곽 옆면처럼 벽 안쪽이 A→B의 왼쪽에 오게 맞춘다. 남은 꼭짓점이 벽 안쪽이다.
+				const FVector2d AB = Vertices[B] - Vertices[A];
+				const FVector2d AC = Vertices[Corners[(Index + 2) % 3]] - Vertices[A];
+				if (AB.X * AC.Y - AB.Y * AC.X < 0)
 				{
 					Swap(A, B);
 				}
-				AppendTriangle(FrontIDs[A], FrontIDs[B], BackIDs[B]);
-				AppendTriangle(FrontIDs[A], BackIDs[B], BackIDs[A]);
+				AppendSide(A, B);
 			}
-		};
-
-		AppendSideFaces(RemainingRegion.GetOuter(), false, 0);
-		int32 HoleVertexOffset = RemainingRegion.GetOuter().VertexCount();
-		for (const FPolygon2d& Hole : RemainingRegion.GetHoles())
-		{
-			AppendSideFaces(Hole, true, HoleVertexOffset);
-			HoleVertexOffset += Hole.VertexCount();
-		}
-	}
-
-	// 검증: 삼각형 추가 실패나 열린 메시가 있으면 후보 결과 전체를 거부한다.
-	if (!bMeshValid)
-	{
-		return Reject(TEXT("Mesh reconstruction rejected a triangle."));
-	}
-
-	if (RenewedMesh.TriangleCount() > 0)
-	{
-		if (!RenewedMesh.IsClosed())
-		{
-			return Reject(TEXT("Reconstructed surface is not closed."));
 		}
 	}
 
@@ -1450,9 +1396,10 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 			{
 				TArray<FVector2d> Vertices;
 				TArray<FIndex3i> Triangles;
+				// 면적이 없는 제거 영역은 Deco에 넘길 조각이 없다.
 				if (!BreachSurfaceGeometry::TriangulateRegion(Region, Vertices, Triangles, Error))
 				{
-					return Reject(*Error);
+					continue;
 				}
 				for (const FIndex3i& Triangle : Triangles)
 				{

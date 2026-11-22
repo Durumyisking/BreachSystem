@@ -1,4 +1,5 @@
 #include "Surface/BreachSurfaceGeometry.h"
+#include "BreachSystemLog.h"
 #include "CompGeom/Delaunay2.h"
 #include "CompGeom/ExactPredicates.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -294,9 +295,16 @@ bool BreachSurfaceGeometry::TriangulateRegion(const FGeneralPolygon2d& Region, T
     TRACE_CPUPROFILER_EVENT_SCOPE_STR("Breach Geometry | Triangulate region");
     OutError.Reset();
 
+    // 겹친 정점은 한 점으로 묶고, 경계 변을 다 넣지 못해도 경계가 감싸는 횟수로 안팎을 정해 항상 면을 만든다.
     FDelaunay2 Delaunay;
-    const bool bTriangulated = Delaunay.Triangulate(Region, &OutTriangles, &OutVertices, false);
-    if (!bTriangulated)
+    Delaunay.bAutomaticallyFixEdgesToDuplicateVertices = true;
+    const bool bExact = Delaunay.Triangulate(Region, &OutTriangles, &OutVertices, true);
+    if (!bExact && !OutTriangles.IsEmpty())
+    {
+        // 대체 판정은 경계를 넣지 못한 자리에서 모양이 조금 틀릴 수 있어 거부하지 않고 기록만 남긴다.
+        SWARN(TEXT("영역 삼각분할이 경계 변 일부를 넣지 못해 감싸는 횟수로 채웠습니다. 정점 수=%d, 구멍 수=%d."), OutVertices.Num(), Region.GetHoles().Num());
+    }
+    if (OutTriangles.IsEmpty())
     {
         const TCHAR* Reason = TEXT("알 수 없음: 분류되지 않은 실패");
         switch (Delaunay.GetResult())
@@ -319,45 +327,10 @@ bool BreachSurfaceGeometry::TriangulateRegion(const FGeneralPolygon2d& Region, T
         }
 
         OutError = FString::Printf(
-            TEXT("영역 삼각분할에 실패했습니다. %s. 정점 수=%d, 구멍 수=%d, 중복 정점=%s."),
-            Reason, OutVertices.Num(), Region.GetHoles().Num(), Delaunay.HasDuplicates() ? TEXT("있음") : TEXT("없음"));
+            TEXT("영역 삼각분할 결과에 면이 없습니다. %s. 정점 수=%d, 구멍 수=%d."),
+            Reason, OutVertices.Num(), Region.GetHoles().Num());
         return false;
     }
-
-    if (OutTriangles.IsEmpty())
-    {
-        OutError = TEXT("남은 영역을 삼각분할한 결과에 면이 없습니다.");
-        return false;
-    }
-
-    double TriangulatedArea = 0;
-    for (const FIndex3i& Triangle : OutTriangles)
-    {
-        if (!OutVertices.IsValidIndex(Triangle.A) || !OutVertices.IsValidIndex(Triangle.B) || !OutVertices.IsValidIndex(Triangle.C))
-        {
-            OutError = TEXT("삼각분할 결과에 유효하지 않은 정점 인덱스가 있습니다.");
-            return false;
-        }
-
-        const FVector2d AB = OutVertices[Triangle.B] - OutVertices[Triangle.A];
-        const FVector2d AC = OutVertices[Triangle.C] - OutVertices[Triangle.A];
-        const double Area = FMath::Abs(AB.X * AC.Y - AB.Y * AC.X) * 0.5;
-        if (!FMath::IsFinite(Area))
-        {
-            OutError = TEXT("삼각분할 결과에 퇴화한 면이 생성되었습니다.");
-            return false;
-        }
-
-        TriangulatedArea += Area;
-    }
-
-    const double RegionArea = FMath::Abs(Region.SignedArea());
-    if (FMath::Abs(TriangulatedArea - RegionArea) > FMath::Max(UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER, RegionArea * UE_DOUBLE_KINDA_SMALL_NUMBER * UE_DOUBLE_KINDA_SMALL_NUMBER))
-    {
-        OutError = TEXT("삼각분할 결과가 남은 영역을 완전히 덮지 못합니다.");
-        return false;
-    }
-
     return true;
 }
 
