@@ -60,7 +60,7 @@ struct FBreachAsyncBreachTestAccess
 	{
 		check(Surface);
 		double Area = 0;
-		for (const UE::Geometry::FGeneralPolygon2d& Region : Surface->SurfaceState.RemainingRegions)
+		for (const UE::Geometry::FGeneralPolygon2d& Region : Surface->Model.SurfaceState.RemainingRegions)
 		{
 			Area += FMath::Abs(Region.SignedArea());
 		}
@@ -71,7 +71,7 @@ struct FBreachAsyncBreachTestAccess
 	{
 		check(Surface);
 		int32 Count = 0;
-		for (const UE::Geometry::FGeneralPolygon2d& Region : Surface->SurfaceState.RemainingRegions)
+		for (const UE::Geometry::FGeneralPolygon2d& Region : Surface->Model.SurfaceState.RemainingRegions)
 		{
 			Count += Region.GetOuter().VertexCount();
 			for (const UE::Geometry::FPolygon2d& Hole : Region.GetHoles())
@@ -85,7 +85,7 @@ struct FBreachAsyncBreachTestAccess
 	static bool Solid(const UBreachableSurfaceComponent* Surface, const FVector2d& Point)
 	{
 		check(Surface);
-		for (const UE::Geometry::FGeneralPolygon2d& Region : Surface->SurfaceState.RemainingRegions)
+		for (const UE::Geometry::FGeneralPolygon2d& Region : Surface->Model.SurfaceState.RemainingRegions)
 		{
 			if (Region.Contains(Point))
 			{

@@ -77,10 +77,10 @@ bool UBreachableSurfaceComponent::GetCellGridForDebug(FBreachCellGrid& OutGrid, 
 	FString Error;
 	if (IsValid(SurfaceProxy))
 	{
-		OutLocalBounds = OriginBounds;
-		OutDepthRange = OriginalDepthRange;
-		return OutGrid.Configure(SurfaceUVs[0].Offset, SurfaceUVs[0].PerX, SurfaceUVs[0].PerZ,
-			MetricScale, CapturedCellSize, Error);
+		OutLocalBounds = Layout.OriginalBounds;
+		OutDepthRange = Layout.OriginalDepthRange;
+		return OutGrid.Configure(Layout.SurfaceUVs[0].Offset, Layout.SurfaceUVs[0].PerX, Layout.SurfaceUVs[0].PerZ,
+			MetricScale, Layout.CapturedCellSize, Error);
 	}
 
 	UStaticMesh* MeshAsset = GetStaticMesh();
@@ -302,8 +302,8 @@ bool UBreachableSurfaceComponent::CreateSurfaceProxy(UE::Geometry::FDynamicMesh3
 	InitialState.Size.Width = MeshBounds.Max.X - MeshBounds.Min.X;
 	InitialState.Size.Height = MeshBounds.Max.Z - MeshBounds.Min.Z;
 
-	SurfaceUVs[0] = InitialUVs[0];
-	SurfaceUVs[1] = InitialUVs[1];
+	Layout.SurfaceUVs[0] = InitialUVs[0];
+	Layout.SurfaceUVs[1] = InitialUVs[1];
 
 	UE::Geometry::FPolygon2d Outer;
 	Outer.AppendVertex(FVector2d(MeshBounds.Min.X, MeshBounds.Min.Z));
@@ -312,10 +312,10 @@ bool UBreachableSurfaceComponent::CreateSurfaceProxy(UE::Geometry::FDynamicMesh3
 	Outer.AppendVertex(FVector2d(MeshBounds.Min.X, MeshBounds.Max.Z));
 	InitialState.RemainingRegions.Add(UE::Geometry::FGeneralPolygon2d(Outer));
 	OriginalOuter = Outer;
-	OriginBounds = OriginalOuter.Bounds();
-	OriginalDepthRange = FVector2d(MeshBounds.Min.Y, MeshBounds.Max.Y);
+	Layout.OriginalBounds = OriginalOuter.Bounds();
+	Layout.OriginalDepthRange = FVector2d(MeshBounds.Min.Y, MeshBounds.Max.Y);
 	InvalidateSimpleCollisionJobs();
-	SimpleCollision.Initialize(OriginalOuter, OriginalDepthRange);
+	Model.SimpleCollision.Initialize(OriginalOuter, Layout.OriginalDepthRange);
 
 	// 6. 복사한 삼각형의 머티리얼 ID와 대응하도록 원본의 슬롯 순서를 유지한다.
 	TArray<UMaterialInterface*> Materials;
@@ -355,21 +355,21 @@ bool UBreachableSurfaceComponent::CreateSurfaceProxy(UE::Geometry::FDynamicMesh3
 	SimpleProxy->SetMobility(GetMobility());
 	SimpleProxy->SetCollisionObjectType(GetCollisionObjectType());
 	SimpleProxy->SetCollisionResponseToChannels(GetCollisionResponseToChannels());
-	const FBox InitialBounds(FVector(OriginBounds.Min.X, OriginalDepthRange.X, OriginBounds.Min.Y), FVector(OriginBounds.Max.X, OriginalDepthRange.Y, OriginBounds.Max.Y));
+	const FBox InitialBounds(FVector(Layout.OriginalBounds.Min.X, Layout.OriginalDepthRange.X, Layout.OriginalBounds.Min.Y), FVector(Layout.OriginalBounds.Max.X, Layout.OriginalDepthRange.Y, Layout.OriginalBounds.Max.Y));
 	SimpleProxy->InitializeCollision(InitialBounds);
 	UBodySetup* InitialBody = SimpleProxy->GetBodySetup();
 	check(InitialBody);
-	SimpleCollision.InitializeCollision(GetSimpleBuildPolicy(), InitialBody->AggGeom);
+	Model.SimpleCollision.InitializeCollision(GetSimpleBuildPolicy(), InitialBody->AggGeom);
 
-	SurfaceState = MoveTemp(InitialState);
+	Model.SurfaceState = MoveTemp(InitialState);
 
 	// 한 표면의 수명 동안 같은 전역 규격과 -Y 면 UV 기준을 사용한다.
-	CapturedCellSize = UBreachSystemSettings::GetCellSizeCm();
+	Layout.CapturedCellSize = UBreachSystemSettings::GetCellSizeCm();
 	const FVector Scale = GetComponentScale();
-	CachedMeshScaleXZ = FVector2d(FMath::Abs(Scale.X), FMath::Abs(Scale.Z));
+	Model.CachedMeshScaleXZ = FVector2d(FMath::Abs(Scale.X), FMath::Abs(Scale.Z));
 	FString GridError;
-	if (!CellGrid.Configure(SurfaceUVs[0].Offset, SurfaceUVs[0].PerX, SurfaceUVs[0].PerZ,
-		CachedMeshScaleXZ, CapturedCellSize, GridError))
+	if (!Model.CellGrid.Configure(Layout.SurfaceUVs[0].Offset, Layout.SurfaceUVs[0].PerX, Layout.SurfaceUVs[0].PerZ,
+		Model.CachedMeshScaleXZ, Layout.CapturedCellSize, GridError))
 	{
 		UE_LOG(LogBreachableSurface, Warning, TEXT("%s cannot accumulate cell damage: %s"), *GetName(), *GridError);
 	}
@@ -443,7 +443,7 @@ void UBreachableSurfaceComponent::QueueSimpleCollision()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Queue build");
 	check(IsInGameThread());
-	if (!IsValid(SimpleProxy) || !IsRegistered() || !SimpleCollision.HasHoleCache())
+	if (!IsValid(SimpleProxy) || !IsRegistered() || !Model.SimpleCollision.HasHoleCache())
 	{
 		bSimpleBuildPending = false;
 		SimplePendingSince = 0;
@@ -451,7 +451,7 @@ void UBreachableSurfaceComponent::QueueSimpleCollision()
 		return;
 	}
 	const FBreachSimpleBuildPolicy Policy = GetSimpleBuildPolicy();
-	if (!SimpleBuildJob.IsValid() && SimpleCollision.GetRevision() == CompletedSimpleRevision && Policy == CompletedSimplePolicy)
+	if (!SimpleBuildJob.IsValid() && Model.SimpleCollision.GetRevision() == CompletedSimpleRevision && Policy == CompletedSimplePolicy)
 	{
 		return;
 	}
@@ -468,11 +468,11 @@ void UBreachableSurfaceComponent::QueueSimpleCollision()
 	auto Job = MakeShared<FBreachSimpleBuildJob, ESPMode::ThreadSafe>();
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachSimpleCollision | Snapshot collision state");
-		Job->Snapshot = SimpleCollision;
+		Job->Snapshot = Model.SimpleCollision;
 	}
 	Job->Policy = Policy;
 	Job->Generation = SimpleBuildGeneration;
-	Job->Revision = SimpleCollision.GetRevision();
+	Job->Revision = Model.SimpleCollision.GetRevision();
 	Job->RequestedAt = SimplePendingSince;
 	Job->Proxy = SimpleProxy;
 	SimpleBuildJob = Job;
@@ -510,7 +510,7 @@ bool UBreachableSurfaceComponent::CanPublishSimpleCollision(const TSharedPtr<FBr
 	{
 		return false;
 	}
-	return SimpleCollision.HasHoleCache() && GetSimpleBuildPolicy() == Job->Policy;
+	return Model.SimpleCollision.HasHoleCache() && GetSimpleBuildPolicy() == Job->Policy;
 }
 
 void UBreachableSurfaceComponent::CompleteSimpleCollision(const TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe>& Job)
@@ -573,7 +573,7 @@ void UBreachableSurfaceComponent::CompleteSimpleCook(const TSharedPtr<FBreachSim
 			}
 			if (bApplied)
 			{
-				SimpleCollision.CommitBuild(Job->Snapshot);
+				Model.SimpleCollision.CommitBuild(Job->Snapshot);
 				CompletedSimpleRevision = Job->Revision;
 				CompletedSimplePolicy = Job->Policy;
 				const double ApplyMs = (FPlatformTime::Seconds() - ApplyStarted) * 1000;
@@ -686,7 +686,7 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh,
 		}
 		if (IsValid(Decorations))
 		{
-			Decorations->Update(this, SurfaceMaterial, SimpleCollision, OriginalDepthRange, PendingDecorationCuts, PendingDecorationRemoved, Side, bOriginalVisible, bOriginalHiddenInGame);
+			Decorations->Update(this, SurfaceMaterial, Model.SimpleCollision, Layout.OriginalDepthRange, PendingDecorationCuts, PendingDecorationRemoved, Side, bOriginalVisible, bOriginalHiddenInGame);
 		}
 	}
 	PendingDecorationCuts.Reset();
@@ -706,10 +706,10 @@ bool UBreachableSurfaceComponent::ResetSurface()
 		Decorations = nullptr;
 	}
 	// 처리: 누적 기록을 비우고 Proxy가 대신하던 원본 표시·충돌을 복구한다.
-	DamageAccumulator.Reset();
-	CachedMeshScaleXZ = FVector2d::ZeroVector;
-	CellGrid = FBreachCellGrid();
-	CapturedCellSize = 0;
+	Model.DamageAccumulator.Reset();
+	Model.CachedMeshScaleXZ = FVector2d::ZeroVector;
+	Model.CellGrid = FBreachCellGrid();
+	Layout.CapturedCellSize = 0;
 #if WITH_EDITOR
 	DebugSourceMesh.Reset();
 #endif
@@ -730,10 +730,10 @@ bool UBreachableSurfaceComponent::ResetSurface()
 		SetHiddenInGame(bOriginalHiddenInGame, false);
 	}
 
-	SurfaceState = FBreachSurfaceState();
-	SimpleCollision = FBreachSimpleCollision();
-	SurfaceUVs[0] = FPlanarUVMapping();
-	SurfaceUVs[1] = FPlanarUVMapping();
+	Model.SurfaceState = FBreachSurfaceState();
+	Model.SimpleCollision = FBreachSimpleCollision();
+	Layout.SurfaceUVs[0] = FPlanarUVMapping();
+	Layout.SurfaceUVs[1] = FPlanarUVMapping();
 
 	return true;
 }
@@ -796,8 +796,8 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		}
 
 		const FVector LocalImpact = GetComponentTransform().InverseTransformPosition(PointDamage.HitInfo.ImpactPoint);
-		const double FrontDistance = FMath::Abs(LocalImpact.Y - OriginalDepthRange.X);
-		const double BackDistance = FMath::Abs(LocalImpact.Y - OriginalDepthRange.Y);
+		const double FrontDistance = FMath::Abs(LocalImpact.Y - Layout.OriginalDepthRange.X);
+		const double BackDistance = FMath::Abs(LocalImpact.Y - Layout.OriginalDepthRange.Y);
 		const EBreachSurfaceSide Side = FrontDistance <= BackDistance ? EBreachSurfaceSide::Front : EBreachSurfaceSide::Back;
 
 		// 입력: 계산이 컴포넌트와 피해 원인을 읽지 않도록 피격 순간의 값을 담는다.
@@ -1048,23 +1048,14 @@ FBreachSurfaceWork UBreachableSurfaceComponent::TakeWork(bool bCopy)
 	Work.SurfaceName = GetName();
 	if (bCopy)
 	{
-		Work.SurfaceState = SurfaceState;
-		Work.SimpleCollision = SimpleCollision;
-		Work.DamageAccumulator = DamageAccumulator;
+		Work.Model = Model;
 	}
 	else
 	{
-		Work.SurfaceState = MoveTemp(SurfaceState);
-		Work.SimpleCollision = MoveTemp(SimpleCollision);
-		Work.DamageAccumulator = MoveTemp(DamageAccumulator);
+		Work.Model = MoveTemp(Model);
 	}
-	Work.CellGrid = CellGrid;
-	Work.CachedMeshScaleXZ = CachedMeshScaleXZ;
-	Work.CapturedCellSize = CapturedCellSize;
-	Work.SurfaceUVs[0] = SurfaceUVs[0];
-	Work.SurfaceUVs[1] = SurfaceUVs[1];
-	Work.OriginBounds = OriginBounds;
-	Work.OriginalDepthRange = OriginalDepthRange;
+	// 고정 값은 계산이 바꾸지 않으므로 복사만 하고 RestoreWork도 돌려받지 않는다.
+	Work.Layout = Layout;
 	Work.bPublished = IsValid(SurfaceProxy) && SurfaceProxy->IsRegistered();
 	return Work;
 }
@@ -1074,13 +1065,9 @@ void UBreachableSurfaceComponent::RestoreWork(FBreachSurfaceWork& Work, bool bMe
 	// 계산하는 동안 끝난 Simple 충돌 결과는 표면 쪽에만 있다. 절단 상태는 작업 쪽이 최신이므로 파생 결과만 옮겨 온다.
 	if (bMergeSimpleBuild)
 	{
-		Work.SimpleCollision.CommitBuild(SimpleCollision);
+		Work.Model.SimpleCollision.CommitBuild(Model.SimpleCollision);
 	}
-	SurfaceState = MoveTemp(Work.SurfaceState);
-	SimpleCollision = MoveTemp(Work.SimpleCollision);
-	DamageAccumulator = MoveTemp(Work.DamageAccumulator);
-	CellGrid = Work.CellGrid;
-	CachedMeshScaleXZ = Work.CachedMeshScaleXZ;
+	Model = MoveTemp(Work.Model);
 }
 
 bool UBreachableSurfaceComponent::ApplyCutterPolygon(const FPolygon2d& InCutter, EBreachSurfaceSide Side)
@@ -1104,7 +1091,7 @@ bool UBreachableSurfaceComponent::ApplyCutterPolygon(const FPolygon2d& InCutter,
 		return true;
 	}
 
-	FBreachSurfaceWork::BuildSurfaceAttributes(Mesh, OriginBounds, SurfaceUVs);
+	FBreachSurfaceWork::BuildSurfaceAttributes(Mesh, Layout.OriginalBounds, Layout.SurfaceUVs);
 	const bool bUpdated = UpdateMesh(MoveTemp(Mesh), Side);
 	return bUpdated;
 }
@@ -1156,7 +1143,7 @@ void UBreachableSurfaceComponent::DebugDrawSurface()
 	if (World)
 	{
 		const FTransform& ComponentTransform = GetComponentTransform();
-		BreachSurfaceGeometry::DebugDrawPolygon2ds(this, ComponentTransform, SurfaceState.RemainingRegions);
+		BreachSurfaceGeometry::DebugDrawPolygon2ds(this, ComponentTransform, Model.SurfaceState.RemainingRegions);
 
 #pragma region LineBatch방식
 		/*for (auto& RemainingRegion : SurfaceState.RemainingRegions)

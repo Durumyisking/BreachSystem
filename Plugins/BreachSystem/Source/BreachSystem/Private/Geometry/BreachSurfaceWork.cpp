@@ -25,7 +25,7 @@ void FBreachSurfaceWork::ProcessHits(TConstArrayView<FBreachHitInput> Hits)
 		// 처음 만든 Proxy에서 자르지 못한 피격은 표면을 되돌린다. 다음 피격은 새 표면에서 시작하므로 그 기록도 남지 않는다.
 		if (Result.bFailed && bCreatedProxy && !bPublished)
 		{
-			DamageAccumulator.Reset();
+			Model.DamageAccumulator.Reset();
 		}
 		if (!Result.bChanged)
 		{
@@ -47,7 +47,7 @@ void FBreachSurfaceWork::ProcessHits(TConstArrayView<FBreachHitInput> Hits)
 		}
 		if (bDecorationExists)
 		{
-			Decoration.Update(Hit.Material, SimpleCollision, OriginalDepthRange, Result.DecorationCuts, Result.DecorationRemoved, Hit.Side, Hit.ComponentScale);
+			Decoration.Update(Hit.Material, Model.SimpleCollision, Layout.OriginalDepthRange, Result.DecorationCuts, Result.DecorationRemoved, Hit.Side, Hit.ComponentScale);
 		}
 	}
 	if (bAnyChanged)
@@ -117,7 +117,7 @@ bool FBreachSurfaceWork::PrepareAccumulation(const FBreachHitInput& Hit, FVector
 
 	// 검증: 누적 규칙을 적용한다. 설정 실패 시 이전 누적 상태를 유지한다.
 	FString Error;
-	const bool bConfigured = DamageAccumulator.Configure(Options.WindowSize, Options.BreachHP, Error);
+	const bool bConfigured = Model.DamageAccumulator.Configure(Options.WindowSize, Options.BreachHP, Error);
 	if (!bConfigured)
 	{
 		UE_LOG(LogBreachableSurface, Warning, TEXT("%s kept its previous accumulation state: %s"), *SurfaceName, *Error);
@@ -126,24 +126,24 @@ bool FBreachSurfaceWork::PrepareAccumulation(const FBreachHitInput& Hit, FVector
 
 	// 처리: 초기 Hit/메시 스케일의 변경시 아래 로직을 처리한다.
 	const FVector2d MetricScale(FMath::Abs(Hit.ComponentScale.X), FMath::Abs(Hit.ComponentScale.Z)); // Scale을 안전한 XZ 추출 (언리얼이니까 XZ다)
-	if (CachedMeshScaleXZ != MetricScale)
+	if (Model.CachedMeshScaleXZ != MetricScale)
 	{
-		if (DamageAccumulator.Num() > 0)
+		if (Model.DamageAccumulator.Num() > 0)
 		{
 			UE_LOG(LogBreachableSurface, Warning, TEXT("%s cleared accumulated impacts after its surface scale changed."), *SurfaceName);
 		}
 
-		DamageAccumulator.Reset();
-		CachedMeshScaleXZ = MetricScale;
+		Model.DamageAccumulator.Reset();
+		Model.CachedMeshScaleXZ = MetricScale;
 
 		// ★원본 UV를 Grid화 한다.★
-		CellGrid.Configure(SurfaceUVs[0].Offset, SurfaceUVs[0].PerX, SurfaceUVs[0].PerZ,
-			CachedMeshScaleXZ, CapturedCellSize, Error);
+		Model.CellGrid.Configure(Layout.SurfaceUVs[0].Offset, Layout.SurfaceUVs[0].PerX, Layout.SurfaceUVs[0].PerZ,
+			Model.CachedMeshScaleXZ, Layout.CapturedCellSize, Error);
 	}
 
 	// Region에 Hit 했는지 확인한다.
 	bool bHitSurface = false;
-	for (const FGeneralPolygon2d& Region : SurfaceState.RemainingRegions)
+	for (const FGeneralPolygon2d& Region : Model.SurfaceState.RemainingRegions)
 	{
 		if (Region.Contains(Hit.LocalPoint))
 		{
@@ -158,7 +158,7 @@ bool FBreachSurfaceWork::PrepareAccumulation(const FBreachHitInput& Hit, FVector
 
 	// 피격점이 어느 셀(Cell)에 속하는지 찾고, 그 셀의 중심 좌표(OutGridHitPoint)를 반환한다.
 	FIntPoint Cell;
-	const bool bQuantized = CellGrid.Quantize(Hit.LocalPoint, Cell, OutGridHitPoint, Error);
+	const bool bQuantized = Model.CellGrid.Quantize(Hit.LocalPoint, Cell, OutGridHitPoint, Error);
 	if (!bQuantized)
 	{
 		UE_LOG(LogBreachableSurface, Warning, TEXT("%s skipped accumulation and kept direct cutting: %s"), *SurfaceName, *Error);
@@ -224,7 +224,7 @@ bool FBreachSurfaceWork::AccumulateHit(const FBreachHitInput& Hit, const FVector
 
 	// 기록: 유효한 탄착을 추가한 뒤 임계값을 만족하는 후보를 한 번에 조회한다.
 	FString Error;
-	const int32 RecordID = DamageAccumulator.AddHit(GridHitPoint, Hit.BreachDamage, Error);
+	const int32 RecordID = Model.DamageAccumulator.AddHit(GridHitPoint, Hit.BreachDamage, Error);
 	if (RecordID == INDEX_NONE)
 	{
 		UE_LOG(LogBreachableSurface, Warning, TEXT("%s could not record accumulation impact: %s"), *SurfaceName, *Error);
@@ -232,7 +232,7 @@ bool FBreachSurfaceWork::AccumulateHit(const FBreachHitInput& Hit, const FVector
 	}
 
 	TArray<FBreachAccumulationCandidate> Candidates;
-	DamageAccumulator.FindCandidates(RecordID, Candidates);
+	Model.DamageAccumulator.FindCandidates(RecordID, Candidates);
 
 	bool bBreached = false;
 	// 모든 후보는 공유 탄착을 포함한 절단 전 기록을 기준으로 처리한다.
@@ -250,7 +250,7 @@ bool FBreachSurfaceWork::AccumulateHit(const FBreachHitInput& Hit, const FVector
 		const UBreachPattern* Pattern = Material->Pattern.Get();
 		if (IsValid(Pattern) && Pattern->Mode != EBreachPatternMode::None)
 		{
-			FPlanarUVMapping UV = SurfaceUVs[Hit.Side == EBreachSurfaceSide::Back ? 1 : 0];
+			FPlanarUVMapping UV = Layout.SurfaceUVs[Hit.Side == EBreachSurfaceSide::Back ? 1 : 0];
 			if (Material->bUseWorldSizeUV)
 			{
 				if (!BreachSurfaceUV::MakeWorldSizeMapping(Hit.ComponentScale, Material->TileSizeCm, UV, Error))
@@ -261,7 +261,7 @@ bool FBreachSurfaceWork::AccumulateHit(const FBreachHitInput& Hit, const FVector
 			}
 			auto UVAtMetric = [this, &UV](const FVector2d& Metric)
 			{
-				const FVector2d Local = CellGrid.ToLocal(Metric);
+				const FVector2d Local = Model.CellGrid.ToLocal(Metric);
 				return UV.Offset + UV.PerX * Local.X + UV.PerZ * Local.Y;
 			};
 			FBreachPatternMapping Mapping;
@@ -288,7 +288,7 @@ bool FBreachSurfaceWork::AccumulateHit(const FBreachHitInput& Hit, const FVector
 					FPolygon2d Local;
 					for (const FVector2d& Point : Loop.GetVertices())
 					{
-						Local.AppendVertex(CellGrid.ToLocal(Point));
+						Local.AppendVertex(Model.CellGrid.ToLocal(Point));
 					}
 					return Local;
 				};
@@ -307,7 +307,7 @@ bool FBreachSurfaceWork::AccumulateHit(const FBreachHitInput& Hit, const FVector
 				bOutChanged |= bCutChanged;
 				for (const FGeneralPolygon2d& Region : MetricRegions)
 				{
-					DamageAccumulator.RemoveInside(Region);
+					Model.DamageAccumulator.RemoveInside(Region);
 				}
 			}
 			else
@@ -344,7 +344,7 @@ bool FBreachSurfaceWork::AccumulateHit(const FBreachHitInput& Hit, const FVector
 			FPolygon2d Local;
 			for (const FVector2d& Point : Polygon.GetVertices())
 			{
-				Local.AppendVertex(CellGrid.ToLocal(Point));
+				Local.AppendVertex(Model.CellGrid.ToLocal(Point));
 			}
 			return Local;
 		};
@@ -368,7 +368,7 @@ bool FBreachSurfaceWork::AccumulateHit(const FBreachHitInput& Hit, const FVector
 			{
 				bOutChanged = true;
 			}
-			DamageAccumulator.RemoveInside(MetricCutter);
+			Model.DamageAccumulator.RemoveInside(MetricCutter);
 		}
 		else
 		{
@@ -381,7 +381,7 @@ bool FBreachSurfaceWork::AccumulateHit(const FBreachHitInput& Hit, const FVector
 void FBreachSurfaceWork::RemoveHitsInside(const FPolygon2d& LocalPolygon)
 {
 	// 상태 확인: 기록이 없으면 좌표 변환도 생략한다.
-	if (DamageAccumulator.Num() == 0)
+	if (Model.DamageAccumulator.Num() == 0)
 	{
 		return;
 	}
@@ -390,10 +390,10 @@ void FBreachSurfaceWork::RemoveHitsInside(const FPolygon2d& LocalPolygon)
 	FPolygon2d MetricPolygon;
 	for (const FVector2d& Point : LocalPolygon.GetVertices())
 	{
-		MetricPolygon.AppendVertex(CellGrid.ToMetric(Point));
+		MetricPolygon.AppendVertex(Model.CellGrid.ToMetric(Point));
 	}
 
-	DamageAccumulator.RemoveInside(MetricPolygon);
+	Model.DamageAccumulator.RemoveInside(MetricPolygon);
 }
 
 bool FBreachSurfaceWork::CutRegions(TConstArrayView<FGeneralPolygon2d> InCutters, bool& bOutChanged, FBreachHitResult& Result)
@@ -442,7 +442,7 @@ bool FBreachSurfaceWork::CutRegions(TConstArrayView<FGeneralPolygon2d> InCutters
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Subtract cutters");
-		const bool bDifference = PolygonsDifference(SurfaceState.RemainingRegions, Cutters, CandidateRegions);
+		const bool bDifference = PolygonsDifference(Model.SurfaceState.RemainingRegions, Cutters, CandidateRegions);
 		if (!bDifference)
 		{
 			return Reject(TEXT("Polygon difference failed."));
@@ -453,7 +453,7 @@ bool FBreachSurfaceWork::CutRegions(TConstArrayView<FGeneralPolygon2d> InCutters
 	TArray<FPolygon2d> DetachedRegions;
 	CandidateRegions.RemoveAll([&](const FGeneralPolygon2d& Region)
 	{
-		if (!TouchesOriginalBorder(Region.GetOuter(), OriginBounds))
+		if (!TouchesOriginalBorder(Region.GetOuter(), Layout.OriginalBounds))
 		{
 			DetachedRegions.Add(Region.GetOuter());
 			return true;
@@ -464,7 +464,7 @@ bool FBreachSurfaceWork::CutRegions(TConstArrayView<FGeneralPolygon2d> InCutters
 	// 이미 Proxy로 표시 중인 표면에서 면적이 줄지 않은 절단은 아무것도 바꾸지 않는다. 메시·충돌·구멍 캐시·Deco를 다시 만들지 않고 끝낸다.
 	// 아직 전환하지 않은 표면은 효과 없는 절단이라도 계속 진행해, 기존처럼 Proxy 표시로 전환한다.
 	double PreviousArea = 0;
-	for (const FGeneralPolygon2d& Region : SurfaceState.RemainingRegions)
+	for (const FGeneralPolygon2d& Region : Model.SurfaceState.RemainingRegions)
 	{
 		PreviousArea += FMath::Abs(Region.SignedArea());
 	}
@@ -502,8 +502,8 @@ bool FBreachSurfaceWork::CutRegions(TConstArrayView<FGeneralPolygon2d> InCutters
 
 		for (const FVector2d& Vertex : Vertices)
 		{
-			FrontIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, OriginalDepthRange.X, Vertex.Y)));
-			BackIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, OriginalDepthRange.Y, Vertex.Y)));
+			FrontIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, Layout.OriginalDepthRange.X, Vertex.Y)));
+			BackIDs.Add(RenewedMesh.AppendVertex(FVector3d(Vertex.X, Layout.OriginalDepthRange.Y, Vertex.Y)));
 		}
 
 		auto EdgeKey = [](int32 A, int32 B) { return (static_cast<uint64>(FMath::Min(A, B)) << 32) | static_cast<uint32>(FMath::Max(A, B)); };
@@ -574,7 +574,7 @@ bool FBreachSurfaceWork::CutRegions(TConstArrayView<FGeneralPolygon2d> InCutters
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Resolve removed regions");
 			TArray<FGeneralPolygon2d> Removed;
-			if (!PolygonsDifference(SurfaceState.RemainingRegions, CandidateRegions, Removed))
+			if (!PolygonsDifference(Model.SurfaceState.RemainingRegions, CandidateRegions, Removed))
 			{
 				return Reject(TEXT("Could not resolve hole-aware removal boundaries."));
 			}
@@ -616,7 +616,7 @@ bool FBreachSurfaceWork::CutRegions(TConstArrayView<FGeneralPolygon2d> InCutters
 	}
 
 	// 계산 결과만 보관한다. 실제 메시와 충돌은 모든 절단이 끝난 뒤 반영한다.
-	SurfaceState.RemainingRegions = MoveTemp(CandidateRegions);
+	Model.SurfaceState.RemainingRegions = MoveTemp(CandidateRegions);
 	if (bAreaReduced)
 	{
 		Result.RemovedArea += PreviousArea - NewArea;
@@ -633,11 +633,11 @@ bool FBreachSurfaceWork::CutRegions(TConstArrayView<FGeneralPolygon2d> InCutters
 		const bool bSingleSimpleCutter = Cutters.Num() == 1 && Cutters[0].GetHoles().IsEmpty();
 		if (!bSingleSimpleCutter)
 		{
-			bTracked = SimpleCollision.RebuildHoleCache(SurfaceState.RemainingRegions, CacheError);
+			bTracked = Model.SimpleCollision.RebuildHoleCache(Model.SurfaceState.RemainingRegions, CacheError);
 		}
-		else if (SimpleCollision.HasHoleCache())
+		else if (Model.SimpleCollision.HasHoleCache())
 		{
-			bTracked = SimpleCollision.ApplyCut(Cutters[0].GetOuter(), DetachedRegions, CacheError);
+			bTracked = Model.SimpleCollision.ApplyCut(Cutters[0].GetOuter(), DetachedRegions, CacheError);
 		}
 		else
 		{
@@ -647,7 +647,7 @@ bool FBreachSurfaceWork::CutRegions(TConstArrayView<FGeneralPolygon2d> InCutters
 	if (!bTracked)
 	{
 		FString RebuildError;
-		const bool bRebuilt = SimpleCollision.RebuildHoleCache(SurfaceState.RemainingRegions, RebuildError);
+		const bool bRebuilt = Model.SimpleCollision.RebuildHoleCache(Model.SurfaceState.RemainingRegions, RebuildError);
 		if (bRebuilt)
 		{
 			UE_LOG(LogBreachableSurface, Warning, TEXT("%s rebuilt its movement openings from the remaining regions after tracking failed: %s"), *SurfaceName, *CacheError);
@@ -668,7 +668,7 @@ bool FBreachSurfaceWork::CutRegions(TConstArrayView<FGeneralPolygon2d> InCutters
 
 void FBreachSurfaceWork::FinishMesh()
 {
-	BuildSurfaceAttributes(Mesh, OriginBounds, SurfaceUVs);
+	BuildSurfaceAttributes(Mesh, Layout.OriginalBounds, Layout.SurfaceUVs);
 }
 
 void FBreachSurfaceWork::BuildSurfaceAttributes(FDynamicMesh3& InOutMesh, const FAxisAlignedBox2d& Bounds, const FPlanarUVMapping (&UVs)[2])

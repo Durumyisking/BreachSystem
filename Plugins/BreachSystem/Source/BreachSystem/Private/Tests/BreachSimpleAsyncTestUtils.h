@@ -13,12 +13,12 @@ struct FBreachSimpleAsyncTestAccess
 	static int32 PassageCount(const UBreachableSurfaceComponent* Surface)
 	{
 		check(Surface);
-		return Surface->SimpleCollision.GetLastBuildStats().PassagePieceCount;
+		return Surface->Model.SimpleCollision.GetLastBuildStats().PassagePieceCount;
 	}
 	static uint64 InputRevision(const UBreachableSurfaceComponent* Surface)
 	{
 		check(Surface);
-		return Surface->SimpleCollision.GetRevision();
+		return Surface->Model.SimpleCollision.GetRevision();
 	}
 	static uint64 PublishedRevision(const UBreachableSurfaceComponent* Surface)
 	{
@@ -33,7 +33,7 @@ struct FBreachSimpleAsyncTestAccess
 	static bool HasHoleCache(const UBreachableSurfaceComponent* Surface)
 	{
 		check(Surface);
-		return Surface->SimpleCollision.HasHoleCache();
+		return Surface->Model.SimpleCollision.HasHoleCache();
 	}
 	// 구멍 캐시가 설명할 수 없는 고립 조각을 넣어 추적 실패를 재현한다. 표면 상태는 바꾸지 않는다.
 	static void BreakHoleCache(UBreachableSurfaceComponent* Surface)
@@ -50,7 +50,7 @@ struct FBreachSimpleAsyncTestAccess
 			Unmatched.AppendVertex(Point);
 		}
 		FString Error;
-		Surface->SimpleCollision.ApplyCut(Cutter, MakeArrayView(&Unmatched, 1), Error);
+		Surface->Model.SimpleCollision.ApplyCut(Cutter, MakeArrayView(&Unmatched, 1), Error);
 	}
 	static uint32 CookCount(const UBreachSimpleProxy* Proxy)
 	{

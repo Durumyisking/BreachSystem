@@ -36,7 +36,7 @@ struct FBreachPatternSurfaceTestAccess
 
 	static bool Solid(const UBreachableSurfaceComponent& Surface, const FVector2d& Point)
 	{
-		for (const UE::Geometry::FGeneralPolygon2d& Region : Surface.SurfaceState.RemainingRegions)
+		for (const UE::Geometry::FGeneralPolygon2d& Region : Surface.Model.SurfaceState.RemainingRegions)
 		{
 			if (Region.Contains(Point))
 			{
@@ -48,7 +48,7 @@ struct FBreachPatternSurfaceTestAccess
 
 	static FVector2D UV(const UBreachableSurfaceComponent& Surface, const FVector2d& Point)
 	{
-		const FPlanarUVMapping& Mapping = Surface.SurfaceUVs[0];
+		const FPlanarUVMapping& Mapping = Surface.Layout.SurfaceUVs[0];
 		return FVector2D(Mapping.Offset + Mapping.PerX * Point.X + Mapping.PerZ * Point.Y);
 	}
 

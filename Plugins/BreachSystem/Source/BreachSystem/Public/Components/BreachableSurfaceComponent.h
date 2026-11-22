@@ -143,13 +143,6 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Breach", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UBreachSurfaceMaterial> SurfaceMaterial;
 
-	// 표면별 누적 피해 상태
-	FBreachDamageAccumulator DamageAccumulator;
-	FVector2d CachedMeshScaleXZ = FVector2d::ZeroVector;
-	FBreachCellGrid CellGrid;
-	double CapturedCellSize = 0;
-
-	FPlanarUVMapping SurfaceUVs[2]; // -Y 면, +Y 면 순서
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> DisplayMaterialInstance;
 	UPROPERTY(Transient)
@@ -199,12 +192,11 @@ private:
 
 	// 원본 경계와 절단 후 남은 영역 // 지워도 될듯하다.
 	UE::Geometry::FPolygon2d OriginalOuter;
-	UE::Geometry::FAxisAlignedBox2d OriginBounds;
-	FVector2d OriginalDepthRange = FVector2d::ZeroVector;
+	// 원본 UV·경계·두께와 셀 크기. CreateSurfaceProxy가 정하고 작업에는 복사만 한다.
+	FBreachSurfaceLayout Layout;
 
-	// 현재 표면상태 (필수)
-	FBreachSurfaceState SurfaceState;
-	FBreachSimpleCollision SimpleCollision;
+	// 현재 표면상태 (필수). 계산하는 동안 작업이 들고 있다가 RestoreWork로 돌려준다.
+	FBreachSurfaceModel Model;
 	// 한 표면 수명에는 실행 작업 하나와 최신 변경을 나타내는 대기 표시만 둔다.
 	TSharedPtr<FBreachSimpleBuildJob, ESPMode::ThreadSafe> SimpleBuildJob;
 	uint64 SimpleBuildGeneration = 0;
@@ -222,6 +214,6 @@ public:
 	/** 아직 제거되지 않은 누적 피해 기록 수를 반환한다. 총 피격 횟수와는 다르다. */
 	int32 GetAccumulatedHitCount() const
 	{
-		return DamageAccumulator.Num();
+		return Model.DamageAccumulator.Num();
 	}
 };

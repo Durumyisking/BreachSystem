@@ -55,17 +55,10 @@ public:
 	FString SurfaceName;
 
 	// Surface state the cuts read and change.
-	FBreachSurfaceState SurfaceState;
-	FBreachSimpleCollision SimpleCollision;
-	FBreachDamageAccumulator DamageAccumulator;
-	FBreachCellGrid CellGrid;
-	FVector2d CachedMeshScaleXZ = FVector2d::ZeroVector;
-	double CapturedCellSize = 0;
+	FBreachSurfaceModel Model;
 
 	// Fixed for the lifetime of the surface.
-	FPlanarUVMapping SurfaceUVs[2];
-	UE::Geometry::FAxisAlignedBox2d OriginBounds;
-	FVector2d OriginalDepthRange = FVector2d::ZeroVector;
+	FBreachSurfaceLayout Layout;
 
 	/** The surface already shows its proxy. A cut that removes no area then changes nothing. */
 	bool bPublished = false;
