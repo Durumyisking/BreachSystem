@@ -68,20 +68,20 @@ bool UBreachSourceComponent::PrepareCutterPolygon(const FBreachSourceOption& InO
 	FBreachSourceOption AcceptedOption = InOption;
 	if (!AcceptedOption.ShapeClass)
 	{
-		SWARN(TEXT("BreachSourceComponent '%s' rejected source without ShapeClass."), *GetPathName());
+		UE_LOG(LogBreachSource, Warning, TEXT("BreachSourceComponent '%s' rejected source without ShapeClass."), *GetPathName());
 		return false;
 	}
 	const UBreachShape* ShapeCDO = AcceptedOption.ShapeClass->GetDefaultObject<UBreachShape>();
 	if (!ShapeCDO)
 	{
-		SWARN(TEXT("BreachSourceComponent '%s' rejected source without shape CDO."), *GetPathName());
+		UE_LOG(LogBreachSource, Warning, TEXT("BreachSourceComponent '%s' rejected source without shape CDO."), *GetPathName());
 		return false;
 	}
 	UE::Geometry::FPolygon2d BasePolygon;
 	const bool bBaseGenerated = ShapeCDO->GeneratePolygon(AcceptedOption, BasePolygon);
 	if (!bBaseGenerated)
 	{
-		SWARN(TEXT("BreachSourceComponent '%s' rejected invalid base shape options."), *GetPathName());
+		UE_LOG(LogBreachSource, Warning, TEXT("BreachSourceComponent '%s' rejected invalid base shape options."), *GetPathName());
 		return false;
 	}
 	FString Error;
@@ -97,14 +97,14 @@ bool UBreachSourceComponent::PrepareCutterPolygon(const FBreachSourceOption& InO
 	{
 		if (ContourOptions.bEnabled)
 		{
-			SWARN(TEXT("BreachSourceComponent '%s' is using its base shape because a safe contour could not be prepared: %s"), *GetPathName(), *Error);
+			UE_LOG(LogBreachSource, Warning, TEXT("BreachSourceComponent '%s' is using its base shape because a safe contour could not be prepared: %s"), *GetPathName(), *Error);
 			AcceptedOption.Contour.bEnabled = false;
 			ContourOptions.bEnabled = false;
 			bPrepared = BreachContour::Prepare(BasePolygon, ContourOptions, Prepared, Error);
 		}
 		if (!bPrepared)
 		{
-			SWARN(TEXT("BreachSourceComponent '%s' rejected invalid base geometry: %s"), *GetPathName(), *Error);
+			UE_LOG(LogBreachSource, Warning, TEXT("BreachSourceComponent '%s' rejected invalid base geometry: %s"), *GetPathName(), *Error);
 			return false;
 		}
 	}
@@ -146,7 +146,7 @@ bool UBreachSourceComponent::CacheCutterPolygon()
 		FBreachSourceOption DefaultOption;
 		DefaultOption.ShapeClass = UBreachCircleShape::StaticClass();
 		DefaultOption.ShapeOption.InitializeAs<FBreachCircleShapeOption>();
-		SWARN(TEXT("BreachSourceComponent '%s' is using the default circle cutter."), *GetPathName());
+		UE_LOG(LogBreachSource, Warning, TEXT("BreachSourceComponent '%s' is using the default circle cutter."), *GetPathName());
 		return PrepareCutterPolygon(DefaultOption);
 	}
 	return false;
@@ -159,7 +159,7 @@ bool UBreachSourceComponent::ResolveCutterPolygon(const FTransform& SurfaceTrans
 	const FVector Scale = SurfaceTransform.GetScale3D();
 	if (FMath::IsNearlyZero(Scale.X, UE_DOUBLE_KINDA_SMALL_NUMBER) || FMath::IsNearlyZero(Scale.Z, UE_DOUBLE_KINDA_SMALL_NUMBER))
 	{
-		SWARN(TEXT("BreachSourceComponent '%s' cannot resolve a cutter on a zero-scale XZ surface."), *GetPathName());
+		UE_LOG(LogBreachSource, Warning, TEXT("BreachSourceComponent '%s' cannot resolve a cutter on a zero-scale XZ surface."), *GetPathName());
 		return false;
 	}
 	if (!bCutterPrepared)

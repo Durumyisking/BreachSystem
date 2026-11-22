@@ -9,6 +9,7 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "BreachSystemLog.h"
 
 using namespace UE::Geometry;
 

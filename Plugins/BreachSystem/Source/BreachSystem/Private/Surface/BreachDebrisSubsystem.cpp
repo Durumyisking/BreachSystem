@@ -10,7 +10,7 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Surface/BreachSurfaceMaterial.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogBreachDebris, Log, All);
+#include "BreachSystemLog.h"
 
 void UBreachDebrisSubsystem::Spawn(const UBreachSurfaceMaterial& Material, const FVector& ImpactPoint,
 	const FVector& Outward, double RemovedAreaCm2)

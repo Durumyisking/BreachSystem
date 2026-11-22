@@ -19,12 +19,12 @@ struct FBreachPatternSurfaceTestAccess
 {
 	static UMaterialInterface* ProxyMaterial(const UBreachableSurfaceComponent& Surface)
 	{
-		return Surface.DynamicMeshProxy ? Surface.DynamicMeshProxy->GetMaterial(0) : nullptr;
+		return Surface.SurfaceProxy ? Surface.SurfaceProxy->GetMaterial(0) : nullptr;
 	}
 	static bool Prepare(UBreachableSurfaceComponent& Surface)
 	{
 		UE::Geometry::FDynamicMesh3 Mesh;
-		return Surface.CreateDynamicMeshProxy(Mesh);
+		return Surface.CreateSurfaceProxy(Mesh);
 	}
 
 	static bool Cut(UBreachableSurfaceComponent& Surface, const TArray<UE::Geometry::FGeneralPolygon2d>& Regions)

@@ -170,7 +170,7 @@ void FBreachCellDebug::Execute(const TArray<FString>& Args)
 	}
 	if (Args.Num() != 1 || (Args[0] != TEXT("0") && Args[0] != TEXT("1")))
 	{
-		SWARN(TEXT("Usage: BreachSystem.ShowCell [0|1]; no argument toggles drawing."));
+		UE_LOG(LogBreachDebug, Warning, TEXT("Usage: BreachSystem.ShowCell [0|1]; no argument toggles drawing."));
 		return;
 	}
 	SetEnabled(Args[0] == TEXT("1"));
@@ -180,7 +180,7 @@ void FBreachCellDebug::SetEnabled(bool bInEnabled)
 {
 	if (bInEnabled && IsRunningDedicatedServer())
 	{
-		SWARN(TEXT("ShowCell is unavailable on a dedicated server."));
+		UE_LOG(LogBreachDebug, Warning, TEXT("ShowCell is unavailable on a dedicated server."));
 		return;
 	}
 	bEnabled = bInEnabled;
@@ -252,7 +252,7 @@ bool FBreachCellDebug::Tick(float DeltaSeconds)
 		{
 			if (!WarnedSurfaces.Contains(Surface))
 			{
-				SWARN(TEXT("ShowCell skipped %s: invalid cell geometry or remaining line budget (%d of %d). Cell size was not changed."),
+				UE_LOG(LogBreachDebug, Warning, TEXT("ShowCell skipped %s: invalid cell geometry or remaining line budget (%d of %d). Cell size was not changed."),
 					*Surface->GetPathName(), RemainingLines, MaxLinesPerRefresh);
 				WarnedSurfaces.Add(Surface);
 			}

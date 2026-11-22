@@ -6,7 +6,7 @@
 
 using namespace UE::Geometry;
 
-DEFINE_LOG_CATEGORY_STATIC(LogBreachDecorationGeometry, Log, All);
+#include "BreachSystemLog.h"
 
 namespace
 {

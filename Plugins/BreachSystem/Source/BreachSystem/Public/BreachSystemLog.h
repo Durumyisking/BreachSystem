@@ -3,42 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HAL/ThreadSafeCounter.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogBS, All, All);
+// 플러그인의 모든 로그 카테고리를 여기서 선언하고 BreachSystemLog.cpp에서 정의한다. 로그는 UE_LOG로만 남긴다.
+// 테스트가 LogBreachableSurface 이름으로 로그를 걸러 보거나 Verbose를 켜므로 이름을 바꾸면 테스트도 함께 고친다.
 
-namespace BSLog
-{
-	/** 스레드 안전 카운터를 증가시키고 로그 순번을 반환한다. */
-	inline int32 NextIndex()
-	{
-		static FThreadSafeCounter Counter;
-		return Counter.Increment();
-	}
-
-	/** 새 순번·현재 로컬 시각·호출 함수명을 묶어 로그 접두사를 만든다. */
-	inline FString BuildPrefix(const TCHAR* InCallInfo)
-	{
-		const FDateTime Now = FDateTime::Now();
-		const FString TimeText = FString::Printf(
-			TEXT("%04d.%02d.%02d-%02d.%02d.%02d.%03d"),
-			Now.GetYear(),
-			Now.GetMonth(),
-			Now.GetDay(),
-			Now.GetHour(),
-			Now.GetMinute(),
-			Now.GetSecond(),
-			Now.GetMillisecond());
-
-		return FString::Printf(TEXT("[#%d][%s][%s]"), NextIndex(), *TimeText, InCallInfo);
-	}
-}
-
-#define LOG_CALLINFO ANSI_TO_TCHAR(__FUNCTION__)
-#define BSLOG(LogCat, Verbosity, Format, ...) UE_LOG(LogCat, Verbosity, TEXT("%s %s"), *BSLog::BuildPrefix(LOG_CALLINFO), *FString::Printf(Format, ##__VA_ARGS__))
-#define BS_DISPLAYLOG(Key, Duration, Color, Format, ...) GEngine->AddOnScreenDebugMessage(Key, Duration, Color, *FString::Printf(Format, ##__VA_ARGS__));
-
-#define BS_SLOG(Verbosity, Format, ...) BSLOG(LogBS, Verbosity, Format, ##__VA_ARGS__)
-#define SLOG(Format, ...) BSLOG(LogBS, Log, Format, ##__VA_ARGS__)
-#define SWARN(Format, ...) BSLOG(LogBS, Warning, Format, ##__VA_ARGS__)
-#define SERROR(Format, ...) BSLOG(LogBS, Error, Format, ##__VA_ARGS__)
+DECLARE_LOG_CATEGORY_EXTERN(LogBreachableSurface, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogBreachSource, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogBreachSimpleCollision, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogBreachDecoration, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogBreachDecorationGeometry, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogBreachFeatureGeometry, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogBreachDebris, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogBreachSystemSettings, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogBreachDebug, Log, All);

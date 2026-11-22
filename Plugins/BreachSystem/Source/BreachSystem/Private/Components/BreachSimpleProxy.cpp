@@ -6,6 +6,7 @@
 #include "Engine/World.h"
 #include "UObject/StrongObjectPtr.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "BreachSystemLog.h"
 
 UBreachSimpleProxy::UBreachSimpleProxy()
 {
@@ -180,7 +181,7 @@ bool UBreachSimpleProxy::ApplyCollision()
 		UWorld* World = GetWorld();
 		if (!IsRegistered() || !World || !World->GetPhysicsScene())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("%s cannot apply Simple collision without a registered physics scene; previous collision is retained."), *GetName());
+			UE_LOG(LogBreachSimpleCollision, Warning, TEXT("%s cannot apply Simple collision without a registered physics scene; previous collision is retained."), *GetName());
 			return false;
 		}
 	}
@@ -196,7 +197,7 @@ bool UBreachSimpleProxy::ApplyCollision()
 		{
 			ActiveBodySetup = Previous.Get();
 			RecreatePhysicsState();
-			UE_LOG(LogTemp, Warning, TEXT("%s could not create its new Simple physics body; previous collision was restored."), *GetName());
+			UE_LOG(LogBreachSimpleCollision, Warning, TEXT("%s could not create its new Simple physics body; previous collision was restored."), *GetName());
 			return false;
 		}
 	}

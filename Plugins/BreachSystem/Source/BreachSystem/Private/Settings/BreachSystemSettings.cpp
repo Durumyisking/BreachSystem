@@ -1,6 +1,6 @@
 #include "Settings/BreachSystemSettings.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogBreachSystemSettings, Log, All);
+#include "BreachSystemLog.h"
 
 UBreachSystemSettings::UBreachSystemSettings()
 {

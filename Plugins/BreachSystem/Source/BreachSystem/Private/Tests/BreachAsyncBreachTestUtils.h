@@ -37,13 +37,13 @@ struct FBreachAsyncBreachTestAccess
 	static bool HasProxy(const UBreachableSurfaceComponent* Surface)
 	{
 		check(Surface);
-		return IsValid(Surface->DynamicMeshProxy);
+		return IsValid(Surface->SurfaceProxy);
 	}
 
 	static bool IsPublished(const UBreachableSurfaceComponent* Surface)
 	{
 		check(Surface);
-		return HasProxy(Surface) && Surface->DynamicMeshProxy->IsRegistered();
+		return HasProxy(Surface) && Surface->SurfaceProxy->IsRegistered();
 	}
 
 	static int32 ProxyTriangles(const UBreachableSurfaceComponent* Surface)
@@ -53,7 +53,7 @@ struct FBreachAsyncBreachTestAccess
 		{
 			return 0;
 		}
-		return Surface->DynamicMeshProxy->GetMesh()->TriangleCount();
+		return Surface->SurfaceProxy->GetMesh()->TriangleCount();
 	}
 
 	static double RemainingArea(const UBreachableSurfaceComponent* Surface)

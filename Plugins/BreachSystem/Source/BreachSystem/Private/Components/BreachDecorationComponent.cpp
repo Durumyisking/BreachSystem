@@ -7,7 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogBreachDecoration, Log, All);
+#include "BreachSystemLog.h"
 
 namespace
 {

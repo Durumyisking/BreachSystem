@@ -39,7 +39,6 @@
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/BodySetup.h"
 
-DEFINE_LOG_CATEGORY(LogBreachableSurface);
 TRACE_DECLARE_FLOAT_COUNTER(BreachSimpleRequestLatency, TEXT("BreachSimpleCollision | Request to apply (ms)"));
 TRACE_DECLARE_FLOAT_COUNTER(BreachSimpleCookLatency, TEXT("BreachSimpleCollision | Cook request to apply (ms)"));
 
@@ -76,7 +75,7 @@ bool UBreachableSurfaceComponent::GetCellGridForDebug(FBreachCellGrid& OutGrid, 
 	const FVector Scale = GetComponentScale();
 	const FVector2d MetricScale(FMath::Abs(Scale.X), FMath::Abs(Scale.Z));
 	FString Error;
-	if (IsValid(DynamicMeshProxy))
+	if (IsValid(SurfaceProxy))
 	{
 		OutLocalBounds = OriginBounds;
 		OutDepthRange = OriginalDepthRange;
@@ -145,11 +144,11 @@ void UBreachableSurfaceComponent::OnComponentDestroyed(bool bDestroyingHierarchy
 		SimpleProxy->DestroyComponent();
 		SimpleProxy = nullptr;
 	}
-	if (IsValid(DynamicMeshProxy))
+	if (IsValid(SurfaceProxy))
 	{
-		DynamicMeshProxy->SetSurface(nullptr);
-		DynamicMeshProxy->DestroyComponent();
-		DynamicMeshProxy = nullptr;
+		SurfaceProxy->SetSurface(nullptr);
+		SurfaceProxy->DestroyComponent();
+		SurfaceProxy = nullptr;
 	}
 
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
@@ -290,7 +289,7 @@ bool UBreachableSurfaceComponent::ReadSourceSurface(UE::Geometry::FDynamicMesh3&
 	return true;
 }
 
-bool UBreachableSurfaceComponent::CreateDynamicMeshProxy(UE::Geometry::FDynamicMesh3& OutMesh)
+bool UBreachableSurfaceComponent::CreateSurfaceProxy(UE::Geometry::FDynamicMesh3& OutMesh)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Initialize collision proxies");
 	FPlanarUVMapping InitialUVs[2];
@@ -325,7 +324,7 @@ bool UBreachableSurfaceComponent::CreateDynamicMeshProxy(UE::Geometry::FDynamicM
 		Materials.Add(GetMaterial(Index));
 	}
 
-	// 7. DynamicMeshProxy를 생성하고 원본과 같은 위치에 부착한다.
+	// 7. SurfaceProxy를 생성하고 원본과 같은 위치에 부착한다.
 	AActor* Owner = GetOwner();
 	if (!ensureMsgf(Owner, TEXT("Breach surface requires an owner to create its proxy.")))
 	{
@@ -333,21 +332,21 @@ bool UBreachableSurfaceComponent::CreateDynamicMeshProxy(UE::Geometry::FDynamicM
 	}
 
 	// 생성 및 메시 설정 가져오기
-	DynamicMeshProxy = NewObject<UBreachSurfaceProxy>(Owner);
-	DynamicMeshProxy->SetSurface(this);
-	DynamicMeshProxy->SetupAttachment(this);
-	DynamicMeshProxy->SetRelativeTransform(FTransform::Identity);
-	DynamicMeshProxy->SetMobility(GetMobility());
-	DynamicMeshProxy->SetCastShadow(CastShadow);
-	DynamicMeshProxy->SetCollisionObjectType(GetCollisionObjectType());
-	DynamicMeshProxy->SetCollisionResponseToChannels(GetCollisionResponseToChannels());
-	DynamicMeshProxy->ConfigureMaterialSet(Materials);
-	DynamicMeshProxy->SetTangentsType(EDynamicMeshComponentTangentsMode::AutoCalculated);
+	SurfaceProxy = NewObject<UBreachSurfaceProxy>(Owner);
+	SurfaceProxy->SetSurface(this);
+	SurfaceProxy->SetupAttachment(this);
+	SurfaceProxy->SetRelativeTransform(FTransform::Identity);
+	SurfaceProxy->SetMobility(GetMobility());
+	SurfaceProxy->SetCastShadow(CastShadow);
+	SurfaceProxy->SetCollisionObjectType(GetCollisionObjectType());
+	SurfaceProxy->SetCollisionResponseToChannels(GetCollisionResponseToChannels());
+	SurfaceProxy->ConfigureMaterialSet(Materials);
+	SurfaceProxy->SetTangentsType(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
 	// 두 프록시가 각자 형상만 보관하고 질의의 Simple/Complex 구분은 유지한다.
-	DynamicMeshProxy->bEnableComplexCollision = true;
-	DynamicMeshProxy->CollisionType = CTF_UseSimpleAndComplex;
-	DynamicMeshProxy->BodyInstance.bAutoWeld = false;
+	SurfaceProxy->bEnableComplexCollision = true;
+	SurfaceProxy->CollisionType = CTF_UseSimpleAndComplex;
+	SurfaceProxy->BodyInstance.bAutoWeld = false;
 
 	SimpleProxy = NewObject<UBreachSimpleProxy>(Owner);
 	SimpleProxy->SetSurface(this);
@@ -417,9 +416,9 @@ void UBreachableSurfaceComponent::OnUnregister()
 	{
 		SimpleProxy->UnregisterComponent();
 	}
-	if (IsValid(DynamicMeshProxy))
+	if (IsValid(SurfaceProxy))
 	{
-		DynamicMeshProxy->UnregisterComponent();
+		SurfaceProxy->UnregisterComponent();
 	}
 	Super::OnUnregister();
 }
@@ -432,9 +431,9 @@ void UBreachableSurfaceComponent::OnRegister()
 	{
 		Decorations->RegisterComponent();
 	}
-	if (IsValid(DynamicMeshProxy) && IsValid(SimpleProxy))
+	if (IsValid(SurfaceProxy) && IsValid(SimpleProxy))
 	{
-		DynamicMeshProxy->RegisterComponent();
+		SurfaceProxy->RegisterComponent();
 		SimpleProxy->RegisterComponent();
 		QueueSimpleCollision();
 	}
@@ -628,7 +627,7 @@ void UBreachableSurfaceComponent::CompleteSimpleCook(const TSharedPtr<FBreachSim
 bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh, EBreachSurfaceSide Side)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Publish wall update");
-	if (!ensureMsgf(IsValid(DynamicMeshProxy) && IsValid(SimpleProxy), TEXT("%s requires both proxies to update its mesh."), *GetName()))
+	if (!ensureMsgf(IsValid(SurfaceProxy) && IsValid(SimpleProxy), TEXT("%s requires both proxies to update its mesh."), *GetName()))
 	{
 		return false;
 	}
@@ -636,34 +635,34 @@ bool UBreachableSurfaceComponent::UpdateMesh(UE::Geometry::FDynamicMesh3&& Mesh,
 	// 기본은 피격한 프레임에 Complex까지 굽는다. 설정으로 비동기를 고르면 완료될 때까지 이전 충돌이 남는다.
 	// 첫 전환은 원본 충돌을 끄는 시점이므로 항상 동기로 굽는다. 비동기로 두면 그 사이 총알이 벽 전체를 통과한다.
 	bool bAsyncCook = false;
-	if (DynamicMeshProxy->IsRegistered())
+	if (SurfaceProxy->IsRegistered())
 	{
 		bAsyncCook = UBreachSystemSettings::IsComplexCollisionAsync();
 	}
-	DynamicMeshProxy->bUseAsyncCooking = bAsyncCook;
+	SurfaceProxy->bUseAsyncCooking = bAsyncCook;
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Set proxy mesh");
-		DynamicMeshProxy->SetMesh(MoveTemp(Mesh));
+		SurfaceProxy->SetMesh(MoveTemp(Mesh));
 	}
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | ComplexCollisionCook");
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR_CONDITIONAL("PlanarBreach | Complex sync cook and apply", !bAsyncCook);
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR_CONDITIONAL("PlanarBreach | Complex queue async cook", bAsyncCook);
-		DynamicMeshProxy->UpdateCollision(false);
+		SurfaceProxy->UpdateCollision(false);
 	}
 
-	if (!DynamicMeshProxy->IsRegistered())
+	if (!SurfaceProxy->IsRegistered())
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Register collision proxies");
 		SimpleProxy->RegisterComponent();
-		DynamicMeshProxy->RegisterComponent();
+		SurfaceProxy->RegisterComponent();
 		SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		SetVisibility(false, false);
 		SimpleProxy->SetCollisionEnabled(OriginalCollisionEnabled);
-		DynamicMeshProxy->SetCollisionEnabled(OriginalCollisionEnabled);
-		DynamicMeshProxy->SetVisibility(bOriginalVisible, false);
-		DynamicMeshProxy->SetHiddenInGame(bOriginalHiddenInGame, false);
+		SurfaceProxy->SetCollisionEnabled(OriginalCollisionEnabled);
+		SurfaceProxy->SetVisibility(bOriginalVisible, false);
+		SurfaceProxy->SetHiddenInGame(bOriginalHiddenInGame, false);
 	}
 
 	QueueSimpleCollision();
@@ -721,11 +720,11 @@ bool UBreachableSurfaceComponent::ResetSurface()
 		SimpleProxy->DestroyComponent();
 		SimpleProxy = nullptr;
 	}
-	if (IsValid(DynamicMeshProxy))
+	if (IsValid(SurfaceProxy))
 	{
-		DynamicMeshProxy->SetSurface(nullptr);
-		DynamicMeshProxy->DestroyComponent();
-		DynamicMeshProxy = nullptr;
+		SurfaceProxy->SetSurface(nullptr);
+		SurfaceProxy->DestroyComponent();
+		SurfaceProxy = nullptr;
 		SetCollisionEnabled(OriginalCollisionEnabled);
 		SetVisibility(bOriginalVisible, false);
 		SetHiddenInGame(bOriginalHiddenInGame, false);
@@ -747,7 +746,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Total");
 
 		// 검증: 이 표면의 피격이며 피해량이 유효해야 한다.
-		if (!IsValid(HitComponent) || (HitComponent != this && HitComponent != DynamicMeshProxy && HitComponent != SimpleProxy))
+		if (!IsValid(HitComponent) || (HitComponent != this && HitComponent != SurfaceProxy && HitComponent != SimpleProxy))
 		{
 			UE_LOG(LogBreachableSurface, Warning, TEXT("%s ignored accumulation damage for an unrelated component."), *GetName());
 			return;
@@ -785,11 +784,11 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		}
 
 		// 앞의 ValidCheck이 통과하면 프록시를 생성한다. 원본 메시를 읽으므로 피격한 프레임에 한다.
-		const bool bHadProxy = IsValid(DynamicMeshProxy);
+		const bool bHadProxy = IsValid(SurfaceProxy);
 		if (!bHadProxy)
 		{
 			FDynamicMesh3 SourceMesh;
-			const bool bInitialized = CreateDynamicMeshProxy(SourceMesh);
+			const bool bInitialized = CreateSurfaceProxy(SourceMesh);
 			if (!bInitialized)
 			{
 				return;
@@ -848,10 +847,10 @@ void UBreachableSurfaceComponent::StartBreachJob(bool bForceSync)
 	PendingBreachJob.Reset();
 
 	// 기다리는 동안 앞선 피격이 표면을 되돌렸으면, 그 뒤 피격이 하던 것처럼 Proxy를 다시 만든다.
-	if (!IsValid(DynamicMeshProxy))
+	if (!IsValid(SurfaceProxy))
 	{
 		FDynamicMesh3 SourceMesh;
-		if (!CreateDynamicMeshProxy(SourceMesh))
+		if (!CreateSurfaceProxy(SourceMesh))
 		{
 			UE_LOG(LogBreachableSurface, Warning, TEXT("%s dropped %d queued hit(s) because its surface could not be prepared again."), *GetName(), Job->Hits.Num());
 			return;
@@ -982,7 +981,7 @@ void UBreachableSurfaceComponent::CommitBreachJob(const TSharedPtr<FBreachJob, E
 
 				// 최종 메시와 충돌이 반영된 뒤 피격을 알린다.
 				TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Breached event");
-				OnBreachedDelegate.Broadcast(Hit.HitInfo, DynamicMeshProxy);
+				OnBreachedDelegate.Broadcast(Hit.HitInfo, SurfaceProxy);
 			}
 		}
 	}
@@ -1066,7 +1065,7 @@ FBreachSurfaceWork UBreachableSurfaceComponent::TakeWork(bool bCopy)
 	Work.SurfaceUVs[1] = SurfaceUVs[1];
 	Work.OriginBounds = OriginBounds;
 	Work.OriginalDepthRange = OriginalDepthRange;
-	Work.bPublished = IsValid(DynamicMeshProxy) && DynamicMeshProxy->IsRegistered();
+	Work.bPublished = IsValid(SurfaceProxy) && SurfaceProxy->IsRegistered();
 	return Work;
 }
 
@@ -1114,11 +1113,11 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 {
 	bOutChanged = false;
 
-	// Ensure DynamicMeshProxy
-	const bool bHadProxy = IsValid(DynamicMeshProxy);
+	// Ensure SurfaceProxy
+	const bool bHadProxy = IsValid(SurfaceProxy);
 	if (!bHadProxy)
 	{
-		const bool bInitialized = CreateDynamicMeshProxy(OutMesh);
+		const bool bInitialized = CreateSurfaceProxy(OutMesh);
 		if (!bInitialized)
 		{
 			return false;
@@ -1223,11 +1222,11 @@ void UBreachableSurfaceComponent::RefreshDisplayMaterial()
 			bDisplayOverridesCaptured = false;
 			OriginalDisplayOverrides.Reset();
 		}
-		if (IsValid(DynamicMeshProxy))
+		if (IsValid(SurfaceProxy))
 		{
 			for (int32 Index = 0; Index < FMath::Max(1, GetNumMaterials()); ++Index)
 			{
-				DynamicMeshProxy->SetMaterial(Index, GetMaterial(Index));
+				SurfaceProxy->SetMaterial(Index, GetMaterial(Index));
 			}
 		}
 		MarkRenderStateDirty();
@@ -1261,9 +1260,9 @@ void UBreachableSurfaceComponent::RefreshDisplayMaterial()
 	for (int32 Index = 0; Index < FMath::Max(1, GetNumMaterials()); ++Index)
 	{
 		SetMaterial(Index, Applied);
-		if (IsValid(DynamicMeshProxy))
+		if (IsValid(SurfaceProxy))
 		{
-			DynamicMeshProxy->SetMaterial(Index, Applied);
+			SurfaceProxy->SetMaterial(Index, Applied);
 		}
 	}
 	MarkRenderStateDirty();

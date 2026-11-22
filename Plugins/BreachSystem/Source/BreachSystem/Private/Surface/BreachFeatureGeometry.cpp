@@ -7,7 +7,7 @@
 using namespace UE::Geometry;
 using BreachDecoration::FFeatureEdge;
 
-DEFINE_LOG_CATEGORY_STATIC(LogBreachFeatureGeometry, Log, All);
+#include "BreachSystemLog.h"
 
 namespace
 {

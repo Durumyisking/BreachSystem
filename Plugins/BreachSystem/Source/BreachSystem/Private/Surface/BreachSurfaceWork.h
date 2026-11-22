@@ -13,7 +13,6 @@
 
 class UBreachSurfaceMaterial;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogBreachableSurface, Log, All);
 
 /** One hit as the game thread saw it. The work reads nothing else from the surface's components or the damage causer. */
 struct FBreachHitInput

@@ -12,6 +12,7 @@
 #include "BreachPassageSolver.h"
 #include "Misc/ScopeExit.h"
 #include "HAL/PlatformTime.h"
+#include "BreachSystemLog.h"
 
 #if WITH_EDITOR
 #include "Surface/BreachSimpleCollisionDiagnostics.h"
@@ -219,7 +220,7 @@ namespace
 					const FVector2d P = Vertices[Vertex];
 					Coordinates += FString::Printf(TEXT(" [%.17g,%.17g float %.9g,%.9g]"), P.X, P.Y, static_cast<double>(static_cast<float>(P.X)), static_cast<double>(static_cast<float>(P.Y)));
 				}
-				UE_LOG(LogTemp, Verbose, TEXT("[BreachPrismDiag] part=%d area=%.17g shared=%d convex=%d depth=%.17g..%.17g%s"), Index, FMath::Abs(PolygonFromIndices(Parts[Index], Vertices).SignedArea()), SharingNeighbors, ConvexNeighbors, Depth.X, Depth.Y, *Coordinates);
+				UE_LOG(LogBreachSimpleCollision, Verbose, TEXT("[BreachPrismDiag] part=%d area=%.17g shared=%d convex=%d depth=%.17g..%.17g%s"), Index, FMath::Abs(PolygonFromIndices(Parts[Index], Vertices).SignedArea()), SharingNeighbors, ConvexNeighbors, Depth.X, Depth.Y, *Coordinates);
 #endif
 				OutError = TEXT("A remaining wall prism is planar at Chaos precision and has no cookable convex neighbor.");
 				return false;
@@ -1372,11 +1373,11 @@ bool FBreachSimpleCollision::BuildMesh(TConstArrayView<FGeneralPolygon2d> Remain
 				bFailureSnapshotSaved = BreachSimpleCollisionDiagnostics::SaveSnapshot(Snapshot, FPaths::ProjectSavedDir() / TEXT("Diagnostics/SimpleCollisionFailures"), SnapshotPath);
 				if (bFailureSnapshotSaved)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[BreachSimpleDiag] Failure snapshot saved: %s"), *SnapshotPath);
+					UE_LOG(LogBreachSimpleCollision, Warning, TEXT("[BreachSimpleDiag] Failure snapshot saved: %s"), *SnapshotPath);
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[BreachSimpleDiag] Failed to save collision failure snapshot under Saved/Diagnostics/SimpleCollisionFailures."));
+					UE_LOG(LogBreachSimpleCollision, Warning, TEXT("[BreachSimpleDiag] Failed to save collision failure snapshot under Saved/Diagnostics/SimpleCollisionFailures."));
 				}
 			}
 #endif

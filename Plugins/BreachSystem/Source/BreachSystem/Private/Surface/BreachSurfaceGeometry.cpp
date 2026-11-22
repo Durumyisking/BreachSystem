@@ -302,7 +302,7 @@ bool BreachSurfaceGeometry::TriangulateRegion(const FGeneralPolygon2d& Region, T
     if (!bExact && !OutTriangles.IsEmpty())
     {
         // 대체 판정은 경계를 넣지 못한 자리에서 모양이 조금 틀릴 수 있어 거부하지 않고 기록만 남긴다.
-        SWARN(TEXT("영역 삼각분할이 경계 변 일부를 넣지 못해 감싸는 횟수로 채웠습니다. 정점 수=%d, 구멍 수=%d."), OutVertices.Num(), Region.GetHoles().Num());
+        UE_LOG(LogBreachableSurface, Warning, TEXT("영역 삼각분할이 경계 변 일부를 넣지 못해 감싸는 횟수로 채웠습니다. 정점 수=%d, 구멍 수=%d."), OutVertices.Num(), Region.GetHoles().Num());
     }
     if (OutTriangles.IsEmpty())
     {
