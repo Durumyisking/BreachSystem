@@ -18,6 +18,7 @@
 
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
+#include "BreachSyncBreachGuard.h"
 
 IMPLEMENT_COMPLEX_AUTOMATION_TEST(FBreachSurfaceLifecycleTest, "BreachSystem.Surface.ProxyLifecycle",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -175,6 +176,7 @@ bool FBreachSurfaceLifecycleTest::RunTest(const FString& Parameters)
 		Hit.Component = Target;
 		Hit.ImpactPoint = Surface->GetComponentTransform().TransformPosition(LocalPoint);
 		Hit.ImpactNormal = Surface->GetComponentTransform().TransformVectorNoScale(FVector(0, -1, 0));
+		const FBreachSyncBreachGuard SyncBreach;
 		UGameplayStatics::ApplyPointDamage(Wall, 1, -Hit.ImpactNormal, Hit, nullptr, Weapon, nullptr);
 	};
 	Shoot(Surface, FVector(-20, -50, 0));

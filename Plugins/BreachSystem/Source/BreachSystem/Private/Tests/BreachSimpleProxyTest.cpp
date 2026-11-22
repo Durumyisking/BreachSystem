@@ -15,6 +15,7 @@
 #include "UObject/StrongObjectPtr.h"
 #include "UObject/GarbageCollection.h"
 #include "BreachSimpleAsyncTestUtils.h"
+#include "BreachSyncBreachGuard.h"
 
 namespace
 {
@@ -116,6 +117,7 @@ bool FBreachSimpleProxyTest::RunTest(const FString& Parameters)
 	Damage.HitInfo.Component = Simple;
 	Damage.HitInfo.ImpactPoint = FVector(-40, -50, 40);
 	Damage.HitInfo.ImpactNormal = FVector(0, -1, 0);
+	const FBreachSyncBreachGuard SyncBreach;
 	Simple->ReceiveComponentDamage(1, Damage, nullptr, Weapon);
 	FCollisionQueryParams BulletParams(SCENE_QUERY_STAT(BreachSimpleProxyDamage), true);
 	FHitResult BulletHit;

@@ -39,6 +39,13 @@ bool UBreachSystemSettings::IsComplexCollisionAsync()
 	return Settings->bAsyncComplexCollision;
 }
 
+bool UBreachSystemSettings::IsBreachAsync()
+{
+	const UBreachSystemSettings* Settings = GetDefault<UBreachSystemSettings>();
+	checkf(Settings, TEXT("BreachSystemSettings default object is required to read bAsyncBreach."));
+	return Settings->bAsyncBreach;
+}
+
 float UBreachSystemSettings::GetCellSizeCm()
 {
 	const UBreachSystemSettings* Settings = GetDefault<UBreachSystemSettings>();

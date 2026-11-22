@@ -9,6 +9,7 @@
 #include "Surface/BreachSurfaceMaterial.h"
 #include "UObject/UnrealType.h"
 #include "Settings/BreachSystemSettings.h"
+#include "BreachSyncBreachGuard.h"
 
 // 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
@@ -96,6 +97,7 @@ bool FBreachSurfaceMaterialSharedTest::RunTest(const FString& Parameters)
 		FHitResult Hit;
 		if (TestTrue(TEXT("Shot hits the selected wall"), Trace(Surface, X, 0, Hit)))
 		{
+			const FBreachSyncBreachGuard SyncBreach;
 			UGameplayStatics::ApplyPointDamage(Surface->GetOwner(), 1, -Hit.ImpactNormal, Hit, nullptr, Weapon, nullptr);
 		}
 	};

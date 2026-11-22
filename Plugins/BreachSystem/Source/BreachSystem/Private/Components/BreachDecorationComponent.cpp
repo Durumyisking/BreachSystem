@@ -3,6 +3,7 @@
 #include "Components/DynamicMeshComponent.h"
 #include "Surface/BreachSurfaceMaterial.h"
 #include "Surface/BreachSimpleCollision.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "GameFramework/Actor.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
@@ -28,55 +29,55 @@ namespace
 		Display->SetVisibility(bVisible, false);
 		Display->SetHiddenInGame(bHidden, false);
 	}
+
+	/** Same layout as a new UDynamicMesh, so a display built here matches one the component would have created. */
+	UE::Geometry::FDynamicMesh3 NewDisplayMesh()
+	{
+		UE::Geometry::FDynamicMesh3 Mesh;
+		Mesh.EnableTriangleGroups();
+		Mesh.EnableAttributes();
+		Mesh.Attributes()->EnableMaterialID();
+		return Mesh;
+	}
 }
 
-UBreachDecorationComponent::UBreachDecorationComponent()
+void FBreachDecorationWork::Update(const UBreachSurfaceMaterial* InMaterial, const FBreachSimpleCollision& Holes, const FVector2d& Depth, TConstArrayView<UE::Geometry::FAxisAlignedBox2d> InCuts, TConstArrayView<UE::Geometry::FPolygon2d> Removed, EBreachSurfaceSide Side, const FVector& InScale)
 {
-	PrimaryComponentTick.bCanEverTick = false;
-}
-
-void UBreachDecorationComponent::Update(UBreachableSurfaceComponent* Surface, UBreachSurfaceMaterial* Material, const FBreachSimpleCollision& Holes, const FVector2d& Depth, TConstArrayView<UE::Geometry::FAxisAlignedBox2d> InCuts, TConstArrayView<UE::Geometry::FPolygon2d> Removed, EBreachSurfaceSide Side, bool bVisible, bool bHidden)
-{
-	if (!ensureMsgf(IsValid(Surface), TEXT("%s cannot update Deco without its surface."), *GetName()))
-	{
-		return;
-	}
-	if (!IsValid(Material))
+	if (!IsValid(InMaterial))
 	{
 		Clear();
-		AppliedMaterial = nullptr;
+		Material = nullptr;
 		return;
 	}
-	if (AppliedMaterial != Material || !SameSettings(AppliedCut, Material->CutDecoration, AppliedFeature, Material->FeatureDecoration))
+	if (Material != InMaterial || !SameSettings(Cut, InMaterial->CutDecoration, Feature, InMaterial->FeatureDecoration))
 	{
 		Clear();
-		AppliedMaterial = Material;
-		AppliedCut = Material->CutDecoration;
-		AppliedFeature = Material->FeatureDecoration;
+		Material = InMaterial;
+		Cut = InMaterial->CutDecoration;
+		Feature = InMaterial->FeatureDecoration;
 	}
 	// Feature 재질만 교체하면 기존 조각의 부착 경로·시드·UV를 보존한다.
-	AppliedFeature.Material = Material->FeatureDecoration.Material;
+	Feature.Material = InMaterial->FeatureDecoration.Material;
 	FString Error;
-	const FVector Scale = Surface->GetComponentScale();
-	if (!AppliedScale.Equals(Scale))
+	if (!Scale.Equals(InScale))
 	{
 		// 여백·표면 오프셋·면적 기준이 스케일에 묶여 있다. 표시만 버리고 이번 갱신에서 다시 만든다.
 		ResetFeatures();
 		ResetCutDisplays();
-		AppliedScale = Scale;
+		Scale = InScale;
 	}
 	bool bValid = true;
-	if (IsValid(AppliedCut.Material))
+	if (IsValid(Cut.Material))
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachDecoration | Clip cut patches");
-		bValid = BreachDecoration::ClipPatches(Cuts, Holes, Removed, InCuts, Side, Scale, AppliedCut.Padding, Error);
+		bValid = BreachDecoration::ClipPatches(Cuts, Holes, Removed, InCuts, Side, Scale, Cut.Padding, Error);
 	}
 	if (bValid)
 	{
-		if (IsValid(AppliedFeature.Material))
+		if (IsValid(Feature.Material))
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachDecoration | Update feature bindings");
-			bValid = BreachDecoration::UpdateBindings(Features, Holes, Removed, Scale, AppliedFeature, Error);
+			bValid = BreachDecoration::UpdateBindings(Features, Holes, Removed, Scale, Feature, Error);
 		}
 		else
 		{
@@ -86,62 +87,42 @@ void UBreachDecorationComponent::Update(UBreachableSurfaceComponent* Surface, UB
 	if (bValid)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachDecoration | Build displays");
-		bValid = BuildDisplays(Surface, Depth, bVisible, bHidden, Error);
+		bValid = BuildDisplays(Depth, Error);
 	}
 	if (!bValid)
 	{
-		UE_LOG(LogBreachDecoration, Warning, TEXT("%s kept its wall cut but removed unsafe Deco: %s"), *Surface->GetName(), *Error);
+		Warnings.Add(Error);
 		Clear();
 	}
 }
 
-bool UBreachDecorationComponent::BuildDisplays(UBreachableSurfaceComponent* Surface, const FVector2d& Depth, bool bVisible, bool bHidden, FString& Error)
+bool FBreachDecorationWork::BuildDisplays(const FVector2d& Depth, FString& Error)
 {
-	if (!ensureMsgf(IsValid(Surface), TEXT("%s requires a surface to build Deco displays."), *GetName()))
-	{
-		Error = TEXT("Missing surface.");
-		return false;
-	}
-	AActor* Owner = GetOwner();
-	if (!ensureMsgf(IsValid(Owner), TEXT("%s requires an actor to own Deco displays."), *GetName()))
-	{
-		Error = TEXT("Missing owner.");
-		return false;
-	}
-	const FVector Scale = Surface->GetComponentScale();
-	if (Scale.ContainsNaN() || FMath::Abs(Scale.Y) <= UE_DOUBLE_KINDA_SMALL_NUMBER || !FMath::IsFinite(AppliedCut.SurfaceOffset) || AppliedCut.SurfaceOffset <= 0)
+	if (Scale.ContainsNaN() || FMath::Abs(Scale.Y) <= UE_DOUBLE_KINDA_SMALL_NUMBER || !FMath::IsFinite(Cut.SurfaceOffset) || Cut.SurfaceOffset <= 0)
 	{
 		Error = TEXT("Deco surface offset and scale must be finite and nonzero.");
 		return false;
 	}
 
 	// Cut 패치: 면마다 표시 메시 하나를 두고, 바뀐 패치의 정점만 교체한다.
-	CutDisplays.SetNum(2);
 	for (int32 Face = 0; Face < 2; ++Face)
 	{
 		const EBreachSurfaceSide Side = Face == 0 ? EBreachSurfaceSide::Front : EBreachSurfaceSide::Back;
-		const double Offset = AppliedCut.SurfaceOffset / FMath::Abs(Scale.Y);
+		const double Offset = Cut.SurfaceOffset / FMath::Abs(Scale.Y);
 		const double Y = Face == 0 ? Depth.X - Offset : Depth.Y + Offset;
 		const bool bHasPatches = Cuts.Patches.ContainsByPredicate([Side](const BreachDecoration::FPatch& Patch) { return Patch.Side == Side; });
 		if (!bHasPatches)
 		{
-			if (IsValid(CutDisplays[Face]))
-			{
-				CutDisplays[Face]->DestroyComponent();
-				CutDisplays[Face] = nullptr;
-			}
+			bHasCutMesh[Face] = false;
+			CutMeshes[Face] = UE::Geometry::FDynamicMesh3();
 			Cuts.StaleVertices[Face].Reset();
 			continue;
 		}
-		if (!IsValid(CutDisplays[Face]))
+		if (!bHasCutMesh[Face])
 		{
-			UDynamicMeshComponent* Display = NewObject<UDynamicMeshComponent>(Owner);
-			ConfigureDisplay(Display, Surface, bVisible, bHidden);
-			Display->SetCastShadow(false);
-			Display->bEnableComplexCollision = false;
-			Display->SetTangentsType(EDynamicMeshComponentTangentsMode::AutoCalculated);
-			Display->ConfigureMaterialSet({AppliedCut.Material.Get()});
-			CutDisplays[Face] = Display;
+			bHasCutMesh[Face] = true;
+			bCutMeshChanged[Face] = true;
+			CutMeshes[Face] = NewDisplayMesh();
 
 			// 새 표시 메시에는 이 면의 패치가 하나도 없다. 이전 메시의 정점 기록을 버리고 모두 다시 넣는다.
 			Cuts.StaleVertices[Face].Reset();
@@ -155,31 +136,18 @@ bool UBreachDecorationComponent::BuildDisplays(UBreachableSurfaceComponent* Surf
 			}
 		}
 
-		UE::Geometry::FDynamicMesh3* Mesh = CutDisplays[Face]->GetMesh();
-		if (!ensureMsgf(Mesh, TEXT("%s has a cut Deco display without a mesh."), *GetName()))
-		{
-			Error = TEXT("Missing cut decoration mesh.");
-			return false;
-		}
 		bool bMeshChanged = false;
-		if (!BreachDecoration::UpdatePatchMesh(Cuts, Side, Y, *Mesh, bMeshChanged, Error))
+		if (!BreachDecoration::UpdatePatchMesh(Cuts, Side, Y, CutMeshes[Face], bMeshChanged, Error))
 		{
 			return false;
 		}
-		if (Mesh->TriangleCount() == 0)
+		if (CutMeshes[Face].TriangleCount() == 0)
 		{
-			CutDisplays[Face]->DestroyComponent();
-			CutDisplays[Face] = nullptr;
+			bHasCutMesh[Face] = false;
+			CutMeshes[Face] = UE::Geometry::FDynamicMesh3();
 			continue;
 		}
-		if (bMeshChanged)
-		{
-			CutDisplays[Face]->NotifyMeshUpdated();
-		}
-		if (!CutDisplays[Face]->IsRegistered())
-		{
-			CutDisplays[Face]->RegisterComponent();
-		}
+		bCutMeshChanged[Face] |= bMeshChanged;
 	}
 
 	// Feature 조각: 표시 메시 하나에서 사라진 조각만 지우고 새 조각만 추가한다.
@@ -194,20 +162,15 @@ bool UBreachDecorationComponent::BuildDisplays(UBreachableSurfaceComponent* Surf
 	}
 	if (!bHasBindings)
 	{
-		if (IsValid(FeatureDisplay))
-		{
-			FeatureDisplay->DestroyComponent();
-			FeatureDisplay = nullptr;
-		}
+		bHasFeatureMesh = false;
+		FeatureMesh = UE::Geometry::FDynamicMesh3();
 		return true;
 	}
-	if (!IsValid(FeatureDisplay))
+	if (!bHasFeatureMesh)
 	{
-		FeatureDisplay = NewObject<UDynamicMeshComponent>(Owner);
-		ConfigureDisplay(FeatureDisplay, Surface, bVisible, bHidden);
-		FeatureDisplay->SetCastShadow(Surface->CastShadow);
-		FeatureDisplay->bEnableComplexCollision = false;
-		FeatureDisplay->SetTangentsType(EDynamicMeshComponentTangentsMode::AutoCalculated);
+		bHasFeatureMesh = true;
+		bFeatureMeshChanged = true;
+		FeatureMesh = NewDisplayMesh();
 
 		// 새 표시 메시에는 조각이 하나도 없다. 이전 메시의 정점 기록을 버리고 모두 다시 넣는다.
 		Features.StaleVertices.Reset();
@@ -220,34 +183,200 @@ bool UBreachDecorationComponent::BuildDisplays(UBreachableSurfaceComponent* Surf
 			}
 		}
 	}
-	FeatureDisplay->ConfigureMaterialSet({AppliedFeature.Material.Get()});
 
-	UE::Geometry::FDynamicMesh3* FeatureMesh = FeatureDisplay->GetMesh();
-	if (!ensureMsgf(FeatureMesh, TEXT("%s has a feature Deco display without a mesh."), *GetName()))
-	{
-		Error = TEXT("Missing feature decoration mesh.");
-		return false;
-	}
 	bool bFeatureChanged = false;
-	if (!BreachDecoration::UpdateFeatureMesh(Features, AppliedFeature, Scale, Depth, *FeatureMesh, bFeatureChanged, Error))
+	if (!BreachDecoration::UpdateFeatureMesh(Features, Feature, Scale, Depth, FeatureMesh, bFeatureChanged, Error))
 	{
 		return false;
 	}
-	if (FeatureMesh->TriangleCount() == 0)
+	if (FeatureMesh.TriangleCount() == 0)
 	{
-		FeatureDisplay->DestroyComponent();
-		FeatureDisplay = nullptr;
+		bHasFeatureMesh = false;
+		FeatureMesh = UE::Geometry::FDynamicMesh3();
 		return true;
 	}
-	if (bFeatureChanged)
+	bFeatureMeshChanged |= bFeatureChanged;
+	return true;
+}
+
+void FBreachDecorationWork::Clear()
+{
+	ResetCutDisplays();
+	Cuts = BreachDecoration::FCutState();
+	ResetFeatures();
+}
+
+void FBreachDecorationWork::ResetFeatures()
+{
+	bHasFeatureMesh = false;
+	bFeatureMeshChanged = false;
+	FeatureMesh = UE::Geometry::FDynamicMesh3();
+	bFeatureDisplayReset = true;
+	Features = BreachDecoration::FFeatureState();
+}
+
+void FBreachDecorationWork::ResetCutDisplays()
+{
+	for (int32 Face = 0; Face < 2; ++Face)
 	{
-		FeatureDisplay->NotifyMeshUpdated();
+		bHasCutMesh[Face] = false;
+		bCutMeshChanged[Face] = false;
+		CutMeshes[Face] = UE::Geometry::FDynamicMesh3();
+	}
+	bCutDisplaysReset = true;
+	Cuts.StaleVertices[0].Reset();
+	Cuts.StaleVertices[1].Reset();
+	for (BreachDecoration::FPatch& Patch : Cuts.Patches)
+	{
+		Patch.MeshVertices.Reset();
+		Patch.bInMesh = false;
+	}
+}
+
+UBreachDecorationComponent::UBreachDecorationComponent()
+{
+	PrimaryComponentTick.bCanEverTick = false;
+}
+
+void UBreachDecorationComponent::Update(UBreachableSurfaceComponent* Surface, UBreachSurfaceMaterial* Material, const FBreachSimpleCollision& Holes, const FVector2d& Depth, TConstArrayView<UE::Geometry::FAxisAlignedBox2d> InCuts, TConstArrayView<UE::Geometry::FPolygon2d> Removed, EBreachSurfaceSide Side, bool bVisible, bool bHidden)
+{
+	if (!ensureMsgf(IsValid(Surface), TEXT("%s cannot update Deco without its surface."), *GetName()))
+	{
+		return;
+	}
+	FBreachDecorationWork Work;
+	PrepareWork(Work);
+	Work.Update(Material, Holes, Depth, InCuts, Removed, Side, Surface->GetComponentScale());
+	ApplyWork(Surface, Work, bVisible, bHidden);
+}
+
+void UBreachDecorationComponent::PrepareWork(FBreachDecorationWork& Work) const
+{
+	Work.Material = AppliedMaterial;
+	Work.Cut = AppliedCut;
+	Work.Feature = AppliedFeature;
+	Work.Scale = AppliedScale;
+	Work.Cuts = Cuts;
+	Work.Features = Features;
+	for (int32 Face = 0; Face < 2; ++Face)
+	{
+		if (CutDisplays.IsValidIndex(Face) && IsValid(CutDisplays[Face]))
+		{
+			Work.bHasCutMesh[Face] = true;
+			Work.CutMeshes[Face] = *CutDisplays[Face]->GetMesh();
+		}
+	}
+	if (IsValid(FeatureDisplay))
+	{
+		Work.bHasFeatureMesh = true;
+		Work.FeatureMesh = *FeatureDisplay->GetMesh();
+	}
+}
+
+void UBreachDecorationComponent::ApplyWork(UBreachableSurfaceComponent* Surface, FBreachDecorationWork& Work, bool bVisible, bool bHidden)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachDecoration | Apply displays");
+	if (!ensureMsgf(IsValid(Surface), TEXT("%s cannot apply Deco without its surface."), *GetName()))
+	{
+		return;
+	}
+	for (const FString& Warning : Work.Warnings)
+	{
+		UE_LOG(LogBreachDecoration, Warning, TEXT("%s kept its wall cut but removed unsafe Deco: %s"), *Surface->GetName(), *Warning);
+	}
+	AActor* Owner = GetOwner();
+	if (!ensureMsgf(IsValid(Owner), TEXT("%s requires an actor to own Deco displays."), *GetName()))
+	{
+		UE_LOG(LogBreachDecoration, Warning, TEXT("%s kept its wall cut but removed unsafe Deco: Missing owner."), *Surface->GetName());
+		Clear();
+		return;
+	}
+
+	AppliedMaterial = const_cast<UBreachSurfaceMaterial*>(Work.Material);
+	AppliedCut = Work.Cut;
+	AppliedFeature = Work.Feature;
+	AppliedScale = Work.Scale;
+	Cuts = MoveTemp(Work.Cuts);
+	Features = MoveTemp(Work.Features);
+
+	// Cut 패치: 기록을 비운 갱신은 이전 표시를 버리고 새 재질로 다시 만든다.
+	if (Work.bCutDisplaysReset)
+	{
+		for (UDynamicMeshComponent* Display : CutDisplays)
+		{
+			if (IsValid(Display))
+			{
+				Display->DestroyComponent();
+			}
+		}
+		CutDisplays.Reset();
+	}
+	CutDisplays.SetNum(2);
+	for (int32 Face = 0; Face < 2; ++Face)
+	{
+		if (!Work.bHasCutMesh[Face])
+		{
+			if (IsValid(CutDisplays[Face]))
+			{
+				CutDisplays[Face]->DestroyComponent();
+			}
+			CutDisplays[Face] = nullptr;
+			continue;
+		}
+		bool bReplaceMesh = Work.bCutMeshChanged[Face];
+		if (!IsValid(CutDisplays[Face]))
+		{
+			UDynamicMeshComponent* Display = NewObject<UDynamicMeshComponent>(Owner);
+			ConfigureDisplay(Display, Surface, bVisible, bHidden);
+			Display->SetCastShadow(false);
+			Display->bEnableComplexCollision = false;
+			Display->SetTangentsType(EDynamicMeshComponentTangentsMode::AutoCalculated);
+			Display->ConfigureMaterialSet({AppliedCut.Material.Get()});
+			CutDisplays[Face] = Display;
+			bReplaceMesh = true;
+		}
+		if (bReplaceMesh)
+		{
+			CutDisplays[Face]->SetMesh(MoveTemp(Work.CutMeshes[Face]));
+		}
+		if (!CutDisplays[Face]->IsRegistered())
+		{
+			CutDisplays[Face]->RegisterComponent();
+		}
+	}
+
+	// Feature 조각: 표시 메시 하나를 같은 방식으로 맞춘다.
+	if (Work.bFeatureDisplayReset || !Work.bHasFeatureMesh)
+	{
+		if (IsValid(FeatureDisplay))
+		{
+			FeatureDisplay->DestroyComponent();
+		}
+		FeatureDisplay = nullptr;
+	}
+	if (!Work.bHasFeatureMesh)
+	{
+		return;
+	}
+	bool bReplaceFeature = Work.bFeatureMeshChanged;
+	if (!IsValid(FeatureDisplay))
+	{
+		FeatureDisplay = NewObject<UDynamicMeshComponent>(Owner);
+		ConfigureDisplay(FeatureDisplay, Surface, bVisible, bHidden);
+		FeatureDisplay->SetCastShadow(Surface->CastShadow);
+		FeatureDisplay->bEnableComplexCollision = false;
+		FeatureDisplay->SetTangentsType(EDynamicMeshComponentTangentsMode::AutoCalculated);
+		bReplaceFeature = true;
+	}
+	FeatureDisplay->ConfigureMaterialSet({AppliedFeature.Material.Get()});
+	if (bReplaceFeature)
+	{
+		FeatureDisplay->SetMesh(MoveTemp(Work.FeatureMesh));
 	}
 	if (!FeatureDisplay->IsRegistered())
 	{
 		FeatureDisplay->RegisterComponent();
 	}
-	return true;
 }
 
 void UBreachDecorationComponent::Clear()
@@ -272,25 +401,6 @@ void UBreachDecorationComponent::ResetFeatures()
 		FeatureDisplay = nullptr;
 	}
 	Features = BreachDecoration::FFeatureState();
-}
-
-void UBreachDecorationComponent::ResetCutDisplays()
-{
-	for (UDynamicMeshComponent* Display : CutDisplays)
-	{
-		if (IsValid(Display))
-		{
-			Display->DestroyComponent();
-		}
-	}
-	CutDisplays.Reset();
-	Cuts.StaleVertices[0].Reset();
-	Cuts.StaleVertices[1].Reset();
-	for (BreachDecoration::FPatch& Patch : Cuts.Patches)
-	{
-		Patch.MeshVertices.Reset();
-		Patch.bInMesh = false;
-	}
 }
 
 void UBreachDecorationComponent::OnRegister()

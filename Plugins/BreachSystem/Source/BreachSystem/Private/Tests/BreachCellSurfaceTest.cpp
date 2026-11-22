@@ -16,6 +16,7 @@
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
+#include "BreachSyncBreachGuard.h"
 namespace
 {
 	struct FCellSurfaceFixture
@@ -89,6 +90,7 @@ namespace
 			check(Weapon);
 			FHitResult Hit;
 			if (!Test.TestTrue(TEXT("Each distinct shot hits remaining material"), Trace(Point, Hit))) return false;
+			const FBreachSyncBreachGuard SyncBreach;
 			UGameplayStatics::ApplyPointDamage(Wall, 1, -Hit.ImpactNormal, Hit, nullptr, Weapon, nullptr);
 			return true;
 		}
@@ -281,6 +283,7 @@ bool FBreachCellSurfaceLifetimeTest::RunTest(const FString& Parameters)
 	if (!TestNotNull(TEXT("Direct hole proxy"), Proxies[0])) return false;
 	FirstHit.Component = Proxies[0];
 	const FPointDamageEvent StaleDamage(1, FirstHit, -FirstHit.ImpactNormal, nullptr);
+	const FBreachSyncBreachGuard SyncBreach;
 	Fixture.Surface->HandleBreachDamage(Proxies[0], StaleDamage, Fixture.Weapon, 1);
 	TestEqual(TEXT("Queued hit in an existing hole adds no cell damage"), Fixture.Surface->GetAccumulatedHitCount(), 1);
 	if (!Fixture.Shoot(*this, FVector2d(5, 2))) return false;

@@ -9,6 +9,7 @@
 #include "Misc/OutputDevice.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Shape/BreachContour.h"
+#include "BreachSyncBreachGuard.h"
 
 // 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
@@ -212,6 +213,7 @@ bool FBreachComplexCutTest::RunTest(const FString& Parameters)
 		FRejectedCutCounter RejectedCuts;
 		GLog->FlushThreadedLogs();
 		GLog->AddOutputDevice(&RejectedCuts);
+		const FBreachSyncBreachGuard SyncBreach;
 		Surface->HandleBreachDamage(Proxies[0], Damage, Weapon, 1);
 		GLog->FlushThreadedLogs();
 		GLog->RemoveOutputDevice(&RejectedCuts);

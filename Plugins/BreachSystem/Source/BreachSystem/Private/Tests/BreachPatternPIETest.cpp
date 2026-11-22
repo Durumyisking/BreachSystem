@@ -32,6 +32,7 @@
 #include "Surface/BreachSurfaceMaterial.h"
 #include "Tests/AutomationEditorCommon.h"
 #include "TextureResource.h"
+#include "BreachSyncBreachGuard.h"
 
 namespace
 {
@@ -187,6 +188,7 @@ namespace
 					Event.HitInfo.ImpactPoint = Surface->GetComponentTransform().TransformPosition(FVector(.5 * (Hit - 1), -50, .5 * (1 - Hit)));
 					Event.HitInfo.ImpactNormal = FVector(0, -1, 0);
 					Event.ShotDirection = -Event.HitInfo.ImpactNormal;
+					const FBreachSyncBreachGuard SyncBreach;
 					Surface->HandleBreachDamage(Surface, Event, &Gun, 1);
 				}
 				UBreachSurfaceProxy* Proxy = Wall->FindComponentByClass<UBreachSurfaceProxy>();
@@ -334,6 +336,7 @@ namespace
 								Damage.HitInfo.ImpactPoint = Surface->GetComponentTransform().TransformPosition(LocalImpact);
 								Damage.HitInfo.ImpactNormal = Surface->GetComponentTransform().TransformVectorNoScale(FVector(0, Variant ? 1 : -1, 0));
 								Damage.ShotDirection = -Damage.HitInfo.ImpactNormal;
+								const FBreachSyncBreachGuard SyncBreach;
 								Surface->HandleBreachDamage(Surface, Damage, Gun, 1);
 								Test->TestEqual(TEXT("Two direct shots retain records, third accumulated cut consumes them"), Surface->GetAccumulatedHitCount(), Shot < 2 ? Shot + 1 : 0);
 							}

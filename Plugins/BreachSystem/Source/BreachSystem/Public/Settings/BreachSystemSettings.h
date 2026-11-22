@@ -33,6 +33,14 @@ public:
 	bool bAsyncComplexCollision = false;
 
 	/**
+	 * 켜면 피격의 절단·메시·Deco 계산을 작업 스레드에서 하고, 끝나면 게임 스레드에서 한 번에 반영한다.
+	 * 구멍·충돌·OnBreached가 보통 0~1프레임 늦게 나타난다. 그 사이 들어온 피격은 반영된 상태에 이어서 순서대로 처리한다.
+	 * 끄면 같은 계산을 피격한 프레임에 바로 실행한다.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Performance", meta = (DisplayName = "Async Breach"))
+	bool bAsyncBreach = true;
+
+	/**
 	 * 이동용 Simple 충돌을 만들 때 통로 가장자리에서 지울 꼭짓점의 기준(월드 cm).
 	 * 지워도 가장자리가 이 값 이내로만 통로 안쪽으로 움직이는 꼭짓점을 지워 벽 충돌체 수를 줄인다. 통로는 그만큼 좁아질 수 있다.
 	 * 0이면 지우지 않는다. 표시 메시와 총알용 Complex 충돌에는 영향이 없다.
@@ -45,6 +53,8 @@ public:
 	static int32 GetSimplePassageToleranceCm();
 
 	static bool IsComplexCollisionAsync();
+
+	static bool IsBreachAsync();
 
 	/** 전역 셀 크기를 읽는다. 잘못된 Config 값은 경고를 남기고 기본값 10cm를 반환한다. */
 	UFUNCTION(BlueprintPure, Category="Breach|Settings", meta=(DisplayName="Get Breach Cell Size (cm)"))

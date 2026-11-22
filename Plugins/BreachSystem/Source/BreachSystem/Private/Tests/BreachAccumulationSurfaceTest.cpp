@@ -9,6 +9,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Misc/AutomationTest.h"
 #include "Settings/BreachSystemSettings.h"
+#include "BreachSyncBreachGuard.h"
 
 // 테스트 전용: Editor 자동화 테스트 빌드에서만 컴파일한다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
@@ -76,6 +77,7 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 		FHitResult Hit;
 		if (TestTrue(TEXT("Shot strikes remaining wall material"), Trace(X, 0, Hit)))
 		{
+			const FBreachSyncBreachGuard SyncBreach;
 			UGameplayStatics::ApplyPointDamage(Wall, 1, -Hit.ImpactNormal, Hit, nullptr, Weapon, nullptr);
 		}
 	};
@@ -121,6 +123,7 @@ bool FBreachAccumulationSurfaceTest::RunTest(const FString& Parameters)
 		StaleHit.Component = Proxies[0];
 		StaleHit.ImpactPoint = Surface->GetComponentTransform().TransformPosition(FVector(0, -50, 0));
 		const FPointDamageEvent StaleDamage(1, StaleHit, FVector(0, 1, 0), nullptr);
+		const FBreachSyncBreachGuard SyncBreach;
 		Surface->HandleBreachDamage(Proxies[0], StaleDamage, WeaponA, 1);
 		TestEqual(TEXT("Queued impact inside a now-empty breach adds no record"), Surface->GetAccumulatedHitCount(), 0);
 	}

@@ -12,6 +12,7 @@
 #include "Misc/AutomationTest.h"
 #include "Surface/BreachSurfaceMaterial.h"
 #include "UObject/UnrealType.h"
+#include "BreachSyncBreachGuard.h"
 
 // 테스트 전용: 평면 흔적이 피격면에만 별도 표시 메시로 생성되는지 검증한다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
@@ -281,6 +282,7 @@ bool FBreachDecorationDamageFaceTest::RunTest(const FString& Parameters)
 	FPointDamageEvent Damage;
 	Damage.HitInfo.Component = F.Surface;
 	Damage.HitInfo.ImpactPoint = FVector(0, 50, 0);
+	const FBreachSyncBreachGuard SyncBreach;
 	F.Surface->HandleBreachDamage(F.Surface, Damage, Weapon, 1);
 	TestEqual(TEXT("Gameplay damage creates one hit-face trace"), F.Traces().Num(), 1);
 	for (UDynamicMeshComponent* Trace : F.Traces())
@@ -331,6 +333,7 @@ bool FBreachDecorationAccumulationTest::RunTest(const FString& Parameters)
 		FPointDamageEvent Damage;
 		Damage.HitInfo.Component = Hit;
 		Damage.HitInfo.ImpactPoint = FVector(X, 50, 0);
+		const FBreachSyncBreachGuard SyncBreach;
 		F.Surface->HandleBreachDamage(Hit, Damage, Weapon, 1);
 	}
 	TestEqual(TEXT("Accumulated breach consumes damage records"), F.Surface->GetAccumulatedHitCount(), 0);

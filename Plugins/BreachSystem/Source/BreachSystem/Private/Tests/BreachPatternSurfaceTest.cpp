@@ -4,12 +4,14 @@
 #include "Materials/Material.h"
 #include "Surface/BreachPattern.h"
 #include "Surface/BreachSurfaceMaterial.h"
+#include "Surface/BreachSurfaceWork.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Misc/AutomationTest.h"
+#include "BreachSyncBreachGuard.h"
 
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
 // 테스트 전용: 실제 표면의 후보 상태를 조회해 여러 영역의 원자적 절단과 누적 기록을 검증한다.
@@ -62,16 +64,19 @@ struct FBreachPatternSurfaceTestAccess
 		return false;
 	}
 
+	// 총알 커터 없이 표면 중앙에 누적 피격을 하나 넣는다. 누적이 파손하지 않으면 직접 절단이 실패해 false다.
 	static bool Accumulate(UBreachableSurfaceComponent& Surface, const UBreachSurfaceMaterial& Material)
 	{
-		FVector2d Point;
-		if (!Surface.PrepareAccumulation(Surface.GetComponentTransform().TransformPosition(FVector(0, -50, 0)), 1, Material.Accumulation, Point))
-		{
-			return false;
-		}
-		UE::Geometry::FDynamicMesh3 Mesh;
-		bool bChanged = false;
-		return Surface.AccumulateHit(Point, 1, Material.AccumulationShape, Mesh, bChanged) && bChanged;
+		FBreachHitInput Hit;
+		Hit.LocalPoint = FVector2d::ZeroVector;
+		Hit.ComponentScale = Surface.GetComponentScale();
+		Hit.Material = &Material;
+		Hit.BreachDamage = 1;
+		Hit.bAccumulate = true;
+		FBreachSurfaceWork Work = Surface.TakeWork();
+		Work.ProcessHit(Hit);
+		Surface.RestoreWork(Work);
+		return Work.Results[0].bChanged && !Work.Results[0].bFailed;
 	}
 };
 
@@ -259,6 +264,7 @@ bool FBreachBrickSeamTest::RunTest(const FString& Parameters)
 		Damage.HitInfo.ImpactPoint = FVector(Impact.X, -50 * Scale.Y, Impact.Y);
 		Damage.HitInfo.ImpactNormal = FVector(0, -1, 0);
 		Damage.ShotDirection = -Damage.HitInfo.ImpactNormal;
+		const FBreachSyncBreachGuard SyncBreach;
 		Surface->HandleBreachDamage(Surface, Damage, Gun, 1);
 		TestEqual(TEXT("Successful pattern cut consumes the accumulated hit"), Surface->GetAccumulatedHitCount(), 0);
 	}

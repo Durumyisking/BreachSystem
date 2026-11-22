@@ -26,6 +26,7 @@
 #include "Surface/BreachPattern.h"
 #include "Surface/BreachSurfaceMaterial.h"
 #include "Tests/AutomationEditorCommon.h"
+#include "BreachAsyncBreachTestUtils.h"
 #include "UObject/UnrealType.h"
 
 namespace
@@ -104,6 +105,11 @@ namespace
 				}
 			}
 			LastFrame = Now;
+			// 비동기 브리칭은 피격 뒤에 반영된다. 반영을 처음 본 프레임에 결과와 지연을 기록한다.
+			if (!Shots.IsEmpty() && Shots.Last().bAwaitCommit)
+			{
+				ObserveCommit(Shots.Last(), Now);
+			}
 			if (++WaitedFrames < 30)
 			{
 				return false;
@@ -151,6 +157,11 @@ namespace
 			int32 Triangles = 0;
 			double MaxFrameMs = 0;
 			int32 Frames = 0;
+			// 피격부터 반영을 본 시점까지. 반영 전 지나간 프레임 수도 센다.
+			double Started = 0;
+			bool bAwaitCommit = false;
+			double LatencyMs = 0;
+			int32 CommitFrames = 0;
 
 			bool Consumed() const
 			{
@@ -253,6 +264,10 @@ namespace
 		{
 			UBreachableSurfaceComponent* Wall = Surface.Get();
 			check(Wall);
+			if (!Shots.IsEmpty() && Shots.Last().bAwaitCommit)
+			{
+				Test->AddWarning(FString::Printf(TEXT("Shot %d was not applied before the next shot; its records and triangles are not measured."), Shots.Last().Index));
+			}
 			FShot& Shot = Shots.AddDefaulted_GetRef();
 			Shot.Index = Shots.Num() - 1;
 			const double Angle = Random.FRand() * 2 * UE_DOUBLE_PI;
@@ -276,21 +291,37 @@ namespace
 				const double Started = FPlatformTime::Seconds();
 				Wall->HandleBreachDamage(Target, Damage, Gun.Get(), 1);
 				Shot.HandleMs = (FPlatformTime::Seconds() - Started) * 1000;
+				Shot.Started = Started;
 			}
+			Shot.bAwaitCommit = true;
+			ObserveCommit(Shot, FPlatformTime::Seconds());
+		}
+
+		void ObserveCommit(FShot& Shot, double Now)
+		{
+			UBreachableSurfaceComponent* Wall = Surface.Get();
+			check(Wall);
+			if (FBreachAsyncBreachTestAccess::IsPending(Wall))
+			{
+				++Shot.CommitFrames;
+				return;
+			}
+			Shot.bAwaitCommit = false;
+			Shot.LatencyMs = Shot.bHit ? (Now - Shot.Started) * 1000 : 0;
 			Shot.After = Wall->GetAccumulatedHitCount();
-			Proxy = Wall->GetOwner()->FindComponentByClass<UBreachSurfaceProxy>();
+			UBreachSurfaceProxy* Proxy = Wall->GetOwner()->FindComponentByClass<UBreachSurfaceProxy>();
 			Shot.Triangles = IsValid(Proxy) && Proxy->GetMesh() ? Proxy->GetMesh()->TriangleCount() : 0;
 		}
 
 		void Finish()
 		{
-			FString Csv = TEXT("Shot,OffsetX,OffsetZ,Hit,Consumed,HandleMs,RecordsBefore,RecordsAfter,Triangles,MaxFrameMs,Frames\n");
+			FString Csv = TEXT("Shot,OffsetX,OffsetZ,Hit,Consumed,HandleMs,RecordsBefore,RecordsAfter,Triangles,MaxFrameMs,Frames,LatencyMs,CommitFrames\n");
 			double ConsumedMax = 0, ConsumedSum = 0, DirectMax = 0, DirectSum = 0, ConsumedFrameMax = 0, DirectFrameMax = 0;
 			int32 ConsumedCount = 0, DirectCount = 0;
 			for (const FShot& Shot : Shots)
 			{
-				Csv += FString::Printf(TEXT("%d,%.2f,%.2f,%d,%d,%.3f,%d,%d,%d,%.3f,%d\n"), Shot.Index, Shot.Offset.X, Shot.Offset.Y, Shot.bHit, Shot.Consumed(), Shot.HandleMs,
-					Shot.Before, Shot.After, Shot.Triangles, Shot.MaxFrameMs, Shot.Frames);
+				Csv += FString::Printf(TEXT("%d,%.2f,%.2f,%d,%d,%.3f,%d,%d,%d,%.3f,%d,%.3f,%d\n"), Shot.Index, Shot.Offset.X, Shot.Offset.Y, Shot.bHit, Shot.Consumed(), Shot.HandleMs,
+					Shot.Before, Shot.After, Shot.Triangles, Shot.MaxFrameMs, Shot.Frames, Shot.LatencyMs, Shot.CommitFrames);
 				if (!Shot.bHit)
 				{
 					continue;
@@ -301,7 +332,7 @@ namespace
 					ConsumedSum += Shot.HandleMs;
 					ConsumedMax = FMath::Max(ConsumedMax, Shot.HandleMs);
 					ConsumedFrameMax = FMath::Max(ConsumedFrameMax, Shot.MaxFrameMs);
-					Test->AddInfo(FString::Printf(TEXT("Accumulated shot %d handle=%.3fms maxFrame=%.3fms triangles=%d records %d->%d"), Shot.Index, Shot.HandleMs, Shot.MaxFrameMs, Shot.Triangles, Shot.Before, Shot.After));
+					Test->AddInfo(FString::Printf(TEXT("Accumulated shot %d handle=%.3fms maxFrame=%.3fms triangles=%d records %d->%d latency=%.3fms commitFrames=%d"), Shot.Index, Shot.HandleMs, Shot.MaxFrameMs, Shot.Triangles, Shot.Before, Shot.After, Shot.LatencyMs, Shot.CommitFrames));
 				}
 				else
 				{

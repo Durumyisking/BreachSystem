@@ -16,6 +16,7 @@
 #include "Misc/Paths.h"
 #include "PhysicsEngine/AggregateGeom.h"
 #include "BreachSimpleAsyncTestUtils.h"
+#include "BreachSyncBreachGuard.h"
 
 // 테스트 전용: 총알과 이동 충돌의 면적 정책, 연결, 고립 조각, 누적 파손을 검증한다.
 #if WITH_EDITOR && WITH_DEV_AUTOMATION_TESTS
@@ -138,6 +139,7 @@ namespace
 			Hit.Component = Proxies.IsEmpty() ? static_cast<UPrimitiveComponent*>(Surface) : Proxies[0];
 			Hit.ImpactPoint = Surface->GetComponentTransform().TransformPosition(FVector(Center.X, -50, Center.Y));
 			Hit.ImpactNormal = Surface->GetComponentTransform().TransformVectorNoScale(FVector(0, -1, 0));
+			const FBreachSyncBreachGuard SyncBreach;
 			UGameplayStatics::ApplyPointDamage(Wall, 1.f, -Hit.ImpactNormal, Hit, nullptr, Weapon, nullptr);
 		}
 
