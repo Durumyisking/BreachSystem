@@ -2,6 +2,7 @@
 #include "Surface/BreachPattern.h"
 #include "BreachGrainFracture.h"
 #include "Curve/PolygonIntersectionUtils.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 namespace
 {
@@ -276,6 +277,7 @@ namespace
 
 	bool GatherGuides(const UBreachPattern& Pattern, const FPolygon2d& Base, const FMapping& Mapping, double Radius, TArray<FGuideSegment>& Out, FString& OutError)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Breach Pattern | Gather grain guides");
 		check(IsValid(&Pattern));
 		const FAxisAlignedBox2d Bounds = Base.Bounds();
 		FPolygon2d Search;
@@ -315,6 +317,7 @@ namespace
 
 	bool GenerateContour(const FPolygon2d& Base, const FBreachContourOptions& Options, TArray<FGeneralPolygon2d>& Out, FString& OutError)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Breach Pattern | Generate contour");
 		FBreachContourOptions Deterministic = Options;
 		if (Deterministic.Seed == 0)
 		{
@@ -427,6 +430,7 @@ bool BreachPatternGeometry::Validate(const UBreachPattern& Pattern, FString& Out
 
 bool BreachPatternGeometry::ValidateRegions(TConstArrayView<UE::Geometry::FGeneralPolygon2d> Regions, FString& OutError)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("Breach Pattern | Validate regions");
 	OutError.Reset();
 	for (const UE::Geometry::FGeneralPolygon2d& Region : Regions)
 	{
@@ -463,6 +467,7 @@ bool BreachPatternGeometry::ValidateRegions(TConstArrayView<UE::Geometry::FGener
 
 bool BreachPatternGeometry::Generate(const UBreachPattern& Pattern, const UE::Geometry::FPolygon2d& BaseMetric, const FBreachPatternMapping& Mapping, const FBreachContourOptions& Contour, double Influence, TArray<UE::Geometry::FGeneralPolygon2d>& OutCutters, FString& OutError)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("Breach Pattern | Generate cutter");
 	OutError.Reset();
 	if (!Validate(Pattern, OutError))
 	{

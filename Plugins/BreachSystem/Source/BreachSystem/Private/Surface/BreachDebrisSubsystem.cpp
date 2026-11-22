@@ -7,6 +7,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Surface/BreachSurfaceMaterial.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBreachDebris, Log, All);
@@ -14,6 +15,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogBreachDebris, Log, All);
 void UBreachDebrisSubsystem::Spawn(const UBreachSurfaceMaterial& Material, const FVector& ImpactPoint,
 	const FVector& Outward, double RemovedAreaCm2)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Spawn debris");
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
 	{

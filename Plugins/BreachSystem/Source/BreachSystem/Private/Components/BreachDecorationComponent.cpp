@@ -4,6 +4,7 @@
 #include "Surface/BreachSurfaceMaterial.h"
 #include "Surface/BreachSimpleCollision.h"
 #include "GameFramework/Actor.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBreachDecoration, Log, All);
 
@@ -67,12 +68,14 @@ void UBreachDecorationComponent::Update(UBreachableSurfaceComponent* Surface, UB
 	bool bValid = true;
 	if (IsValid(AppliedCut.Material))
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachDecoration | Clip cut patches");
 		bValid = BreachDecoration::ClipPatches(Cuts, Holes, Removed, InCuts, Side, Scale, AppliedCut.Padding, Error);
 	}
 	if (bValid)
 	{
 		if (IsValid(AppliedFeature.Material))
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachDecoration | Update feature bindings");
 			bValid = BreachDecoration::UpdateBindings(Features, Holes, Removed, Scale, AppliedFeature, Error);
 		}
 		else
@@ -82,6 +85,7 @@ void UBreachDecorationComponent::Update(UBreachableSurfaceComponent* Surface, UB
 	}
 	if (bValid)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("BreachDecoration | Build displays");
 		bValid = BuildDisplays(Surface, Depth, bVisible, bHidden, Error);
 	}
 	if (!bValid)

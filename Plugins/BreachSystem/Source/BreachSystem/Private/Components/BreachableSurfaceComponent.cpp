@@ -858,6 +858,7 @@ void UBreachableSurfaceComponent::HandleBreachDamage(UPrimitiveComponent* HitCom
 		}
 
 		// 최종 메시와 충돌이 반영된 뒤 피격을 알린다.
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Breached event");
 		OnBreachedDelegate.Broadcast(PointDamage.HitInfo, DynamicMeshProxy);
 	}
 }
@@ -1386,6 +1387,7 @@ bool UBreachableSurfaceComponent::CutRegions(TConstArrayView<FGeneralPolygon2d> 
 		}
 		if (bHasCutterHoles)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE_STR("PlanarBreach | Resolve removed regions");
 			TArray<FGeneralPolygon2d> Removed;
 			if (!PolygonsDifference(SurfaceState.RemainingRegions, CandidateRegions, Removed))
 			{

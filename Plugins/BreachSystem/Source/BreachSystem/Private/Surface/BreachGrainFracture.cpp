@@ -1,6 +1,7 @@
 #include "BreachGrainFracture.h"
 #include "Algo/Reverse.h"
 #include "Curve/PolygonIntersectionUtils.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Surface/BreachPattern.h"
 #include "Surface/BreachPatternGeometry.h"
 
@@ -88,6 +89,7 @@ namespace
 
 	void BuildChains(TConstArrayView<FGuideSegment> Guides, const FGrainFrame& Frame, double Tolerance, double SeamLimit, TArray<FChain>& OutChains)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Breach Pattern | Join grain lines");
 		// GatherGuides emits the segments of one guide instance consecutively.
 		TArray<FChain> Paths;
 		for (int32 Index = 0; Index < Guides.Num(); ++Index)
@@ -254,6 +256,7 @@ namespace
 
 bool Build(const FBreachLineTearOptions& Options, const FPolygon2d& Contour, TConstArrayView<FGuideSegment> Guides, int32 Seed, double Influence, TArray<FGeneralPolygon2d>& Out, FString& OutError)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("Breach Pattern | Build grain tear");
 	Out.Reset();
 	OutError.Reset();
 	FPolygon2d ContourLoop = Contour;
@@ -420,6 +423,7 @@ bool Build(const FBreachLineTearOptions& Options, const FPolygon2d& Contour, TCo
 		{
 			const double From = Fractions[StripIndex];
 			const double To = Fractions[StripIndex + 1];
+			TRACE_CPUPROFILER_EVENT_SCOPE_STR("Breach Pattern | Clip tear strip");
 			const FGeneralPolygon2d Strip = StripLoop(From, To);
 			TArray<FGeneralPolygon2d> Cut;
 			if (!PolygonsIntersection(MakeArrayView(&Strip, 1), MakeArrayView(&ContourRegion, 1), Cut))
@@ -511,6 +515,7 @@ bool Build(const FBreachLineTearOptions& Options, const FPolygon2d& Contour, TCo
 		Out.Add(ContourRegion);
 		return true;
 	}
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("Breach Pattern | Merge tear pieces");
 	TArray<FGeneralPolygon2d> Remainder;
 	if (!PolygonsDifference(MakeArrayView(&ContourRegion, 1), Lanes, Remainder))
 	{
