@@ -1,6 +1,5 @@
 #include "Shape/BreachContour.h"
 #include "BreachPluginUtil.h"
-#include "Shape/BreachShape.h"
 #include "Components/BreachSourceComponent.h"
 #include "Misc/AutomationTest.h"
 #include "SegmentTypes.h"
@@ -370,19 +369,17 @@ bool FBreachContourBindingTest::RunTest(const FString& Parameters)
 		FBreachSourceOption Option;
 		if (bCircle)
 		{
-			Option.ShapeClass = UBreachCircleShape::StaticClass();
 			auto& Shape = Option.ShapeOption.InitializeAs<FBreachCircleShapeOption>();
 			Shape.Radius = 50;
 		}
 		else
 		{
-			Option.ShapeClass = UBreachBoxShape::StaticClass();
 			auto& Shape = Option.ShapeOption.InitializeAs<FBreachBoxShapeOption>();
 			Shape.Size = FVector2D(120,80);
 			Shape.CornerRadius = 5;
 		}
 		FPolygon2d Legacy;
-		Option.ShapeClass->GetDefaultObject<UBreachShape>()->GeneratePolygon(Option, Legacy);
+		Option.ShapeOption.Get().GeneratePolygon(Legacy);
 		Source->UpdateBreachSourceOption(Option);
 		FGeneralPolygon2d Resolved, Repeated;
 		TestTrue(TEXT("Disabled resolve succeeds"), Source->ResolveCutterPolygon(FTransform::Identity, FVector::ZeroVector, Resolved));
@@ -445,7 +442,6 @@ bool FBreachContourCircleCornerTest::RunTest(const FString& Parameters)
 		for (const int32 Count : { 16, 32, 64, 128 })
 		{
 			FBreachSourceOption Option;
-			Option.ShapeClass = UBreachCircleShape::StaticClass();
 			auto& Shape = Option.ShapeOption.InitializeAs<FBreachCircleShapeOption>();
 			Shape.Radius = 50;
 			Shape.Segments = Count;
@@ -461,7 +457,7 @@ bool FBreachContourCircleCornerTest::RunTest(const FString& Parameters)
 			if (bResolved)
 			{
 				FPolygon2d Base;
-				Option.ShapeClass->GetDefaultObject<UBreachShape>()->GeneratePolygon(Option, Base);
+				Option.ShapeOption.Get().GeneratePolygon(Base);
 				TestTrue(FString::Printf(TEXT("Circle still deforms with corner lock: pattern %d, vertices %d"), int32(Pattern), Count),
 					Resolved.GetOuter().GetVertices() != Base.GetVertices());
 			}

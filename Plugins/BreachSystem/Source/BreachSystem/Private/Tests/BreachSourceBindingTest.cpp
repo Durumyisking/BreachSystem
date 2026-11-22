@@ -1,5 +1,4 @@
 #include "Components/BreachSourceComponent.h"
-#include "Shape/BreachShape.h"
 #include "Misc/AutomationTest.h"
 #include "UObject/UnrealType.h"
 
@@ -23,7 +22,6 @@ bool FBreachSourceJitterCacheTest::RunTest(const FString& Parameters)
 	FStructProperty* SourceProperty = FindFProperty<FStructProperty>(Source->GetClass(), TEXT("BreachSourceOption"));
 	check(SourceProperty);
 	FBreachSourceOption& Option = *SourceProperty->ContainerPtrToValuePtr<FBreachSourceOption>(Source);
-	Option.ShapeClass = UBreachCircleShape::StaticClass();
 	Option.ShapeOption.InitializeAs<FBreachCircleShapeOption>();
 	Option.Contour.bEnabled = true;
 	FProperty* RatioProperty = FindFProperty<FProperty>(FBreachContourOptions::StaticStruct(), TEXT("VertexPositionJitter"));
@@ -129,12 +127,10 @@ bool FBreachSourceSeedPolicyTest::RunTest(const FString& Parameters)
 		FBreachSourceOption Option;
 		if (bCircle)
 		{
-			Option.ShapeClass = UBreachCircleShape::StaticClass();
 			Option.ShapeOption.InitializeAs<FBreachCircleShapeOption>();
 		}
 		else
 		{
-			Option.ShapeClass = UBreachBoxShape::StaticClass();
 			Option.ShapeOption.InitializeAs<FBreachBoxShapeOption>();
 		}
 		Option.Contour.bEnabled = true;

@@ -1,4 +1,4 @@
-#include "Shape/BreachShape.h"
+#include "BreachSourceOption.h"
 
 namespace
 {
@@ -20,34 +20,30 @@ namespace
 	}
 }
 
-bool UBreachCircleShape::GeneratePolygon(const FBreachSourceOption& Option, UE::Geometry::FPolygon2d& OutPolygon) const
+bool FBreachShapeOption::GeneratePolygon(UE::Geometry::FPolygon2d& OutPolygon) const
 {
-	const auto* Shape = Option.ShapeOption.GetPtr<FBreachCircleShapeOption>();
+	// 에디터에서 기본 구조체 자체를 고를 수 있으므로, 형상 종류가 없는 옵션은 거부한다.
 	OutPolygon = UE::Geometry::FPolygon2d();
-	if (!Shape)
-	{
-		return false;
-	}
-	return MakeCircle(Shape->Radius, Shape->Segments, OutPolygon);
+	return false;
 }
 
-bool UBreachBoxShape::GeneratePolygon(const FBreachSourceOption& Option, UE::Geometry::FPolygon2d& OutPolygon) const
+bool FBreachCircleShapeOption::GeneratePolygon(UE::Geometry::FPolygon2d& OutPolygon) const
+{
+	return MakeCircle(Radius, Segments, OutPolygon);
+}
+
+bool FBreachBoxShapeOption::GeneratePolygon(UE::Geometry::FPolygon2d& OutPolygon) const
 {
 	using namespace UE::Geometry;
 	OutPolygon = FPolygon2d();
-	const auto* Shape = Option.ShapeOption.GetPtr<FBreachBoxShapeOption>();
-	if (!Shape)
+	if (!FMath::IsFinite(Size.X) || !FMath::IsFinite(Size.Y)
+		|| Size.X <= UE_DOUBLE_KINDA_SMALL_NUMBER || Size.Y <= UE_DOUBLE_KINDA_SMALL_NUMBER
+		|| !FMath::IsFinite(CornerRadius))
 	{
 		return false;
 	}
-	if (!FMath::IsFinite(Shape->Size.X) || !FMath::IsFinite(Shape->Size.Y)
-		|| Shape->Size.X <= UE_DOUBLE_KINDA_SMALL_NUMBER || Shape->Size.Y <= UE_DOUBLE_KINDA_SMALL_NUMBER
-		|| !FMath::IsFinite(Shape->CornerRadius))
-	{
-		return false;
-	}
-	const FVector2d Half = FVector2d(Shape->Size) * 0.5;
-	const double Radius = FMath::Clamp(double(Shape->CornerRadius), 0.0, FMath::Min(Half.X, Half.Y));
+	const FVector2d Half = FVector2d(Size) * 0.5;
+	const double Radius = FMath::Clamp(double(CornerRadius), 0.0, FMath::Min(Half.X, Half.Y));
 	TArray<FVector2d> Boundary;
 	if (Radius <= UE_DOUBLE_KINDA_SMALL_NUMBER)
 	{
@@ -58,7 +54,7 @@ bool UBreachBoxShape::GeneratePolygon(const FBreachSourceOption& Option, UE::Geo
 	{
 		const FVector2d Centers[] = { {Half.X - Radius, -Half.Y + Radius}, {Half.X - Radius, Half.Y - Radius},
 			{-Half.X + Radius, Half.Y - Radius}, {-Half.X + Radius, -Half.Y + Radius} };
-		const int32 Segments = FMath::Clamp(Shape->CornerSegments, 1, 128);
+		const int32 Segments = FMath::Clamp(CornerSegments, 1, 128);
 		for (int32 Corner = 0; Corner < 4; ++Corner)
 		{
 			for (int32 Step = 0; Step <= Segments; ++Step)

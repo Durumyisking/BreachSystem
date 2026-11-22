@@ -2,7 +2,6 @@
 
 #include "Components/BreachSourceComponent.h"
 #include "BreachSystemLog.h"
-#include "Shape/BreachShape.h"
 
 void UBreachSourceComponent::BeginPlay()
 {
@@ -30,7 +29,6 @@ void UBreachSourceComponent::PostEditChangeProperty(FPropertyChangedEvent& Prope
 void UBreachSourceComponent::BindCircle(float Radius, int32 Segments, float MicroDepth, int32 Seed)
 {
 	FBreachSourceOption Option;
-	Option.ShapeClass = UBreachCircleShape::StaticClass();
 	FBreachCircleShapeOption& ShapeOption = Option.ShapeOption.InitializeAs<FBreachCircleShapeOption>();
 	ShapeOption.Radius = Radius;
 	ShapeOption.Segments = Segments;
@@ -45,7 +43,6 @@ void UBreachSourceComponent::BindCircle(float Radius, int32 Segments, float Micr
 void UBreachSourceComponent::BindBox(FVector2D Size, float CornerRadius, int32 CornerSegments, float MicroDepth, int32 Seed)
 {
 	FBreachSourceOption Option;
-	Option.ShapeClass = UBreachBoxShape::StaticClass();
 	FBreachBoxShapeOption& ShapeOption = Option.ShapeOption.InitializeAs<FBreachBoxShapeOption>();
 	ShapeOption.Size = Size;
 	ShapeOption.CornerRadius = CornerRadius;
@@ -66,19 +63,14 @@ void UBreachSourceComponent::UpdateBreachSourceOption(const FBreachSourceOption&
 bool UBreachSourceComponent::PrepareCutterPolygon(const FBreachSourceOption& InOption)
 {
 	FBreachSourceOption AcceptedOption = InOption;
-	if (!AcceptedOption.ShapeClass)
+	const FBreachShapeOption* Shape = AcceptedOption.ShapeOption.GetPtr();
+	if (!Shape)
 	{
-		UE_LOG(LogBreachSource, Warning, TEXT("BreachSourceComponent '%s' rejected source without ShapeClass."), *GetPathName());
-		return false;
-	}
-	const UBreachShape* ShapeCDO = AcceptedOption.ShapeClass->GetDefaultObject<UBreachShape>();
-	if (!ShapeCDO)
-	{
-		UE_LOG(LogBreachSource, Warning, TEXT("BreachSourceComponent '%s' rejected source without shape CDO."), *GetPathName());
+		UE_LOG(LogBreachSource, Warning, TEXT("BreachSourceComponent '%s' rejected source without ShapeOption."), *GetPathName());
 		return false;
 	}
 	UE::Geometry::FPolygon2d BasePolygon;
-	const bool bBaseGenerated = ShapeCDO->GeneratePolygon(AcceptedOption, BasePolygon);
+	const bool bBaseGenerated = Shape->GeneratePolygon(BasePolygon);
 	if (!bBaseGenerated)
 	{
 		UE_LOG(LogBreachSource, Warning, TEXT("BreachSourceComponent '%s' rejected invalid base shape options."), *GetPathName());
@@ -87,7 +79,7 @@ bool UBreachSourceComponent::PrepareCutterPolygon(const FBreachSourceOption& InO
 	FString Error;
 	FBreachContourOptions ContourOptions = AcceptedOption.Contour;
 	// Circle vertices approximate a smooth boundary rather than authored corners.
-	if (ShapeCDO->IsA<UBreachCircleShape>())
+	if (AcceptedOption.ShapeOption.GetPtr<FBreachCircleShapeOption>())
 	{
 		ContourOptions.bMoveCorners = true;
 	}
@@ -144,7 +136,6 @@ bool UBreachSourceComponent::CacheCutterPolygon()
 	if (!bCutterPrepared)
 	{
 		FBreachSourceOption DefaultOption;
-		DefaultOption.ShapeClass = UBreachCircleShape::StaticClass();
 		DefaultOption.ShapeOption.InitializeAs<FBreachCircleShapeOption>();
 		UE_LOG(LogBreachSource, Warning, TEXT("BreachSourceComponent '%s' is using the default circle cutter."), *GetPathName());
 		return PrepareCutterPolygon(DefaultOption);
